@@ -36,7 +36,7 @@ export default function GridComunicacao({ escalas, datas, loading, onRemover, po
                       {pessoa ? (
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: t.accentGlow, border: `1px solid ${t.accentDim}`, borderRadius: "5px", padding: "4px 10px" }}>
                           <span style={{ color: t.accent, fontWeight: 500, fontSize: "13px" }}>
-                            {pessoa.charAt(0).toUpperCase() + pessoa.slice(1)}
+                            {pessoa.toUpperCase()}
                           </span>
                           {podeEditar && (
                             <button onClick={() => onRemover(dataObj.data, turnoKey, f)} title="Remover" style={{ background: "none", border: "none", cursor: "pointer", color: t.textDim, fontSize: "11px", padding: 0, lineHeight: 1, display: "flex", alignItems: "center", transition: "color 0.1s" }}
