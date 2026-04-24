@@ -2,7 +2,7 @@
 import { formatarData } from "../utils/dateHelper";
 
 export default function GridRecepcao({ escalas, datas, loading, onRemover, podeEditar, theme: t }) {
-  const funcoes = ["Introdutor(a) 1", "Introdutor(a) 2", "Introdutor(a) 3"];
+  const funcoes = ["INTRODUTOR(A) 1", "INTRODUTOR(A) 2", "INTRODUTOR(A) 3"];
 
   if (loading && Object.keys(escalas).length === 0 && datas.length === 0)
     return <div style={{ padding: "60px", textAlign: "center", color: t.textMuted, fontSize: "14px" }}>Carregando escala...</div>;
