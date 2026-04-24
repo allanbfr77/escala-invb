@@ -43,6 +43,7 @@ export const pessoasPorMinisterio = {
     "MATHEUS",
     "MEDEIROS",
     "MIRIAN",
+    "PR. HUMBERTO",
     "RAPHAELA",
     "ROSE",
     "SEBASTIANA",
