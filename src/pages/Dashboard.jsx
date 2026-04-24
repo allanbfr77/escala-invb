@@ -15,21 +15,21 @@ import RelatorioMinisterio from "../components/RelatorioMinisterio";
 import { funcoesPorMinisterio } from "../data/funcoes";
 
 const theme = {
-  bg: "#0d1117",
-  surface: "#161b22",
-  surfaceHover: "#1c2128",
-  border: "#21262d",
-  borderLight: "#30363d",
-  accent: "#2f81f7",
-  accentDim: "#1a3a5c",
-  accentGlow: "rgba(47,129,247,0.15)",
-  text: "#e6edf3",
-  textMuted: "#7d8590",
-  textDim: "#484f58",
-  danger: "#f85149",
-  dangerDim: "rgba(248,81,73,0.15)",
-  success: "#3fb950",
-  successDim: "rgba(63,185,80,0.12)",
+  bg: "#07070e",
+  surface: "#0e0e1b",
+  surfaceHover: "#131325",
+  border: "#1a1a2c",
+  borderLight: "#24243a",
+  accent: "#a78bfa",
+  accentDim: "#1c1540",
+  accentGlow: "rgba(167,139,250,0.08)",
+  text: "#ece9ff",
+  textMuted: "#6a677f",
+  textDim: "#32303f",
+  danger: "#fb7185",
+  dangerDim: "rgba(251,113,133,0.08)",
+  success: "#34d399",
+  successDim: "rgba(52,211,153,0.08)",
 };
 
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes }) {
@@ -199,27 +199,106 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const current = ministerioConfig[ministerioSelecionado];
 
   return (
-    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: ${theme.bg}; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: ${theme.surface}; }
-        ::-webkit-scrollbar-thumb { background: ${theme.borderLight}; border-radius: 3px; }
+        body { background: ${theme.bg}; font-family: 'Outfit', sans-serif; }
+
+        /* Glow de fundo para o glassmorphism ter profundidade */
+        body::before {
+          content: '';
+          position: fixed;
+          top: -30%;
+          right: -20%;
+          width: 700px;
+          height: 700px;
+          background: radial-gradient(circle, rgba(167,139,250,0.06) 0%, transparent 65%);
+          pointer-events: none;
+          z-index: 0;
+        }
+        body::after {
+          content: '';
+          position: fixed;
+          bottom: -20%;
+          left: -10%;
+          width: 500px;
+          height: 500px;
+          background: radial-gradient(circle, rgba(124,106,247,0.04) 0%, transparent 65%);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: ${theme.borderLight}; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: ${theme.textDim}; }
 
+        /* Select focus */
+        .sidebar-select:focus {
+          border-color: ${theme.accent} !important;
+          box-shadow: 0 0 0 3px rgba(167,139,250,0.12);
+        }
+
+        /* Hover nas linhas da grid */
+        .grid-row:hover { background: rgba(167,139,250,0.05) !important; cursor: default; }
+
+        /* Sticky header da grid */
+        .grid-thead th {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          background: ${theme.surface};
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Mobile: cards em vez de tabela */
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
           .header-title { display: none !important; }
           .header-sep { display: none !important; }
           .header-email { display: none !important; }
-          .header-pad { padding: 0 16px !important; }
-          .main-pad { padding: 16px 12px !important; }
-          .page-header { flex-wrap: wrap; gap: 10px !important; }
-          .page-header-actions { width: 100%; }
+          .header-pad { padding: 0 14px !important; }
+          .main-pad { padding: 14px 10px !important; }
+          .page-header { flex-wrap: wrap; gap: 8px !important; }
+          .page-header-actions { width: 100%; justify-content: flex-end; }
           .btn-label { display: none; }
           .mes-nav span { min-width: 70px !important; font-size: 11px !important; }
+
+          .grid-table { width: 100% !important; }
+          .grid-thead { display: none; }
+          .grid-table tbody { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+          .grid-row {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            border: 1px solid ${theme.border} !important;
+            border-bottom: 1px solid ${theme.border} !important;
+            border-radius: 8px;
+            overflow: hidden;
+            background: ${theme.surface} !important;
+          }
+          .grid-row td {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px !important;
+            border-bottom: 1px solid ${theme.border};
+            white-space: normal !important;
+          }
+          .grid-row td:last-child { border-bottom: none; }
+          .grid-row td::before {
+            content: attr(data-label);
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: ${theme.textMuted};
+            font-family: 'Outfit', sans-serif;
+            min-width: 90px;
+            flex-shrink: 0;
+          }
+          .grid-date-cell { border-right: none !important; background: rgba(167,139,250,0.04); }
         }
       `}</style>
 
@@ -237,8 +316,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       {/* Drawer mobile */}
       <div style={{
         position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 201,
-        width: "300px", background: theme.surface,
-        borderRight: `1px solid ${theme.border}`,
+        width: "300px",
+        background: "rgba(14,14,27,0.85)",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        borderRight: `1px solid rgba(167,139,250,0.12)`,
         padding: "20px 16px", overflowY: "auto",
         transform: drawerAberto ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.25s ease",
@@ -291,41 +372,41 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       {/* Navbar */}
       <header className="header-pad" style={{
         borderBottom: `1px solid ${theme.border}`, background: theme.surface,
-        padding: "0 32px", height: "56px", display: "flex", alignItems: "center",
+        padding: "0 24px", height: "48px", display: "flex", alignItems: "center",
         justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: `linear-gradient(135deg, ${theme.accent}, #388bfd)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, #a78bfa)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
-          <span className="header-title" style={{ fontWeight: 600, fontSize: "15px", letterSpacing: "-0.3px", color: theme.text }}>
-            Sistema de Escala - INVB
+          <span className="header-title" style={{ fontWeight: 600, fontSize: "13px", letterSpacing: "-0.2px", color: theme.text }}>
+            Escala INVB
           </span>
-          <span className="header-sep" style={{ color: theme.borderLight, fontSize: "18px", fontWeight: 300 }}>·</span>
+          <span className="header-sep" style={{ color: theme.border, fontSize: "16px" }}>|</span>
 
           {/* Navegação de mês */}
-          <div className="mes-nav" style={{ display: "flex", alignItems: "center", gap: "2px", background: theme.bg, borderRadius: "8px", padding: "3px 4px", border: `1px solid ${theme.border}` }}>
-            <button onClick={handleMesAnterior} style={{ background: "transparent", border: "none", cursor: "pointer", color: theme.textMuted, padding: "3px 8px", borderRadius: "5px", fontSize: "14px", lineHeight: 1 }}
+          <div className="mes-nav" style={{ display: "flex", alignItems: "center", gap: "1px", background: theme.bg, borderRadius: "7px", padding: "2px 3px", border: `1px solid ${theme.border}` }}>
+            <button onClick={handleMesAnterior} style={{ background: "transparent", border: "none", cursor: "pointer", color: theme.textMuted, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif" }}
               onMouseEnter={e => { e.currentTarget.style.color = theme.text; e.currentTarget.style.background = theme.surface; }}
               onMouseLeave={e => { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
             >‹</button>
-            <span style={{ color: theme.text, fontSize: "13px", fontFamily: "'DM Mono', monospace", minWidth: "90px", textAlign: "center", fontWeight: 500, letterSpacing: "0.3px" }}>
+            <span style={{ color: theme.text, fontSize: "12px", fontFamily: "'JetBrains Mono', monospace", minWidth: "86px", textAlign: "center", fontWeight: 500, letterSpacing: "0.5px" }}>
               {new Date(mes + "-15").toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "").toUpperCase()}
             </span>
-            <button onClick={handleMesProximo} style={{ background: theme.accentDim, border: "none", cursor: "pointer", color: theme.accent, padding: "3px 8px", borderRadius: "5px", fontSize: "14px", lineHeight: 1 }}
+            <button onClick={handleMesProximo} style={{ background: theme.accentDim, border: "none", cursor: "pointer", color: theme.accent, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif" }}
               onMouseEnter={e => { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = "white"; }}
               onMouseLeave={e => { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; }}
             >›</button>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span className="header-email" style={{ fontSize: "13px", color: theme.textMuted }}>{user?.email}</span>
-          <button onClick={logout} style={{ padding: "6px 14px", background: "transparent", border: `1px solid ${theme.borderLight}`, borderRadius: "6px", color: theme.textMuted, fontSize: "13px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>{user?.email}</span>
+          <button onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = theme.borderLight; e.currentTarget.style.color = theme.textMuted; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
           >Sair</button>
         </div>
       </header>
@@ -335,9 +416,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
         {/* Sidebar desktop */}
         <aside className="desktop-sidebar" style={{
-          width: "300px", minWidth: "300px", borderRight: `1px solid ${theme.border}`,
-          background: theme.surface, padding: "24px 16px", overflowY: "auto",
-          position: "sticky", top: "56px", height: "calc(100vh - 56px)",
+          width: "268px", minWidth: "268px",
+          borderRight: `1px solid rgba(167,139,250,0.1)`,
+          background: "rgba(14,14,27,0.75)",
+          backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+          padding: "18px 14px", overflowY: "auto",
+          position: "sticky", top: "48px", height: "calc(100vh - 48px)",
         }}>
           {/* ── ALTERADO: refreshKey passado para o Sidebar desktop */}
           <SidebarFiltros
@@ -353,14 +437,18 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </aside>
 
         {/* Main */}
-        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "28px 32px", overflowX: "hidden", minWidth: 0 }}>
+        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "20px 24px", overflowX: "hidden", minWidth: 0 }}>
 
           {/* Page header */}
-          <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", gap: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-              <div style={{ color: theme.textMuted, flexShrink: 0 }}>{current.icon}</div>
+          <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+              <div style={{
+                color: theme.accent, flexShrink: 0, opacity: 0.85,
+                background: theme.accentDim, borderRadius: "8px",
+                padding: "6px", display: "flex", alignItems: "center", justifyContent: "center",
+              }}>{current.icon}</div>
               <div style={{ minWidth: 0 }}>
-                <h2 style={{ fontSize: "16px", fontWeight: 600, letterSpacing: "-0.3px", color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <h2 style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "-0.1px", color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {current.nome}
                 </h2>
                 <p style={{ fontSize: "11px", color: theme.textMuted, marginTop: "2px" }}>
@@ -368,7 +456,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </p>
               </div>
               {!podeEditar && (
-                <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "20px", background: theme.accentDim, color: theme.accent, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
+                <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "20px", background: theme.accentDim, color: theme.accent, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.3px" }}>
                   LEITURA
                 </span>
               )}
@@ -397,25 +485,23 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               )}
             </div>
 
-            <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+            <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
               <button
                 onClick={handleDownload}
                 disabled={baixando || !podeEditar}
                 title={!podeEditar ? "Disponível apenas no modo de edição" : "Baixar escala"}
                 style={{
-                  padding: "7px 12px",
+                  padding: "5px 10px",
                   background: "transparent",
-                  border: `1px solid ${theme.borderLight}`,
-                  borderRadius: "6px",
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: "5px",
                   color: !podeEditar ? theme.textDim : theme.textMuted,
                   fontSize: "12px",
                   cursor: (baixando || !podeEditar) ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
+                  display: "flex", alignItems: "center", gap: "5px",
                   transition: "all 0.15s",
-                  opacity: !podeEditar ? 0.4 : 1,
+                  opacity: !podeEditar ? 0.35 : 1,
                 }}
                 onMouseEnter={e => {
                   if (!baixando && podeEditar) {
@@ -425,12 +511,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   }
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = theme.borderLight;
+                  e.currentTarget.style.borderColor = theme.border;
                   e.currentTarget.style.color = !podeEditar ? theme.textDim : theme.textMuted;
                   e.currentTarget.style.background = "transparent";
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
                 <span className="btn-label">{baixando ? "Gerando..." : "Baixar escala"}</span>
@@ -440,10 +526,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 <button
                   onClick={() => setVerRelatorio(v => !v)}
                   style={{
-                    padding: "7px 12px", fontFamily: "inherit",
+                    padding: "5px 10px", fontFamily: "inherit",
                     background: verRelatorio ? theme.accentDim : "transparent",
-                    border: `1px solid ${verRelatorio ? theme.accent : theme.borderLight}`,
-                    borderRadius: "6px",
+                    border: `1px solid ${verRelatorio ? theme.accent : theme.border}`,
+                    borderRadius: "5px",
                     color: verRelatorio ? theme.accent : theme.textMuted,
                     fontSize: "12px", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: "5px",
@@ -458,13 +544,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   }}
                   onMouseLeave={e => {
                     if (!verRelatorio) {
-                      e.currentTarget.style.borderColor = theme.borderLight;
+                      e.currentTarget.style.borderColor = theme.border;
                       e.currentTarget.style.color = theme.textMuted;
                       e.currentTarget.style.background = "transparent";
                     }
                   }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 20V10M12 20V4M6 20v-6"/>
                   </svg>
                   <span className="btn-label">Relatório</span>
@@ -473,11 +559,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
               {podeEditar && (
                 <button onClick={handleLimparTudo} disabled={limpando}
-                  style={{ padding: "7px 12px", background: "transparent", border: `1px solid ${theme.borderLight}`, borderRadius: "6px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
+                  style={{ padding: "5px 10px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; e.currentTarget.style.background = theme.dangerDim; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.borderLight; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
                   </svg>
                   <span className="btn-label">{limpando ? "Limpando..." : "Limpar mês"}</span>

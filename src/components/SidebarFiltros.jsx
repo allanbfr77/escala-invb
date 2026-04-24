@@ -277,11 +277,12 @@ export default function SidebarFiltros({
       display: "block", marginBottom: "6px"
     },
     select: {
-      width: "100%", padding: "10px 12px", borderRadius: "6px",
+      width: "100%", padding: "9px 12px", borderRadius: "6px",
       border: `1px solid ${t.border}`, background: t.bg,
-      color: t.text, fontSize: "14px", fontFamily: "inherit",
+      color: t.text, fontSize: "13px", fontFamily: "inherit",
       outline: "none", cursor: "pointer", appearance: "none",
-      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237d8590' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+      transition: "border-color 0.15s, box-shadow 0.15s",
+      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a677f' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
       backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
       paddingRight: "28px",
     },
@@ -301,7 +302,7 @@ export default function SidebarFiltros({
   })();
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ fontFamily: "'Outfit', sans-serif" }}>
 
       <div style={{ marginBottom: "20px", paddingBottom: "16px", borderBottom: `1px solid ${t.border}` }}>
         <p style={{ fontSize: "11px", fontWeight: 600, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.6px" }}>
@@ -330,7 +331,7 @@ export default function SidebarFiltros({
       {/* Pessoa */}
       <div style={s.field}>
         <label style={s.label}>Pessoa</label>
-        <select value={pessoaSelecionada} onChange={e => { setPessoa(e.target.value); onConflito?.(null); }} style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }} disabled={!podeEditar}>
+        <select className="sidebar-select" value={pessoaSelecionada} onChange={e => { setPessoa(e.target.value); onConflito?.(null); }} style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }} disabled={!podeEditar}>
           <option value="">Selecione...</option>
           {pessoasDoMinisterio.map(p => (
             <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
@@ -342,6 +343,7 @@ export default function SidebarFiltros({
       <div style={s.field}>
         <label style={s.label}>Função</label>
         <select
+          className="sidebar-select"
           value={funcaoSelecionada}
           onChange={e => { setFuncao(e.target.value); onConflito?.(null); }}
           style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }}

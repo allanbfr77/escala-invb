@@ -55,7 +55,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
   const semEscala = relatorio.filter(r => r.total === 0);
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ fontFamily: "'Outfit', sans-serif" }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
