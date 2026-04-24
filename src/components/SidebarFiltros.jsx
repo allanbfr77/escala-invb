@@ -1,5 +1,5 @@
 // ===== src/components/SidebarFiltros.jsx =====
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
@@ -53,40 +53,112 @@ const ministerios = [
   },
 ];
 
-const steps = [
-  { num: 1, label: "Ministério" },
-  { num: 2, label: "Pessoa" },
-  { num: 3, label: "Função" },
-  { num: 4, label: "Datas" },
-];
 
 export default function SidebarFiltros({
   usuario, ministerioSelecionado, setMinisterioSelecionado,
   datasDisponiveis, onRefresh, theme, onConfirmar,
   onMensagem, onConflito,
+  // Incremente este valor externamente sempre que uma escala for removida
+  // da grid para que o sidebar recarregue as datas ocupadas automaticamente.
+  refreshKey = 0,
 }) {
   const t = theme || {};
-  const [salvando, setSalvando]             = useState(false);
-  const [pessoaSelecionada, setPessoa]      = useState("");
-  const [funcaoSelecionada, setFuncao]      = useState("");
-  const [datasIds, setDatasIds]             = useState([]);
-  const [dropdownAberto, setDropdownAberto] = useState(false);
-  const dropdownRef                         = useRef(null);
+  const [salvando, setSalvando]               = useState(false);
+  const [pessoaSelecionada, setPessoa]        = useState("");
+  const [funcaoSelecionada, setFuncao]        = useState("");
+  const [datasIds, setDatasIds]               = useState([]);
+  const [datasConfirmadas, setDatasConfirmadas] = useState([]);
 
-  // Close dropdown on outside click
+  // Datas já ocupadas para a combinação ministério + função (chave: "data|turno|funcao")
+  const [datasOcupadas, setDatasOcupadas]     = useState(new Set());
+  const [carregandoOcupadas, setCarregandoOcupadas] = useState(false);
+
+
+  // ─── Limpa estado local quando o ministério muda ──────────────────────────
   useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setDropdownAberto(false);
+    setDatasConfirmadas([]);
+    setDatasIds([]);
+    setFuncao("");
+    setPessoa("");
+  }, [ministerioSelecionado]);
+
+  // ─── FIX 1: Limpa datasConfirmadas quando refreshKey muda ─────────────────
+  // Isso garante que datas removidas da grid voltam a aparecer no sidebar
+  // sem precisar recarregar a página.
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    setDatasConfirmadas([]);
+  }, [refreshKey]);
+
+  // ─── FIX 2: Busca ocupadas com chave "data|turno|funcao" ──────────────────
+  // Antes a chave era apenas "data|turno", o que fazia a data desaparecer
+  // de TODAS as funções quando qualquer uma delas estava ocupada.
+  // Agora cada função tem seu próprio banco de datas disponíveis.
+  // Também limpa datasConfirmadas ao trocar de função, pois cada função
+  // tem seu próprio conjunto de datas confirmadas nesta sessão.
+  useEffect(() => {
+    setDatasOcupadas(new Set());
+    setDatasIds([]);
+    setDatasConfirmadas([]);
+
+    if (!funcaoSelecionada || !ministerioSelecionado) return;
+
+    let cancelled = false;
+    const buscarOcupadas = async () => {
+      setCarregandoOcupadas(true);
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, "escalas"),
+            where("ministerioId", "==", ministerioSelecionado),
+            where("funcao", "==", funcaoSelecionada)
+          )
+        );
+
+        if (cancelled) return;
+
+        // Chave inclui a função → cada função tem seu próprio conjunto de ocupadas
+        const ocupadas = new Set();
+        snap.docs.forEach(doc => {
+          const d = doc.data();
+          const turno = d.turno ?? "único";
+          // FIX: inclui funcao na chave para isolar por função
+          ocupadas.add(`${d.data}|${turno}|${d.funcao}`);
+        });
+        setDatasOcupadas(ocupadas);
+      } catch (err) {
+        console.error("Erro ao buscar datas ocupadas:", err);
+      } finally {
+        if (!cancelled) setCarregandoOcupadas(false);
+      }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+
+    buscarOcupadas();
+    return () => { cancelled = true; };
+  }, [ministerioSelecionado, funcaoSelecionada, refreshKey]);
 
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
   const funcoesDoMinisterio = funcoesPorMinisterio[ministerioSelecionado] || [];
   const podeEditar = usuario?.ministerioId === ministerioSelecionado;
-  const stepAtivo = !pessoaSelecionada ? 2 : !funcaoSelecionada ? 3 : datasIds.length === 0 ? 4 : null;
+
+  // ─── FIX 3: Filtro usa a chave "data|turno|funcaoSelecionada" ─────────────
+  // Antes usava só "data|turno", removendo a data de todas as funções.
+  const datasVisiveis = datasDisponiveis.filter(d => {
+    // Datas já confirmadas nesta sessão para esta função ficam ocultas
+    if (datasConfirmadas.includes(d.id)) return false;
+
+    const turnoKey = d.turno ?? "único";
+    // FIX: verifica ocupação apenas para a função atualmente selecionada
+    if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
+
+    return true;
+  });
+
+  // Desseleciona datas que sumiram da lista visível
+  useEffect(() => {
+    const visiveisIds = new Set(datasVisiveis.map(d => d.id));
+    setDatasIds(prev => prev.filter(id => visiveisIds.has(id)));
+  }, [datasOcupadas, datasConfirmadas]);
 
   const toggleData = (id) => {
     setDatasIds(prev =>
@@ -110,11 +182,13 @@ export default function SidebarFiltros({
 
     let erros = 0;
     let conflito = null;
+    const idsSalvos = [];
 
     for (const dataObj of datasObj) {
       const turnoSalvo = dataObj.turno === "único" ? "único" : dataObj.turno;
 
       try {
+        // Verifica conflito com outro ministério para a mesma pessoa/data/turno
         const qConflito = query(
           collection(db, "escalas"),
           where("pessoaNome", "==", pessoaSelecionada.toLowerCase()),
@@ -139,6 +213,7 @@ export default function SidebarFiltros({
           continue;
         }
 
+        // Remove escala anterior para o mesmo ministério + função + data + turno
         const qExistente = query(
           collection(db, "escalas"),
           where("ministerioId", "==", ministerioSelecionado),
@@ -163,6 +238,11 @@ export default function SidebarFiltros({
           criadoEm: new Date().toISOString()
         });
 
+        idsSalvos.push(dataObj.id);
+
+        // Atualiza datasOcupadas localmente com chave que inclui a função
+        setDatasOcupadas(prev => new Set([...prev, `${dataObj.data}|${turnoSalvo}|${funcaoSelecionada}`]));
+
       } catch (error) {
         console.error(error);
         erros++;
@@ -173,6 +253,8 @@ export default function SidebarFiltros({
     if (conflito) onConflito?.(conflito);
 
     if (salvos > 0) {
+      setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
+
       const plural = salvos === 1 ? "data" : "datas";
       onMensagem?.(
         `${pessoaSelecionada.toUpperCase()} escalado como ${funcaoSelecionada} em ${salvos} ${plural}`,
@@ -206,15 +288,17 @@ export default function SidebarFiltros({
     field: { marginBottom: "18px" },
   };
 
-  // Label shown inside the trigger button
-  const datasLabel = datasIds.length === 0
-    ? "Selecione..."
-    : datasIds.length === 1
-      ? (() => {
-          const d = datasDisponiveis.find(d => d.id === datasIds[0]);
-          return d ? formatarData(d.data, d.turno) : "1 data";
-        })()
-      : `${datasIds.length} datas selecionadas`;
+  const datasHint = (() => {
+    if (!funcaoSelecionada) return null;
+    if (carregandoOcupadas) return { text: "Verificando disponibilidade...", color: t.textMuted };
+    if (datasVisiveis.length === 0 && datasDisponiveis.length > 0) {
+      return {
+        text: "Todas as datas já estão preenchidas para esta função",
+        color: "#d2993a",
+      };
+    }
+    return null;
+  })();
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -257,7 +341,12 @@ export default function SidebarFiltros({
       {/* Função */}
       <div style={s.field}>
         <label style={s.label}>Função</label>
-        <select value={funcaoSelecionada} onChange={e => setFuncao(e.target.value)} style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }} disabled={!podeEditar}>
+        <select
+          value={funcaoSelecionada}
+          onChange={e => { setFuncao(e.target.value); onConflito?.(null); }}
+          style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }}
+          disabled={!podeEditar}
+        >
           <option value="">Selecione...</option>
           {funcoesDoMinisterio.map(f => (
             <option key={f} value={f}>{f}</option>
@@ -265,74 +354,37 @@ export default function SidebarFiltros({
         </select>
       </div>
 
-      {/* Datas — custom dropdown com checkboxes */}
-      <div style={{ ...s.field, position: "relative" }} ref={dropdownRef}>
-        <label style={s.label}>
-          Datas
-          {datasIds.length > 0 && (
-            <span style={{
-              marginLeft: "7px", background: t.accent, color: "white",
-              borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: 700,
-            }}>
-              {datasIds.length}
-            </span>
-          )}
-        </label>
-
-        {/* Trigger button — visually matches the other selects */}
-        <button
-          onClick={() => { if (podeEditar && datasDisponiveis.length > 0) setDropdownAberto(v => !v); }}
-          disabled={!podeEditar || datasDisponiveis.length === 0}
-          style={{
-            width: "100%", padding: "10px 12px", borderRadius: "6px",
-            border: `1px solid ${dropdownAberto ? t.accent : t.border}`,
-            background: t.bg, fontFamily: "inherit",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            outline: "none", cursor: !podeEditar || datasDisponiveis.length === 0 ? "not-allowed" : "pointer",
-            opacity: (!podeEditar || datasDisponiveis.length === 0) ? 0.5 : 1,
-            transition: "border-color 0.15s",
-          }}
-        >
-          <span style={{
-            fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            color: datasIds.length === 0 ? (t.textDim || t.textMuted) : t.text,
-          }}>
-            {datasLabel}
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none"
-            style={{ flexShrink: 0, marginLeft: "8px", transition: "transform 0.2s", transform: dropdownAberto ? "rotate(180deg)" : "rotate(0deg)" }}
-          >
-            <path d="M6 9l6 6 6-6" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-
-        {/* Dropdown panel */}
-        {dropdownAberto && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
-            borderRadius: "6px", border: `1px solid ${t.border}`,
-            background: t.surface || t.bg,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-            overflow: "hidden",
-          }}>
-            {/* Selecionar tudo / nenhum */}
-            <div style={{ display: "flex", borderBottom: `1px solid ${t.border}` }}>
+      {/* Datas — lista visível e compacta */}
+      <div style={{ ...s.field }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+          <label style={{ ...s.label, marginBottom: 0 }}>
+            Datas
+            {datasIds.length > 0 && (
+              <span style={{
+                marginLeft: "7px", background: t.accent, color: "white",
+                borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: 700,
+              }}>
+                {datasIds.length}
+              </span>
+            )}
+          </label>
+          {podeEditar && datasVisiveis.length > 0 && (
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
-                onClick={() => { setDatasIds(datasDisponiveis.map(d => d.id)); onConflito?.(null); }}
+                onClick={() => { setDatasIds(datasVisiveis.map(d => d.id)); onConflito?.(null); }}
                 style={{
-                  flex: 1, padding: "7px", background: "transparent", border: "none",
-                  fontSize: "11px", fontWeight: 600, color: t.textMuted,
+                  background: "transparent", border: "none", padding: 0,
+                  fontSize: "11px", fontWeight: 600, color: t.accent,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
                 Todas
               </button>
-              <div style={{ width: "1px", background: t.border }} />
+              <span style={{ color: t.border }}>·</span>
               <button
                 onClick={() => { setDatasIds([]); onConflito?.(null); }}
                 style={{
-                  flex: 1, padding: "7px", background: "transparent", border: "none",
+                  background: "transparent", border: "none", padding: 0,
                   fontSize: "11px", fontWeight: 600, color: t.textMuted,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
@@ -340,50 +392,80 @@ export default function SidebarFiltros({
                 Nenhuma
               </button>
             </div>
+          )}
+        </div>
 
-            {/* Lista de datas com checkbox */}
-            <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-              {datasDisponiveis.map((d, i) => {
-                const checked = datasIds.includes(d.id);
-                return (
-                  <div
-                    key={d.id}
-                    onClick={() => toggleData(d.id)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "10px",
-                      padding: "9px 12px", cursor: "pointer",
-                      background: checked ? (t.accentDim || "rgba(99,102,241,0.08)") : "transparent",
-                      borderBottom: i < datasDisponiveis.length - 1 ? `1px solid ${t.border}` : "none",
-                      transition: "background 0.1s",
-                    }}
-                  >
-                    {/* Custom checkbox box */}
-                    <span style={{
-                      width: "15px", height: "15px", borderRadius: "4px", flexShrink: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      border: `2px solid ${checked ? t.accent : t.border}`,
-                      background: checked ? t.accent : "transparent",
-                      transition: "all 0.15s",
-                    }}>
-                      {checked && (
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
-                          <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </span>
-                    <span style={{
-                      fontSize: "13px",
-                      color: checked ? t.text : t.textMuted,
-                      fontWeight: checked ? 500 : 400,
-                    }}>
-                      {formatarData(d.data, d.turno)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+        {/* Hint de datas ocupadas */}
+        {datasHint && (
+          <div style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M12 9V14M12 17.5V18M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z"
+                stroke={datasHint.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span style={{ fontSize: "11px", color: datasHint.color, fontWeight: 500 }}>
+              {datasHint.text}
+            </span>
           </div>
         )}
+
+        {/* Lista inline de datas */}
+        <div style={{
+          borderRadius: "6px", border: `1px solid ${t.border}`,
+          overflow: "hidden",
+          opacity: !podeEditar || carregandoOcupadas ? 0.5 : 1,
+        }}>
+          {carregandoOcupadas ? (
+            <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
+              Verificando disponibilidade...
+            </div>
+          ) : !funcaoSelecionada ? (
+            <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
+              Selecione uma função primeiro
+            </div>
+          ) : datasVisiveis.length === 0 ? (
+            <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
+              Todas as datas já estão preenchidas
+            </div>
+          ) : (
+            datasVisiveis.map((d, i) => {
+              const checked = datasIds.includes(d.id);
+              return (
+                <div
+                  key={d.id}
+                  onClick={() => { if (podeEditar) toggleData(d.id); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "7px 10px", cursor: podeEditar ? "pointer" : "default",
+                    background: checked ? (t.accentDim || "rgba(99,102,241,0.08)") : "transparent",
+                    borderBottom: i < datasVisiveis.length - 1 ? `1px solid ${t.border}` : "none",
+                    transition: "background 0.1s",
+                  }}
+                >
+                  <span style={{
+                    width: "14px", height: "14px", borderRadius: "3px", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: `2px solid ${checked ? t.accent : t.border}`,
+                    background: checked ? t.accent : "transparent",
+                    transition: "all 0.15s",
+                  }}>
+                    {checked && (
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                  <span style={{
+                    fontSize: "13px",
+                    color: checked ? t.text : t.textMuted,
+                    fontWeight: checked ? 500 : 400,
+                  }}>
+                    {formatarData(d.data, d.turno)}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Botão confirmar */}
@@ -409,7 +491,14 @@ export default function SidebarFiltros({
 
       {/* Botão limpar */}
       <button
-        onClick={() => { setPessoa(""); setFuncao(""); setDatasIds([]); setDropdownAberto(false); onConflito?.(null); }}
+        onClick={() => {
+          setPessoa("");
+          setFuncao("");
+          setDatasIds([]);
+          setDatasConfirmadas([]);
+          setDatasOcupadas(new Set());
+          onConflito?.(null);
+        }}
         disabled={!podeEditar}
         style={{
           width: "100%", padding: "10px", borderRadius: "6px",
@@ -422,45 +511,6 @@ export default function SidebarFiltros({
         Limpar seleção
       </button>
 
-      {/* Steps */}
-      {podeEditar && (
-        <div style={{ marginTop: "24px", padding: "14px", borderRadius: "8px", background: t.bg, border: `1px solid ${t.border}` }}>
-          <p style={{ fontSize: "10px", fontWeight: 700, color: t.textDim, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "12px" }}>
-            Como adicionar
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {steps.map(({ num, label }) => {
-              const completo = num === 1
-                || (num === 2 && pessoaSelecionada)
-                || (num === 3 && funcaoSelecionada)
-                || (num === 4 && datasIds.length > 0);
-              const ativo = stepAtivo === num;
-              return (
-                <div key={num} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{
-                    width: "20px", height: "20px", borderRadius: "50%", flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "10px", fontWeight: 700, transition: "all 0.2s",
-                    background: completo ? t.accent : ativo ? t.accentDim : "transparent",
-                    border: `1.5px solid ${completo ? t.accent : ativo ? t.accent : t.borderLight}`,
-                    color: completo ? "white" : ativo ? t.accent : t.textDim,
-                  }}>
-                    {completo && num !== stepAtivo ? "✓" : num}
-                  </div>
-                  <span style={{ fontSize: "12px", fontWeight: ativo ? 600 : 400, color: completo ? t.text : ativo ? t.accent : t.textDim, transition: "all 0.2s" }}>
-                    {label}
-                    {num === 4 && datasIds.length > 0 && (
-                      <span style={{ marginLeft: "4px", color: t.accent, fontWeight: 700 }}>
-                        ({datasIds.length})
-                      </span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

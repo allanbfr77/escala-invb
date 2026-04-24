@@ -11,6 +11,8 @@ import GridComunicacao from "../components/GridComunicacao";
 import GridInfantil from "../components/GridInfantil";
 import GridLouvor from "../components/GridLouvor";
 import GridRecepcao from "../components/GridRecepcao";
+import RelatorioMinisterio from "../components/RelatorioMinisterio";
+import { funcoesPorMinisterio } from "../data/funcoes";
 
 const theme = {
   bg: "#0d1117",
@@ -33,6 +35,9 @@ const theme = {
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes }) {
   const { user, logout } = useAuth();
   const { escalas, datas, loading } = useEscalas();
+  // ── NOVO: refreshKey dispara re-fetch no Sidebar quando uma escala é removida
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [verRelatorio, setVerRelatorio] = useState(false);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [drawerAberto, setDrawerAberto] = useState(false);
@@ -65,11 +70,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     try {
       const el = gridRef.current;
 
-      // Largura real da tabela (pode ser maior que a viewport no mobile)
       const fullWidth  = el.scrollWidth;
       const fullHeight = el.scrollHeight;
 
-      // Clona o grid e renderiza fora da tela, sem nenhum overflow cortando
       const clone = el.cloneNode(true);
       clone.style.position   = "fixed";
       clone.style.top        = "-99999px";
@@ -79,7 +82,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       clone.style.overflow   = "visible";
       clone.style.zIndex     = "-1";
 
-      // Remove overflow de todos os wrappers internos do clone (ex: o div com overflowX:auto do Grid)
       clone.querySelectorAll("*").forEach(node => {
         node.style.overflow  = "visible";
         node.style.overflowX = "visible";
@@ -153,14 +155,23 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     },
   };
 
+  // ── ALTERADO: incrementa refreshKey após remover para o Sidebar re-buscar
   const handleRemover = async (dataStr, turno, funcao) => {
     try {
-      const q = query(collection(db, "escalas"), where("ministerioId", "==", ministerioSelecionado), where("data", "==", dataStr), where("turno", "==", turno), where("funcao", "==", funcao));
+      const q = query(
+        collection(db, "escalas"),
+        where("ministerioId", "==", ministerioSelecionado),
+        where("data", "==", dataStr),
+        where("turno", "==", turno),
+        where("funcao", "==", funcao)
+      );
       const snap = await getDocs(q);
       for (const doc of snap.docs) await deleteDoc(doc.ref);
+      setRefreshKey(k => k + 1);
     } catch (err) { console.error(err); }
   };
 
+  // ── ALTERADO: incrementa refreshKey após limpar tudo
   const handleLimparTudo = async () => {
     if (!window.confirm(`Limpar toda a escala de ${ministerioConfig[ministerioSelecionado].nome} deste mês?\n\nEssa ação não pode ser desfeita.`)) return;
     setLimpando(true);
@@ -168,12 +179,21 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       const [ano, mesNum] = mes.split("-");
       const inicio = `${ano}-${mesNum}-01`;
       const fim = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
-      const q = query(collection(db, "escalas"), where("ministerioId", "==", ministerioSelecionado), where("data", ">=", inicio), where("data", "<=", fim));
+      const q = query(
+        collection(db, "escalas"),
+        where("ministerioId", "==", ministerioSelecionado),
+        where("data", ">=", inicio),
+        where("data", "<=", fim)
+      );
       const snap = await getDocs(q);
       for (const doc of snap.docs) await deleteDoc(doc.ref);
+      setRefreshKey(k => k + 1);
     } catch (err) { console.error(err); }
     finally { setLimpando(false); }
   };
+
+  // Reset relatório ao trocar de ministério ou mês
+  const handleSetMinisterio = (v) => { setMinisterioSelecionado(v); setVerRelatorio(false); };
 
   const gridProps = { escalas, datas, loading, onRemover: handleRemover, podeEditar };
   const current = ministerioConfig[ministerioSelecionado];
@@ -233,15 +253,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </svg>
           </button>
         </div>
+        {/* ── ALTERADO: refreshKey passado para o Sidebar mobile */}
         <SidebarFiltros
           usuario={user}
           ministerioSelecionado={ministerioSelecionado}
-          setMinisterioSelecionado={(v) => { setMinisterioSelecionado(v); setDrawerAberto(false); }}
+          setMinisterioSelecionado={(v) => { handleSetMinisterio(v); setDrawerAberto(false); }}
           datasDisponiveis={datas}
           theme={theme}
           onConfirmar={() => setDrawerAberto(false)}
           onMensagem={mostrarMensagem}
           onConflito={setConflito}
+          refreshKey={refreshKey}
         />
       </div>
 
@@ -261,7 +283,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
       </button>
-      {/* FAB só aparece no mobile via CSS */}
       <style>{`
         .fab-mobile { display: none !important; }
         @media (max-width: 768px) { .fab-mobile { display: flex !important; } }
@@ -318,14 +339,16 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           background: theme.surface, padding: "24px 16px", overflowY: "auto",
           position: "sticky", top: "56px", height: "calc(100vh - 56px)",
         }}>
+          {/* ── ALTERADO: refreshKey passado para o Sidebar desktop */}
           <SidebarFiltros
             usuario={user}
             ministerioSelecionado={ministerioSelecionado}
-            setMinisterioSelecionado={setMinisterioSelecionado}
+            setMinisterioSelecionado={handleSetMinisterio}
             datasDisponiveis={datas}
             theme={theme}
             onMensagem={mostrarMensagem}
             onConflito={setConflito}
+            refreshKey={refreshKey}
           />
         </aside>
 
@@ -414,6 +437,41 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               </button>
 
               {podeEditar && (
+                <button
+                  onClick={() => setVerRelatorio(v => !v)}
+                  style={{
+                    padding: "7px 12px", fontFamily: "inherit",
+                    background: verRelatorio ? theme.accentDim : "transparent",
+                    border: `1px solid ${verRelatorio ? theme.accent : theme.borderLight}`,
+                    borderRadius: "6px",
+                    color: verRelatorio ? theme.accent : theme.textMuted,
+                    fontSize: "12px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: "5px",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    if (!verRelatorio) {
+                      e.currentTarget.style.borderColor = theme.accent;
+                      e.currentTarget.style.color = theme.accent;
+                      e.currentTarget.style.background = theme.accentGlow;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!verRelatorio) {
+                      e.currentTarget.style.borderColor = theme.borderLight;
+                      e.currentTarget.style.color = theme.textMuted;
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 20V10M12 20V4M6 20v-6"/>
+                  </svg>
+                  <span className="btn-label">Relatório</span>
+                </button>
+              )}
+
+              {podeEditar && (
                 <button onClick={handleLimparTudo} disabled={limpando}
                   style={{ padding: "7px 12px", background: "transparent", border: `1px solid ${theme.borderLight}`, borderRadius: "6px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; e.currentTarget.style.background = theme.dangerDim; }}
@@ -428,13 +486,24 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
           </div>
 
-          {/* Grid */}
-          <div ref={gridRef}>
-            {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
-            {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
-            {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
-            {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
-          </div>
+          {/* Grid ou Relatório */}
+          {verRelatorio ? (
+            <RelatorioMinisterio
+              escalas={escalas}
+              datas={datas}
+              funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
+              ministerioId={ministerioSelecionado}
+              theme={theme}
+              onVoltar={() => setVerRelatorio(false)}
+            />
+          ) : (
+            <div ref={gridRef}>
+              {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
+              {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
+              {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
+              {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
+            </div>
+          )}
         </main>
       </div>
     </div>

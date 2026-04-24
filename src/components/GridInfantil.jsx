@@ -2,7 +2,7 @@
 import { formatarData } from "../utils/dateHelper";
 
 export default function GridInfantil({ escalas, datas, loading, onRemover, podeEditar, theme: t }) {
-  const funcoes = ["Berçário", "Maternal", "Juniores"];
+  const funcoes = ["BERÇÁRIO", "MATERNAL", "JUNIORES"];
 
   if (loading && Object.keys(escalas).length === 0 && datas.length === 0)
     return <div style={{ padding: "60px", textAlign: "center", color: t.textMuted, fontSize: "14px" }}>Carregando escala...</div>;
@@ -30,10 +30,8 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
                   {formatarData(dataObj.data, dataObj.turno)}
                 </td>
 {funcoes.map(f => {
-  const chave = `${dataObj.data}-${turnoKey}-${f}`;
-  console.log("🔍 Procurando chave:", chave); // ← aqui dentro
-  const pessoa = escalas[chave];
-  return (
+                  const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+                  return (
                     <td key={f} style={{ padding: "10px 16px" }}>
                       {pessoa ? (
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: t.accentGlow, border: `1px solid ${t.accentDim}`, borderRadius: "5px", padding: "4px 10px" }}>
