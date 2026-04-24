@@ -10,18 +10,21 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        const ref = doc(db, "users", u.uid);
-        const snap = await getDoc(ref);
-        setUser({ uid: u.uid, ...snap.data() });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
+    // Desloga ao carregar o app — força login a cada nova sessão
+    signOut(auth).finally(() => {
+      const unsub = onAuthStateChanged(auth, async (u) => {
+        if (u) {
+          const ref = doc(db, "users", u.uid);
+          const snap = await getDoc(ref);
+          setUser({ uid: u.uid, ...snap.data() });
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      });
 
-    return () => unsub();
+      return () => unsub();
+    });
   }, []);
 
   const logout = () => signOut(auth);
