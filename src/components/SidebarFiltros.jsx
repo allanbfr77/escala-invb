@@ -62,34 +62,28 @@ const steps = [
 
 export default function SidebarFiltros({
   usuario, ministerioSelecionado, setMinisterioSelecionado,
-  datasDisponiveis, onRefresh, theme, onConfirmar
+  datasDisponiveis, onRefresh, theme, onConfirmar,
+  onMensagem, onConflito,
 }) {
   const t = theme || {};
   const [salvando, setSalvando]        = useState(false);
-  const [mensagem, setMensagem]        = useState({ texto: "", tipo: "" });
   const [pessoaSelecionada, setPessoa] = useState("");
   const [funcaoSelecionada, setFuncao] = useState("");
   const [dataSelecionada, setData]     = useState(null);
-  const [conflito, setConflito]        = useState(null);
 
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
   const funcoesDoMinisterio = funcoesPorMinisterio[ministerioSelecionado] || [];
   const podeEditar = usuario?.ministerioId === ministerioSelecionado;
   const stepAtivo = !pessoaSelecionada ? 2 : !funcaoSelecionada ? 3 : !dataSelecionada ? 4 : null;
 
-  const mostrarMensagem = (texto, tipo = "sucesso") => {
-    setMensagem({ texto, tipo });
-    setTimeout(() => setMensagem({ texto: "", tipo: "" }), 3000);
-  };
-
   const handleConfirmarEscala = async () => {
-    if (!podeEditar) { mostrarMensagem("Você só pode editar seu próprio ministério", "erro"); return; }
-    if (!pessoaSelecionada) { mostrarMensagem("Selecione uma pessoa", "erro"); return; }
-    if (!funcaoSelecionada) { mostrarMensagem("Selecione uma função", "erro"); return; }
-    if (!dataSelecionada)   { mostrarMensagem("Selecione uma data", "erro"); return; }
+    if (!podeEditar) { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
+    if (!pessoaSelecionada) { onMensagem?.("Selecione uma pessoa", "erro"); return; }
+    if (!funcaoSelecionada) { onMensagem?.("Selecione uma função", "erro"); return; }
+    if (!dataSelecionada)   { onMensagem?.("Selecione uma data", "erro"); return; }
 
     setSalvando(true);
-    setConflito(null);
+    onConflito?.(null);
 
     try {
       const dataObj = dataSelecionada;
@@ -107,7 +101,12 @@ export default function SidebarFiltros({
       if (conflitoOutro) {
         const dd = conflitoOutro.data();
         const nomes = { comunicacao: "COMUNICAÇÕES", louvor: "LOUVOR", recepcao: "RECEPÇÃO", infantil: "INFANTIL" };
-        setConflito({ pessoa: pessoaSelecionada, data: formatarData(dataObj.data, dataObj.turno), ministerio: nomes[dd.ministerioId], funcao: dd.funcao });
+        onConflito?.({
+          pessoa: pessoaSelecionada,
+          data: formatarData(dataObj.data, dataObj.turno),
+          ministerio: nomes[dd.ministerioId],
+          funcao: dd.funcao,
+        });
         setSalvando(false);
         return;
       }
@@ -136,15 +135,14 @@ export default function SidebarFiltros({
         criadoEm: new Date().toISOString()
       });
 
-      mostrarMensagem(`${pessoaSelecionada} escalado como ${funcaoSelecionada}`, "sucesso");
+      onMensagem?.(`${pessoaSelecionada.toUpperCase()} escalado como ${funcaoSelecionada}`, "sucesso");
       setData(null);
       if (onRefresh) onRefresh();
-      // Fecha drawer no mobile após confirmar
       setTimeout(() => { if (onConfirmar) onConfirmar(); }, 1200);
 
     } catch (error) {
       console.error(error);
-      mostrarMensagem("Erro ao salvar escala", "erro");
+      onMensagem?.("Erro ao salvar escala", "erro");
     } finally {
       setSalvando(false);
     }
@@ -177,35 +175,10 @@ export default function SidebarFiltros({
         </p>
       </div>
 
-      {/* Mensagem */}
-      {mensagem.texto && (
-        <div style={{
-          padding: "10px 12px", marginBottom: "16px", borderRadius: "6px", fontSize: "13px",
-          background: mensagem.tipo === "sucesso" ? t.successDim : mensagem.tipo === "info" ? t.accentGlow : t.dangerDim,
-          color: mensagem.tipo === "sucesso" ? t.success : mensagem.tipo === "info" ? t.accent : t.danger,
-          border: `1px solid ${mensagem.tipo === "sucesso" ? t.success : mensagem.tipo === "info" ? t.accent : t.danger}22`,
-        }}>
-          {mensagem.tipo === "sucesso" ? "✓ " : "✕ "}{mensagem.texto}
-        </div>
-      )}
-
-      {/* Conflito */}
-      {conflito && (
-        <div style={{ padding: "12px", marginBottom: "16px", borderRadius: "6px", fontSize: "12px", background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)", color: "#d2993a" }}>
-          <strong style={{ display: "block", marginBottom: "4px" }}>⚠ Conflito de escala</strong>
-          <span style={{ color: "#b8860b" }}>
-            {conflito.pessoa.charAt(0).toUpperCase() + conflito.pessoa.slice(1)} já está em <strong>{conflito.ministerio}</strong> como <strong>{conflito.funcao}</strong> em {conflito.data}.
-          </span>
-          <button onClick={() => setConflito(null)} style={{ display: "block", marginTop: "8px", fontSize: "11px", background: "none", border: "none", color: "#d2993a", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
-            Entendi
-          </button>
-        </div>
-      )}
-
       {/* Ministério */}
       <div style={s.field}>
         <label style={s.label}>Ministério</label>
-        <select value={ministerioSelecionado} onChange={e => { setMinisterioSelecionado(e.target.value); setConflito(null); }} style={s.select}>
+        <select value={ministerioSelecionado} onChange={e => { setMinisterioSelecionado(e.target.value); onConflito?.(null); }} style={s.select}>
           {ministerios.map(m => (
             <option key={m.id} value={m.id}>{m.nome}{m.id === usuario?.ministerioId ? " (meu)" : ""}</option>
           ))}
@@ -223,7 +196,7 @@ export default function SidebarFiltros({
       {/* Pessoa */}
       <div style={s.field}>
         <label style={s.label}>Pessoa</label>
-        <select value={pessoaSelecionada} onChange={e => { setPessoa(e.target.value); setConflito(null); }} style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }} disabled={!podeEditar}>
+        <select value={pessoaSelecionada} onChange={e => { setPessoa(e.target.value); onConflito?.(null); }} style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }} disabled={!podeEditar}>
           <option value="">Selecione...</option>
           {pessoasDoMinisterio.map(p => (
             <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
@@ -247,7 +220,7 @@ export default function SidebarFiltros({
         <label style={s.label}>Data</label>
         <select
           value={dataSelecionada?.id || ""}
-          onChange={e => { setData(datasDisponiveis.find(d => d.id === e.target.value) || null); setConflito(null); }}
+          onChange={e => { setData(datasDisponiveis.find(d => d.id === e.target.value) || null); onConflito?.(null); }}
           style={{ ...s.select, opacity: (!podeEditar || datasDisponiveis.length === 0) ? 0.5 : 1 }}
           disabled={!podeEditar || datasDisponiveis.length === 0}
         >
@@ -277,7 +250,7 @@ export default function SidebarFiltros({
 
       {/* Botão limpar */}
       <button
-        onClick={() => { setPessoa(""); setFuncao(""); setData(null); setConflito(null); }}
+        onClick={() => { setPessoa(""); setFuncao(""); setData(null); onConflito?.(null); }}
         disabled={!podeEditar}
         style={{
           width: "100%", padding: "10px", borderRadius: "6px",

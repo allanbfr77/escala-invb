@@ -36,8 +36,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [drawerAberto, setDrawerAberto] = useState(false);
+  const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
+  const [conflito, setConflito] = useState(null);
   const gridRef = useRef(null);
   const mainRef = useRef(null);
+
+  const mostrarMensagem = (texto, tipo = "sucesso") => {
+    setMensagem({ texto, tipo });
+    setTimeout(() => setMensagem({ texto: "", tipo: "" }), 3000);
+  };
 
   const podeEditar = user?.ministerioId === ministerioSelecionado;
 
@@ -233,6 +240,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           datasDisponiveis={datas}
           theme={theme}
           onConfirmar={() => setDrawerAberto(false)}
+          onMensagem={mostrarMensagem}
+          onConflito={setConflito}
         />
       </div>
 
@@ -315,6 +324,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             setMinisterioSelecionado={setMinisterioSelecionado}
             datasDisponiveis={datas}
             theme={theme}
+            onMensagem={mostrarMensagem}
+            onConflito={setConflito}
           />
         </aside>
 
@@ -340,8 +351,30 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               )}
             </div>
 
+            {/* Alertas centralizados */}
+            <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "0 16px" }}>
+              {mensagem.texto && (
+                <div style={{
+                  padding: "7px 14px", borderRadius: "6px", fontSize: "13px", display: "flex", alignItems: "center", gap: "7px",
+                  background: mensagem.tipo === "sucesso" ? theme.successDim : theme.dangerDim,
+                  color: mensagem.tipo === "sucesso" ? theme.success : theme.danger,
+                  border: `1px solid ${mensagem.tipo === "sucesso" ? theme.success : theme.danger}33`,
+                }}>
+                  {mensagem.tipo === "sucesso" ? "✓" : "✕"} {mensagem.texto}
+                </div>
+              )}
+              {conflito && !mensagem.texto && (
+                <div style={{
+                  padding: "7px 14px", borderRadius: "6px", fontSize: "12px", display: "flex", alignItems: "center", gap: "10px",
+                  background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)", color: "#d2993a",
+                }}>
+                  <span>⚠ <strong>{conflito.pessoa.toUpperCase()}</strong> já está em <strong>{conflito.ministerio}</strong> como <strong>{conflito.funcao}</strong> em {conflito.data}</span>
+                  <button onClick={() => setConflito(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d2993a", fontSize: "16px", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                </div>
+              )}
+            </div>
+
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-              {/* Botão de download — desabilitado no modo leitura */}
               <button
                 onClick={handleDownload}
                 disabled={baixando || !podeEditar}
