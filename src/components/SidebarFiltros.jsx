@@ -5,6 +5,7 @@ import { collection, addDoc, query, where, getDocs, deleteDoc } from "firebase/f
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
+import { podeEditarMinisterio } from "../utils/permissions";
 
 const ministerios = [
   {
@@ -139,7 +140,7 @@ export default function SidebarFiltros({
 
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
   const funcoesDoMinisterio = funcoesPorMinisterio[ministerioSelecionado] || [];
-  const podeEditar = usuario?.ministerioId === ministerioSelecionado;
+  const podeEditar = podeEditarMinisterio(usuario, ministerioSelecionado);
 
   // ─── FIX 3: Filtro usa a chave "data|turno|funcaoSelecionada" ─────────────
   // Antes usava só "data|turno", removendo a data de todas as funções.

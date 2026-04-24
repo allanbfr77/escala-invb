@@ -7,11 +7,13 @@ const thStyle = (t) => ({
   letterSpacing: "0.8px", whiteSpace: "nowrap", fontFamily: "'Outfit', sans-serif",
 });
 
-export default function GridLouvor({ escalas, datas, loading, onRemover, podeEditar, theme: t }) {
-  const funcoes = ["MINISTRANTE", "BVOCAL 1", "BVOCAL 2", "BVOCAL 3", "BVOCAL 4", "MÚSICO 1", "MÚSICO 2", "MÚSICO 3", "MÚSICO 4", "MESA DE SOM"];
+export default function GridLouvor({ escalas, datas, loading, onRemover, podeEditar, filtroNome = "", theme: t }) {
+  const funcoes = ["MINISTRANTE", "BVOCAL 1", "BVOCAL 2", "BVOCAL 3", "BVOCAL 4", "MÚSICO 1", "MÚSICO 2", "MÚSICO 3", "MÚSICO 4"];
 
   if (loading && Object.keys(escalas).length === 0 && datas.length === 0)
     return <div style={{ padding: "48px", textAlign: "center", color: t.textMuted, fontSize: "13px", fontFamily: "'Outfit', sans-serif" }}>Carregando escala...</div>;
+
+  const filtro = filtroNome.trim().toLowerCase();
 
   return (
     <div style={{
@@ -37,11 +39,21 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                 </td>
                 {funcoes.map(f => {
                   const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+                  const match = filtro && pessoa && pessoa.toLowerCase().includes(filtro);
+                  const dim   = filtro && pessoa && !match;
                   return (
                     <td key={f} data-label={f} style={{ padding: "6px 14px", whiteSpace: "nowrap" }}>
                       {pessoa ? (
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: t.accentGlow, border: `1px solid ${t.accentDim}`, borderRadius: "5px", padding: "3px 9px" }}>
-                          <span style={{ color: t.accent, fontWeight: 500, fontSize: "12px", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.3px" }}>
+                        <div style={{
+                          display: "inline-flex", alignItems: "center", gap: "6px",
+                          background: match ? "rgba(167,139,250,0.2)" : t.accentGlow,
+                          border: `1px solid ${match ? t.accent : t.accentDim}`,
+                          borderRadius: "5px", padding: "3px 9px",
+                          opacity: dim ? 0.3 : 1,
+                          boxShadow: match ? `0 0 8px rgba(167,139,250,0.25)` : "none",
+                          transition: "opacity 0.2s, box-shadow 0.2s",
+                        }}>
+                          <span style={{ color: t.accent, fontWeight: match ? 700 : 500, fontSize: "12px", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.3px" }}>
                             {pessoa.toUpperCase()}
                           </span>
                           {podeEditar && (

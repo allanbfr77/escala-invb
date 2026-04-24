@@ -33,11 +33,9 @@ export const pessoasPorMinisterio = {
   louvor: [
     "ALESSANDRO",
     "ANNA BEATRIZ",
-    "BIANCA",
     "CRIS MEDEIROS",
     "DANIELA",
     "ELIZANGELA",
-    "JEAN",
     "LÉO",
     "LUCIANA FERNANDES",
     "MATHEUS",

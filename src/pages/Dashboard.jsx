@@ -1,5 +1,5 @@
 // ===== src/pages/Dashboard.jsx =====
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { EscalaProvider, useEscalas } from "../context/EscalaContext";
 import SidebarFiltros from "../components/SidebarFiltros";
@@ -12,7 +12,11 @@ import GridInfantil from "../components/GridInfantil";
 import GridLouvor from "../components/GridLouvor";
 import GridRecepcao from "../components/GridRecepcao";
 import RelatorioMinisterio from "../components/RelatorioMinisterio";
+import SkeletonGrid from "../components/SkeletonGrid";
+import ConfirmModal from "../components/ConfirmModal";
+import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import { funcoesPorMinisterio } from "../data/funcoes";
+import { podeEditarMinisterio } from "../utils/permissions";
 
 const theme = {
   bg: "#07070e",
@@ -34,7 +38,7 @@ const theme = {
 
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes }) {
   const { user, logout } = useAuth();
-  const { escalas, datas, loading } = useEscalas();
+  const { escalas, datas, loading, error, retry } = useEscalas();
   // ── NOVO: refreshKey dispara re-fetch no Sidebar quando uma escala é removida
   const [refreshKey, setRefreshKey] = useState(0);
   const [verRelatorio, setVerRelatorio] = useState(false);
@@ -43,6 +47,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [drawerAberto, setDrawerAberto] = useState(false);
   const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
   const [conflito, setConflito] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", onConfirmar: null });
+  const [filtroNome, setFiltroNome] = useState("");
   const gridRef = useRef(null);
   const mainRef = useRef(null);
 
@@ -51,7 +57,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setTimeout(() => setMensagem({ texto: "", tipo: "" }), 3000);
   };
 
-  const podeEditar = user?.ministerioId === ministerioSelecionado;
+  const podeEditar = podeEditarMinisterio(user, ministerioSelecionado);
 
   const handleMesAnterior = () => {
     const [ano, m] = mes.split("-").map(Number);
@@ -68,48 +74,100 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setBaixando(true);
 
     try {
-      const el = gridRef.current;
+      const mesFormatado = new Date(mes + "-15")
+        .toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+        .replace(" de ", " ")
+        .toUpperCase();
 
-      const fullWidth  = el.scrollWidth;
-      const fullHeight = el.scrollHeight;
+      // Wrapper holds title + grid clone
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = `
+        background: #07070e;
+        padding: 20px 24px 24px;
+        font-family: 'Outfit', sans-serif;
+        display: inline-block;
+        min-width: ${gridRef.current.scrollWidth + 48}px;
+      `;
 
-      const clone = el.cloneNode(true);
-      clone.style.position   = "fixed";
-      clone.style.top        = "-99999px";
-      clone.style.left       = "-99999px";
-      clone.style.width      = fullWidth + "px";
-      clone.style.height     = "auto";
-      clone.style.overflow   = "visible";
-      clone.style.zIndex     = "-1";
+      // Title row
+      const titleEl = document.createElement("div");
+      titleEl.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #1a1a2c;
+      `;
+      titleEl.innerHTML = `
+        <div>
+          <div style="font-size:10px;font-weight:600;color:#6a677f;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;font-family:'Outfit',sans-serif;">Escala INVB</div>
+          <div style="font-size:15px;font-weight:700;color:#ece9ff;letter-spacing:-0.2px;font-family:'Outfit',sans-serif;">${ministerioConfig[ministerioSelecionado].nome}</div>
+        </div>
+        <div style="font-size:12px;color:#6a677f;font-weight:500;font-family:'Outfit',sans-serif;">${mesFormatado}</div>
+      `;
 
-      clone.querySelectorAll("*").forEach(node => {
+      // Grid clone
+      const gridClone = gridRef.current.cloneNode(true);
+      gridClone.style.overflow = "visible";
+      gridClone.style.overflowX = "visible";
+      gridClone.querySelectorAll("*").forEach(node => {
         node.style.overflow  = "visible";
         node.style.overflowX = "visible";
         node.style.overflowY = "visible";
       });
 
-      document.body.appendChild(clone);
+      // Fix sticky thead — causes header to render at wrong position in html2canvas
+      gridClone.querySelectorAll(".grid-thead th").forEach(el => {
+        el.style.position       = "static";
+        el.style.top            = "auto";
+        el.style.zIndex         = "auto";
+        el.style.backdropFilter = "none";
+        el.style.webkitBackdropFilter = "none";
+      });
 
-      const canvas = await html2canvas(clone, {
+      // Strip badges: replace styled chip with plain name text
+      gridClone.querySelectorAll(".grid-table td").forEach(td => {
+        const badge = td.querySelector("div");
+        if (badge) {
+          const nameSpan = badge.querySelector("span");
+          const name = nameSpan ? nameSpan.textContent.trim() : "";
+          if (name) {
+            td.innerHTML = `<span style="color:#ece9ff;font-weight:500;font-size:12px;font-family:'Outfit',sans-serif;">${name}</span>`;
+          }
+        }
+      });
+
+      wrapper.appendChild(titleEl);
+      wrapper.appendChild(gridClone);
+
+      wrapper.style.position = "fixed";
+      wrapper.style.top      = "-99999px";
+      wrapper.style.left     = "-99999px";
+      wrapper.style.zIndex   = "-1";
+      document.body.appendChild(wrapper);
+
+      const canvas = await html2canvas(wrapper, {
         backgroundColor: theme.bg,
         scale: 2,
         useCORS: true,
-        width: clone.scrollWidth,
-        height: clone.scrollHeight,
-        windowWidth: clone.scrollWidth,
-        windowHeight: clone.scrollHeight,
+        logging: false,
+        width: wrapper.scrollWidth,
+        height: wrapper.scrollHeight,
+        windowWidth: wrapper.scrollWidth,
+        windowHeight: wrapper.scrollHeight,
         scrollX: 0,
         scrollY: 0,
       });
 
-      document.body.removeChild(clone);
+      document.body.removeChild(wrapper);
 
       const link = document.createElement("a");
       link.download = `escala-${ministerioSelecionado}-${mes}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (err) {
-      console.error("Erro ao gerar imagem:", err);
+      mostrarMensagem("Erro ao gerar imagem", "erro");
     } finally {
       setBaixando(false);
     }
@@ -155,8 +213,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     },
   };
 
-  // ── ALTERADO: incrementa refreshKey após remover para o Sidebar re-buscar
-  const handleRemover = async (dataStr, turno, funcao) => {
+  // ── incrementa refreshKey após remover para o Sidebar re-buscar
+  const handleRemover = useCallback(async (dataStr, turno, funcao) => {
     try {
       const q = query(
         collection(db, "escalas"),
@@ -168,34 +226,50 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       const snap = await getDocs(q);
       for (const doc of snap.docs) await deleteDoc(doc.ref);
       setRefreshKey(k => k + 1);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      mostrarMensagem("Erro ao remover escala", "erro");
+    }
+  }, [ministerioSelecionado]);
+
+  // ── usa ConfirmModal em vez de window.confirm
+  const handleLimparTudo = () => {
+    setConfirmModal({
+      aberto: true,
+      titulo: "Limpar escala do mês",
+      descricao: `Isso vai apagar toda a escala de ${ministerioConfig[ministerioSelecionado].nome} neste mês. Essa ação não pode ser desfeita.`,
+      onConfirmar: async () => {
+        setConfirmModal(prev => ({ ...prev, aberto: false }));
+        setLimpando(true);
+        try {
+          const [ano, mesNum] = mes.split("-");
+          const inicio = `${ano}-${mesNum}-01`;
+          const fim = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
+          const q = query(
+            collection(db, "escalas"),
+            where("ministerioId", "==", ministerioSelecionado),
+            where("data", ">=", inicio),
+            where("data", "<=", fim)
+          );
+          const snap = await getDocs(q);
+          for (const doc of snap.docs) await deleteDoc(doc.ref);
+          setRefreshKey(k => k + 1);
+          mostrarMensagem("Escala do mês apagada", "sucesso");
+        } catch (err) {
+          mostrarMensagem("Erro ao limpar escala", "erro");
+        } finally {
+          setLimpando(false);
+        }
+      },
+    });
   };
 
-  // ── ALTERADO: incrementa refreshKey após limpar tudo
-  const handleLimparTudo = async () => {
-    if (!window.confirm(`Limpar toda a escala de ${ministerioConfig[ministerioSelecionado].nome} deste mês?\n\nEssa ação não pode ser desfeita.`)) return;
-    setLimpando(true);
-    try {
-      const [ano, mesNum] = mes.split("-");
-      const inicio = `${ano}-${mesNum}-01`;
-      const fim = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
-      const q = query(
-        collection(db, "escalas"),
-        where("ministerioId", "==", ministerioSelecionado),
-        where("data", ">=", inicio),
-        where("data", "<=", fim)
-      );
-      const snap = await getDocs(q);
-      for (const doc of snap.docs) await deleteDoc(doc.ref);
-      setRefreshKey(k => k + 1);
-    } catch (err) { console.error(err); }
-    finally { setLimpando(false); }
-  };
+  // Reset relatório e filtro ao trocar de ministério ou mês
+  const handleSetMinisterio = (v) => { setMinisterioSelecionado(v); setVerRelatorio(false); setFiltroNome(""); };
 
-  // Reset relatório ao trocar de ministério ou mês
-  const handleSetMinisterio = (v) => { setMinisterioSelecionado(v); setVerRelatorio(false); };
-
-  const gridProps = { escalas, datas, loading, onRemover: handleRemover, podeEditar };
+  const gridProps = useMemo(
+    () => ({ escalas, datas, loading, onRemover: handleRemover, podeEditar, filtroNome }),
+    [escalas, datas, loading, handleRemover, podeEditar, filtroNome]
+  );
   const current = ministerioConfig[ministerioSelecionado];
 
   return (
@@ -239,6 +313,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           border-color: ${theme.accent} !important;
           box-shadow: 0 0 0 3px rgba(167,139,250,0.12);
         }
+
+        /* Skeleton loading */
+        @keyframes skeleton-pulse {
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 0.7; }
+        }
+        .skeleton-pulse { animation: skeleton-pulse 1.6s ease-in-out infinite; }
 
         /* Hover nas linhas da grid */
         .grid-row:hover { background: rgba(167,139,250,0.05) !important; cursor: default; }
@@ -486,6 +567,48 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
 
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+
+              {/* Filtro por nome */}
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                  style={{ position: "absolute", left: "8px", pointerEvents: "none", zIndex: 1 }}>
+                  <circle cx="11" cy="11" r="8" stroke={theme.textMuted} strokeWidth="2"/>
+                  <path d="M21 21l-4.35-4.35" stroke={theme.textMuted} strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Filtrar nome..."
+                  value={filtroNome}
+                  onChange={e => setFiltroNome(e.target.value)}
+                  style={{
+                    padding: "5px 24px 5px 26px",
+                    background: "transparent",
+                    border: `1px solid ${filtroNome ? theme.accent : theme.border}`,
+                    borderRadius: "5px",
+                    color: theme.text,
+                    fontSize: "12px",
+                    fontFamily: "inherit",
+                    outline: "none",
+                    width: "130px",
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={e => { if (!filtroNome) e.target.style.borderColor = theme.borderLight; }}
+                  onBlur={e => { if (!filtroNome) e.target.style.borderColor = theme.border; }}
+                />
+                {filtroNome && (
+                  <button
+                    onClick={() => setFiltroNome("")}
+                    style={{
+                      position: "absolute", right: "6px",
+                      background: "none", border: "none", cursor: "pointer",
+                      color: theme.textMuted, fontSize: "15px", padding: 0,
+                      lineHeight: 1, display: "flex", alignItems: "center",
+                    }}
+                    title="Limpar filtro"
+                  >×</button>
+                )}
+              </div>
+
               <button
                 onClick={handleDownload}
                 disabled={baixando || !podeEditar}
@@ -572,6 +695,36 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
           </div>
 
+          {/* Estado de erro */}
+          {error && (
+            <div style={{
+              padding: "20px 24px", borderRadius: "10px", marginBottom: "16px",
+              background: theme.dangerDim, border: `1px solid ${theme.danger}33`,
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9V14M12 17.5V18M12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3C16.97 3 21 7.03 21 12C21 16.97 16.97 21 12 21Z"
+                    stroke={theme.danger} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span style={{ fontSize: "13px", color: theme.danger, fontWeight: 500 }}>{error}</span>
+              </div>
+              <button
+                onClick={retry}
+                style={{
+                  padding: "5px 14px", borderRadius: "5px", cursor: "pointer",
+                  background: "transparent", border: `1px solid ${theme.danger}66`,
+                  color: theme.danger, fontSize: "12px", fontFamily: "inherit", fontWeight: 600,
+                  transition: "all 0.15s", flexShrink: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = theme.dangerDim; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+
           {/* Grid ou Relatório */}
           {verRelatorio ? (
             <RelatorioMinisterio
@@ -582,16 +735,59 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               theme={theme}
               onVoltar={() => setVerRelatorio(false)}
             />
-          ) : (
-            <div ref={gridRef}>
-              {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
-              {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
-              {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
-              {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
+          ) : loading && Object.keys(escalas).length === 0 ? (
+            <SkeletonGrid
+              theme={theme}
+              colunas={
+                ministerioSelecionado === "comunicacao" ? 5 :
+                ministerioSelecionado === "louvor"      ? 4 :
+                ministerioSelecionado === "recepcao"    ? 3 : 3
+              }
+            />
+          ) : !loading && !error && datas.length === 0 ? (
+            <div style={{
+              padding: "48px 24px", textAlign: "center",
+              borderRadius: "10px", border: `1px solid ${theme.border}`,
+              background: "rgba(7,7,14,0.6)",
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }}>
+                <rect x="3" y="4" width="18" height="18" rx="2" stroke={theme.textMuted} strokeWidth="1.5"/>
+                <line x1="16" y1="2" x2="16" y2="6" stroke={theme.textMuted} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="8" y1="2" x2="8" y2="6" stroke={theme.textMuted} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="3" y1="10" x2="21" y2="10" stroke={theme.textMuted} strokeWidth="1.5"/>
+              </svg>
+              <p style={{ fontSize: "13px", color: theme.textMuted, fontFamily: "'Outfit', sans-serif" }}>
+                Nenhuma data disponível para este mês
+              </p>
             </div>
+          ) : (
+            <>
+              <div ref={gridRef}>
+                {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
+                {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
+                {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
+                {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
+              </div>
+              <CrossMinistryInfo
+                ministerioId={ministerioSelecionado}
+                mes={mes}
+                theme={theme}
+              />
+            </>
           )}
         </main>
       </div>
+
+      <ConfirmModal
+        aberto={confirmModal.aberto}
+        titulo={confirmModal.titulo}
+        descricao={confirmModal.descricao}
+        confirmLabel="Limpar tudo"
+        onConfirmar={confirmModal.onConfirmar}
+        onCancelar={() => setConfirmModal(prev => ({ ...prev, aberto: false }))}
+        perigoso
+        theme={theme}
+      />
     </div>
   );
 }

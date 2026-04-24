@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signOut,
+  setPersistence,
+  browserSessionPersistence,
+} from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 const AuthContext = createContext();
@@ -10,11 +15,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Desloga ao carregar o app — força login a cada nova sessão
-    signOut(auth).finally(() => {
+    // browserSessionPersistence usa sessionStorage:
+    // - sobrevive a F5 / recarregar página ✓
+    // - sobrevive a navegar em outra aba e voltar ✓
+    // - é apagado quando o usuário fecha a aba/janela ✓
+    setPersistence(auth, browserSessionPersistence).then(() => {
       const unsub = onAuthStateChanged(auth, async (u) => {
         if (u) {
-          const ref = doc(db, "users", u.uid);
+          const ref  = doc(db, "users", u.uid);
           const snap = await getDoc(ref);
           setUser({ uid: u.uid, ...snap.data() });
         } else {
@@ -22,8 +30,7 @@ export function AuthProvider({ children }) {
         }
         setLoading(false);
       });
-
-      return () => unsub();
+      return unsub;
     });
   }, []);
 

@@ -1,5 +1,5 @@
 // ===== src/context/EscalaContext.jsx =====
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { db } from "../firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { gerarDatasEscala } from "../utils/dateHelper";
@@ -7,41 +7,38 @@ import { gerarDatasEscala } from "../utils/dateHelper";
 const EscalaContext = createContext();
 
 export function EscalaProvider({ children, ministerioId, mes }) {
-  const [escalas, setEscalas] = useState({});
-  const [datas, setDatas] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [escalas, setEscalas]     = useState({});
+  const [datas, setDatas]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Gerar datas do mês - executa IMEDIATAMENTE
+  const retry = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    setRetryCount(c => c + 1);
+  }, []);
+
+  // Gerar datas do mês
   useEffect(() => {
-    console.log("📅 Gerando datas para o mês:", mes);
-    if (mes) {
-      const novasDatas = gerarDatasEscala(mes);
-      console.log("📅 Datas geradas:", novasDatas.length);
-      setDatas(novasDatas);
-    } else {
-      // Fallback: mês atual
-      const mesAtual = new Date().toISOString().slice(0, 7);
-      const novasDatas = gerarDatasEscala(mesAtual);
-      setDatas(novasDatas);
-    }
+    const mesAlvo = mes || new Date().toISOString().slice(0, 7);
+    setDatas(gerarDatasEscala(mesAlvo));
   }, [mes]);
 
-  // Listener em tempo real - executa IMEDIATAMENTE
+  // Listener em tempo real
   useEffect(() => {
     if (!ministerioId) {
-      console.log("⚠️ Sem ministerioId, aguardando...");
       setLoading(false);
       return;
     }
 
-    // Determinar o mês a ser usado
-    const mesParaBusca = mes || new Date().toISOString().slice(0, 7);
-    const [ano, mesNum] = mesParaBusca.split("-");
-    const inicio = `${ano}-${mesNum}-01`;
-    const ultimoDia = new Date(ano, mesNum, 0).getDate();
-    const fim = `${ano}-${mesNum}-${ultimoDia}`;
+    setLoading(true);
+    setError(null);
 
-    console.log("🔍 Buscando escalas para:", ministerioId, "período:", inicio, "a", fim);
+    const mesAlvo = mes || new Date().toISOString().slice(0, 7);
+    const [ano, mesNum] = mesAlvo.split("-");
+    const inicio = `${ano}-${mesNum}-01`;
+    const fim    = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
 
     const q = query(
       collection(db, "escalas"),
@@ -50,28 +47,34 @@ export function EscalaProvider({ children, ministerioId, mes }) {
       where("data", "<=", fim)
     );
 
-const unsubscribe = onSnapshot(q, (snapshot) => {
-  const mapa = {};
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const turnoKey = data.turno || "único";
-    const chave = `${data.data}-${turnoKey}-${data.funcao}`;
-    console.log("🔑 Chave gerada:", chave); // ← aqui
-    mapa[chave] = data.pessoaNome;
-  });
-  console.log("✅ Escalas carregadas:", Object.keys(mapa).length);
-  setEscalas(mapa);
-  setLoading(false);
-}, (error) => {
-  console.error("❌ Erro no listener:", error);
-  setLoading(false);
-});
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const mapa = {};
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const turnoKey = d.turno || "único";
+          mapa[`${d.data}-${turnoKey}-${d.funcao}`] = d.pessoaNome;
+        });
+        setEscalas(mapa);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        if (err.code === "permission-denied") {
+          setError("Sem permissão para acessar os dados. Verifique se você está autenticado.");
+        } else {
+          setError("Erro ao carregar a escala. Verifique sua conexão e tente novamente.");
+        }
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
-  }, [ministerioId, mes]);
+  }, [ministerioId, mes, retryCount]);
 
   return (
-    <EscalaContext.Provider value={{ escalas, datas, loading, setLoading }}>
+    <EscalaContext.Provider value={{ escalas, datas, loading, error, retry, setLoading }}>
       {children}
     </EscalaContext.Provider>
   );
