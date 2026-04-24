@@ -568,8 +568,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
 
-              {/* Filtro por nome */}
-              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              {/* Filtro por nome — apenas no modo edição (próprio ministério) */}
+              {podeEditar && <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                   style={{ position: "absolute", left: "8px", pointerEvents: "none", zIndex: 1 }}>
                   <circle cx="11" cy="11" r="8" stroke={theme.textMuted} strokeWidth="2"/>
@@ -607,7 +607,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     title="Limpar filtro"
                   >×</button>
                 )}
-              </div>
+              </div>}
 
               <button
                 onClick={handleDownload}
@@ -768,11 +768,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
                 {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
               </div>
-              <CrossMinistryInfo
-                ministerioId={ministerioSelecionado}
-                mes={mes}
-                theme={theme}
-              />
+              {podeEditar && (
+                <CrossMinistryInfo
+                  ministerioId={ministerioSelecionado}
+                  mes={mes}
+                  theme={theme}
+                />
+              )}
             </>
           )}
         </main>
