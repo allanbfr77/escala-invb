@@ -79,7 +79,8 @@ export default function Login() {
       const snap = await getDoc(doc(db, "users", cred.user.uid));
       const userData = snap.data();
 
-      if (!userData || userData.ministerioId !== perfilSelecionado.id) {
+      const isMaster = userData?.role === "master";
+      if (!userData || (!isMaster && userData.ministerioId !== perfilSelecionado.id)) {
         await signOut(auth);
         setErro(`Este email não pertence ao ${perfilSelecionado.nome}`);
         setCarregando(false);
