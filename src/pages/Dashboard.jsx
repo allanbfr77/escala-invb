@@ -15,21 +15,22 @@ import RelatorioMinisterio from "../components/RelatorioMinisterio";
 import SkeletonGrid from "../components/SkeletonGrid";
 import ConfirmModal from "../components/ConfirmModal";
 import CrossMinistryInfo from "../components/CrossMinistryInfo";
+import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { podeEditarMinisterio } from "../utils/permissions";
 
 const theme = {
-  bg: "#07070e",
-  surface: "#0e0e1b",
-  surfaceHover: "#131325",
-  border: "#1a1a2c",
-  borderLight: "#24243a",
-  accent: "#a78bfa",
-  accentDim: "#1c1540",
-  accentGlow: "rgba(167,139,250,0.08)",
-  text: "#ece9ff",
-  textMuted: "#6a677f",
-  textDim: "#32303f",
+  bg: "#0F1117",
+  surface: "#161922",
+  surfaceHover: "#1c2030",
+  border: "#232838",
+  borderLight: "#2e3650",
+  accent: "#6366F1",
+  accentDim: "rgba(99,102,241,0.12)",
+  accentGlow: "rgba(99,102,241,0.08)",
+  text: "#e2e8f0",
+  textMuted: "#94A3B8",
+  textDim: "#3a4258",
   danger: "#fb7185",
   dangerDim: "rgba(251,113,133,0.08)",
   success: "#34d399",
@@ -39,8 +40,10 @@ const theme = {
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes }) {
   const { user, logout } = useAuth();
   const { escalas, datas, loading, error, retry } = useEscalas();
-  // ── NOVO: refreshKey dispara re-fetch no Sidebar quando uma escala é removida
+  // ── refreshKey dispara re-fetch no Sidebar quando uma escala é removida
   const [refreshKey, setRefreshKey] = useState(0);
+  // ── indispRefreshKey dispara re-fetch das indisponibilidades quando o modal fecha
+  const [indispRefreshKey, setIndispRefreshKey] = useState(0);
   const [verRelatorio, setVerRelatorio] = useState(false);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
@@ -49,6 +52,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [conflito, setConflito] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", onConfirmar: null });
   const [filtroNome, setFiltroNome] = useState("");
+  const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const gridRef = useRef(null);
   const mainRef = useRef(null);
 
@@ -82,7 +86,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       // Wrapper holds title + grid clone
       const wrapper = document.createElement("div");
       wrapper.style.cssText = `
-        background: #07070e;
+        background: #0F1117;
         padding: 20px 24px 24px;
         font-family: 'Outfit', sans-serif;
         display: inline-block;
@@ -97,14 +101,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         justify-content: space-between;
         margin-bottom: 14px;
         padding-bottom: 12px;
-        border-bottom: 1px solid #1a1a2c;
+        border-bottom: 1px solid #232838;
       `;
       titleEl.innerHTML = `
         <div>
-          <div style="font-size:10px;font-weight:600;color:#6a677f;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;font-family:'Outfit',sans-serif;">Escala INVB</div>
-          <div style="font-size:15px;font-weight:700;color:#ece9ff;letter-spacing:-0.2px;font-family:'Outfit',sans-serif;">${ministerioConfig[ministerioSelecionado].nome}</div>
+          <div style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;font-family:'Outfit',sans-serif;">Escala INVB</div>
+          <div style="font-size:15px;font-weight:700;color:#e2e8f0;letter-spacing:-0.2px;font-family:'Outfit',sans-serif;">${ministerioConfig[ministerioSelecionado].nome}</div>
         </div>
-        <div style="font-size:12px;color:#6a677f;font-weight:500;font-family:'Outfit',sans-serif;">${mesFormatado}</div>
+        <div style="font-size:12px;color:#94A3B8;font-weight:500;font-family:'Outfit',sans-serif;">${mesFormatado}</div>
       `;
 
       // Grid clone
@@ -133,7 +137,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           const nameSpan = badge.querySelector("span");
           const name = nameSpan ? nameSpan.textContent.trim() : "";
           if (name) {
-            td.innerHTML = `<span style="color:#ece9ff;font-weight:500;font-size:12px;font-family:'Outfit',sans-serif;">${name}</span>`;
+            td.innerHTML = `<span style="color:#e2e8f0;font-weight:500;font-size:12px;font-family:'Outfit',sans-serif;">${name}</span>`;
           }
         }
       });
@@ -191,7 +195,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       ),
     },
     recepcao: {
-      nome: "MINISTÉRIO DE RECEPÇÃO",
+      nome: "MINISTÉRIO DE INTRODUÇÃO",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -287,7 +291,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           right: -20%;
           width: 700px;
           height: 700px;
-          background: radial-gradient(circle, rgba(167,139,250,0.06) 0%, transparent 65%);
+          background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 65%);
           pointer-events: none;
           z-index: 0;
         }
@@ -298,7 +302,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           left: -10%;
           width: 500px;
           height: 500px;
-          background: radial-gradient(circle, rgba(124,106,247,0.04) 0%, transparent 65%);
+          background: radial-gradient(circle, rgba(99,102,241,0.04) 0%, transparent 65%);
           pointer-events: none;
           z-index: 0;
         }
@@ -311,7 +315,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         /* Select focus */
         .sidebar-select:focus {
           border-color: ${theme.accent} !important;
-          box-shadow: 0 0 0 3px rgba(167,139,250,0.12);
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
         }
 
         /* Skeleton loading */
@@ -322,7 +326,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .skeleton-pulse { animation: skeleton-pulse 1.6s ease-in-out infinite; }
 
         /* Hover nas linhas da grid */
-        .grid-row:hover { background: rgba(167,139,250,0.05) !important; cursor: default; }
+        .grid-row:hover { background: rgba(99,102,241,0.05) !important; cursor: default; }
 
         /* Sticky header da grid */
         .grid-thead th {
@@ -379,7 +383,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             min-width: 90px;
             flex-shrink: 0;
           }
-          .grid-date-cell { border-right: none !important; background: rgba(167,139,250,0.04); }
+          .grid-date-cell { border-right: none !important; background: rgba(99,102,241,0.04); }
         }
       `}</style>
 
@@ -398,9 +402,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       <div style={{
         position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 201,
         width: "300px",
-        background: "rgba(14,14,27,0.85)",
+        background: "rgba(22,25,34,0.9)",
         backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-        borderRight: `1px solid rgba(167,139,250,0.12)`,
+        borderRight: `1px solid rgba(99,102,241,0.12)`,
         padding: "20px 16px", overflowY: "auto",
         transform: drawerAberto ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.25s ease",
@@ -426,6 +430,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           onMensagem={mostrarMensagem}
           onConflito={setConflito}
           refreshKey={refreshKey}
+          indispRefreshKey={indispRefreshKey}
         />
       </div>
 
@@ -436,7 +441,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           position: "fixed", bottom: "24px", right: "24px", zIndex: 150,
           width: "52px", height: "52px", borderRadius: "50%",
           background: theme.accent, border: "none", cursor: "pointer",
-          boxShadow: "0 4px 20px rgba(47,129,247,0.4)",
+          boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
           display: "none", alignItems: "center", justifyContent: "center",
         }}
         className="fab-mobile"
@@ -457,7 +462,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, #a78bfa)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, #818cf8)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
@@ -484,7 +489,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>{user?.email}</span>
+          <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>Olá, {user?.email}</span>
           <button onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
@@ -498,8 +503,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         {/* Sidebar desktop */}
         <aside className="desktop-sidebar" style={{
           width: "268px", minWidth: "268px",
-          borderRight: `1px solid rgba(167,139,250,0.1)`,
-          background: "rgba(14,14,27,0.75)",
+          borderRight: `1px solid rgba(99,102,241,0.1)`,
+          background: "rgba(22,25,34,0.8)",
           backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
           padding: "18px 14px", overflowY: "auto",
           position: "sticky", top: "48px", height: "calc(100vh - 48px)",
@@ -514,6 +519,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onMensagem={mostrarMensagem}
             onConflito={setConflito}
             refreshKey={refreshKey}
+            indispRefreshKey={indispRefreshKey}
           />
         </aside>
 
@@ -681,6 +687,40 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               )}
 
               {podeEditar && (
+                <button
+                  onClick={() => setVerIndisponibilidade(v => !v)}
+                  style={{
+                    padding: "5px 10px", fontFamily: "inherit",
+                    background: verIndisponibilidade ? "rgba(251,146,60,0.12)" : "transparent",
+                    border: `1px solid ${verIndisponibilidade ? "rgba(251,146,60,0.4)" : theme.border}`,
+                    borderRadius: "5px",
+                    color: verIndisponibilidade ? "#fb923c" : theme.textMuted,
+                    fontSize: "12px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: "5px",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    if (!verIndisponibilidade) {
+                      e.currentTarget.style.borderColor = "rgba(251,146,60,0.35)";
+                      e.currentTarget.style.color = "#fb923c";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!verIndisponibilidade) {
+                      e.currentTarget.style.borderColor = theme.border;
+                      e.currentTarget.style.color = theme.textMuted;
+                    }
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                  </svg>
+                  <span className="btn-label">Indisponível</span>
+                </button>
+              )}
+
+              {podeEditar && (
                 <button onClick={handleLimparTudo} disabled={limpando}
                   style={{ padding: "5px 10px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; e.currentTarget.style.background = theme.dangerDim; }}
@@ -748,7 +788,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             <div style={{
               padding: "48px 24px", textAlign: "center",
               borderRadius: "10px", border: `1px solid ${theme.border}`,
-              background: "rgba(7,7,14,0.6)",
+              background: "rgba(15,17,23,0.6)",
             }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }}>
                 <rect x="3" y="4" width="18" height="18" rx="2" stroke={theme.textMuted} strokeWidth="1.5"/>
@@ -779,6 +819,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           )}
         </main>
       </div>
+
+      <IndisponibilidadeModal
+        aberto={verIndisponibilidade}
+        onFechar={() => { setVerIndisponibilidade(false); setIndispRefreshKey(k => k + 1); }}
+        ministerioId={ministerioSelecionado}
+        datasDisponiveis={datas}
+        theme={theme}
+      />
 
       <ConfirmModal
         aberto={confirmModal.aberto}

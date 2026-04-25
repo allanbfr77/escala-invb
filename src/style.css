@@ -342,3 +342,43 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* ── Grid chips ──────────────────────────────────────────── */
+.grid-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  transition: background 0.15s;
+  cursor: default;
+}
+
+.grid-chip:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* X invisível por padrão, aparece no hover do chip */
+.grid-chip-x {
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  color: #94A3B8;
+}
+
+.grid-chip:hover .grid-chip-x {
+  opacity: 1;
+}
+
+.grid-chip-x:hover {
+  color: #fb7185 !important;
+}

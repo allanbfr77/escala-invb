@@ -1,27 +1,28 @@
 // ===== src/pages/Login.jsx =====
 import { useState, useRef, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const theme = {
-  bg: "#0d1117",
-  surface: "#161b22",
-  border: "#21262d",
-  borderLight: "#30363d",
-  accent: "#2f81f7",
-  accentDim: "#1a3a5c",
-  accentGlow: "rgba(47,129,247,0.15)",
-  text: "#e6edf3",
-  textMuted: "#7d8590",
-  textDim: "#484f58",
-  danger: "#f85149",
-  dangerDim: "rgba(248,81,73,0.1)",
+  bg: "#0F1117",
+  surface: "#161922",
+  border: "#232838",
+  borderLight: "#2e3650",
+  accent: "#6366F1",
+  accentDim: "rgba(99,102,241,0.12)",
+  accentGlow: "rgba(99,102,241,0.08)",
+  text: "#e2e8f0",
+  textMuted: "#94A3B8",
+  textDim: "#3a4258",
+  danger: "#fb7185",
+  dangerDim: "rgba(251,113,133,0.1)",
 };
 
 const perfis = [
   { id: "comunicacao", nome: "MINISTÉRIO DE COMUNICAÇÕES", img: "/ministerios/comunicacoes.jpg", desc: "Líderes: ALAN e JEAN" },
   { id: "louvor",      nome: "MINISTÉRIO DE LOUVOR",       img: "/ministerios/louvor.jpg",        desc: "Líderes: ALESSANDRO e RAPHAELA" },
-  { id: "recepcao",   nome: "MINISTÉRIO DE RECEPÇÃO",     img: "/ministerios/recepcao.jpg",       desc: "Líder: Dc. ATAYDE" },
+  { id: "recepcao",   nome: "MINISTÉRIO DE INTRODUÇÃO",    img: "/ministerios/recepcao.jpg",       desc: "Líder: Dc. ATAYDE" },
   { id: "infantil",   nome: "MINISTÉRIO DE INFANTIL",     img: "/ministerios/infantil.jpg",       desc: "Líder: MARÍLIA" },
 ];
 
@@ -72,7 +73,20 @@ export default function Login() {
     setCarregando(true);
     setErro("");
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), senha);
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), senha);
+
+      // Valida se as credenciais pertencem ao ministério selecionado
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+      const userData = snap.data();
+
+      if (!userData || userData.ministerioId !== perfilSelecionado.id) {
+        await signOut(auth);
+        setErro(`Este email não pertence ao ${perfilSelecionado.nome}`);
+        setCarregando(false);
+        setSenha("");
+        return;
+      }
+      // Sucesso — AuthContext vai detectar o login e redirecionar
     } catch (err) {
       setErro(mensagemDeErro(err.code));
       setCarregando(false);
@@ -111,7 +125,7 @@ export default function Login() {
         }
         .login-input:focus {
           border-color: ${theme.accent};
-          box-shadow: 0 0 0 3px rgba(47,129,247,0.12);
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
         }
         .login-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -245,11 +259,11 @@ export default function Login() {
               >
                 <div
                   className="perfil-img"
-                  style={{ width: "100%", height: "130px", background: "#fff", overflow: "hidden" }}
+                  style={{ width: "100%", height: "130px", background: theme.bg, overflow: "hidden" }}
                 >
                   <img
                     src={p.img} alt={p.nome}
-                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", padding: "8px" }}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", padding: "12px" }}
                   />
                 </div>
                 <div style={{ padding: "10px 12px" }}>
@@ -290,7 +304,7 @@ export default function Login() {
               width: 0, height: 0,
               borderLeft: "9px solid transparent",
               borderRight: "9px solid transparent",
-              borderBottom: `9px solid ${theme.border}`,
+              borderBottom: `9px solid ${theme.accent}`,
               transition: "left 0.25s ease",
               zIndex: 1,
             }}>

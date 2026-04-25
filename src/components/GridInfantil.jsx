@@ -1,4 +1,5 @@
 // ===== src/components/GridInfantil.jsx =====
+import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
 
 const thStyle = (t) => ({
@@ -9,6 +10,7 @@ const thStyle = (t) => ({
 
 export default function GridInfantil({ escalas, datas, loading, onRemover, podeEditar, filtroNome = "", theme: t }) {
   const funcoes = ["BERÇÁRIO", "MATERNAL", "JUNIORES"];
+  const [hoveredChip, setHoveredChip] = useState(null);
 
   if (loading && Object.keys(escalas).length === 0 && datas.length === 0)
     return <div style={{ padding: "48px", textAlign: "center", color: t.textMuted, fontSize: "13px", fontFamily: "'Outfit', sans-serif" }}>Carregando escala...</div>;
@@ -21,8 +23,8 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
   return (
     <div style={{
       overflowX: "auto", borderRadius: "10px",
-      border: `1px solid rgba(167,139,250,0.12)`,
-      background: "rgba(7,7,14,0.6)",
+      border: `1px solid rgba(99,102,241,0.15)`,
+      background: "rgba(15,17,23,0.7)",
       backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
     }}>
       <table className="grid-table" style={{ width: "auto", minWidth: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -36,39 +38,61 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
           {datas.map((dataObj, idx) => {
             const turnoKey = dataObj.turno ?? "único";
             return (
-              <tr key={idx} className="grid-row" style={{ borderBottom: `1px solid ${t.border}`, background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)", transition: "background 0.15s" }}>
-                <td className="grid-date-cell" data-label="Data" style={{ padding: "7px 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}` }}>
+              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : "rgba(99,102,241,0.04)", transition: "background 0.15s" }}>
+                <td className="grid-date-cell" data-label="Data" style={{ padding: "10px 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}` }}>
                   {formatarData(dataObj.data, dataObj.turno)}
                 </td>
                 {funcoes.map(f => {
-                  const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
-                  const match = filtro && pessoa && pessoa.toLowerCase().includes(filtro);
-                  const dim   = filtro && pessoa && !match;
+                  const chipKey = `${dataObj.data}-${turnoKey}-${f}`;
+                  const pessoa  = escalas[chipKey];
+                  const match   = filtro && pessoa && pessoa.toLowerCase().includes(filtro);
+                  const dim     = filtro && pessoa && !match;
+                  const hovered = hoveredChip === chipKey;
                   return (
                     <td key={f} data-label={f} style={{ padding: "6px 14px", whiteSpace: "nowrap" }}>
                       {pessoa ? (
-                        <div style={{
-                          display: "inline-flex", alignItems: "center", gap: "6px",
-                          background: match ? "rgba(167,139,250,0.2)" : t.accentGlow,
-                          border: `1px solid ${match ? t.accent : t.accentDim}`,
-                          borderRadius: "5px", padding: "3px 9px",
-                          opacity: dim ? 0.3 : 1,
-                          boxShadow: match ? `0 0 8px rgba(167,139,250,0.25)` : "none",
-                          transition: "opacity 0.2s, box-shadow 0.2s",
-                        }}>
-                          <span style={{ color: t.accent, fontWeight: match ? 700 : 500, fontSize: "12px", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.3px" }}>
+                        <div
+                          onMouseEnter={() => setHoveredChip(chipKey)}
+                          onMouseLeave={() => setHoveredChip(null)}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: "4px",
+                            borderRadius: "5px", padding: "2px 6px",
+                            opacity: dim ? 0.3 : 1,
+                            background: match
+                              ? "rgba(99,102,241,0.15)"
+                              : hovered ? "rgba(99,102,241,0.08)" : "transparent",
+                            transition: "background 0.15s",
+                            cursor: "default",
+                          }}
+                        >
+                          <span style={{
+                            color: match ? t.accent : t.text,
+                            fontWeight: match ? 700 : 500,
+                            fontSize: "12px", fontFamily: "'Outfit', sans-serif",
+                            letterSpacing: "0.2px",
+                          }}>
                             {pessoa.toUpperCase()}
                           </span>
                           {podeEditar && (
-                            <button onClick={() => onRemover(dataObj.data, turnoKey, f)} title="Remover"
-                              style={{ background: "none", border: "none", cursor: "pointer", color: t.textDim, fontSize: "10px", padding: 0, lineHeight: 1, display: "flex", alignItems: "center" }}
-                              onMouseEnter={e => e.target.style.color = t.danger}
-                              onMouseLeave={e => e.target.style.color = t.textDim}
+                            <button
+                              onClick={() => onRemover(dataObj.data, turnoKey, f)}
+                              title="Remover"
+                              style={{
+                                background: "none", border: "none", cursor: "pointer",
+                                color: t.textMuted, fontSize: "9px", padding: "0 1px",
+                                lineHeight: 1, display: "flex", alignItems: "center",
+                                opacity: hovered ? 1 : 0,
+                                pointerEvents: hovered ? "auto" : "none",
+                                transition: "opacity 0.15s, color 0.1s",
+                                width: "12px", flexShrink: 0,
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.color = t.danger}
+                              onMouseLeave={e => e.currentTarget.style.color = t.textMuted}
                             >✕</button>
                           )}
                         </div>
                       ) : (
-                        <span style={{ color: t.textDim, fontSize: "11px" }}>—</span>
+                        <span style={{ color: t.textDim, fontSize: "11px", opacity: dim ? 0.3 : 1 }}>—</span>
                       )}
                     </td>
                   );

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
-import { pessoasPorMinisterio } from "../data/pessoas";
+import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
 
@@ -29,7 +29,7 @@ const ministerios = [
     ),
   },
   {
-    id: "recepcao", nome: "RECEPÇÃO",
+    id: "recepcao", nome: "INTRODUÇÃO",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -54,14 +54,20 @@ const ministerios = [
   },
 ];
 
+// Ministérios com filtro Função → Pessoa
+const MINISTERIOS_COM_FILTRO = ["louvor", "infantil"];
+
+const NOMES_MINISTERIOS = {
+  comunicacao: "COMUNICAÇÕES", louvor: "LOUVOR", recepcao: "INTRODUÇÃO", infantil: "INFANTIL",
+
+};
 
 export default function SidebarFiltros({
   usuario, ministerioSelecionado, setMinisterioSelecionado,
   datasDisponiveis, onRefresh, theme, onConfirmar,
   onMensagem, onConflito,
-  // Incremente este valor externamente sempre que uma escala for removida
-  // da grid para que o sidebar recarregue as datas ocupadas automaticamente.
   refreshKey = 0,
+  indispRefreshKey = 0,
 }) {
   const t = theme || {};
   const [salvando, setSalvando]               = useState(false);
@@ -69,61 +75,75 @@ export default function SidebarFiltros({
   const [funcaoSelecionada, setFuncao]        = useState("");
   const [datasIds, setDatasIds]               = useState([]);
   const [datasConfirmadas, setDatasConfirmadas] = useState([]);
-
-  // Datas já ocupadas para a combinação ministério + função (chave: "data|turno|funcao")
   const [datasOcupadas, setDatasOcupadas]     = useState(new Set());
   const [carregandoOcupadas, setCarregandoOcupadas] = useState(false);
+  const [indisponiveisMap, setIndisponiveisMap] = useState({});
+  const [datasAberta, setDatasAberta]         = useState(false);
 
+  const usaFiltro = MINISTERIOS_COM_FILTRO.includes(ministerioSelecionado);
 
-  // ─── Limpa estado local quando o ministério muda ──────────────────────────
+  // ─── Limpa estado ao trocar ministério ───────────────────────────────────
   useEffect(() => {
     setDatasConfirmadas([]);
     setDatasIds([]);
     setFuncao("");
     setPessoa("");
+    setDatasAberta(false);
   }, [ministerioSelecionado]);
 
-  // ─── FIX 1: Limpa datasConfirmadas quando refreshKey muda ─────────────────
-  // Isso garante que datas removidas da grid voltam a aparecer no sidebar
-  // sem precisar recarregar a página.
+  // ─── Colapsa datas ao trocar função ─────────────────────────────────────
+  useEffect(() => {
+    setDatasAberta(false);
+    setDatasIds([]);
+  }, [funcaoSelecionada]);
+
+  // ─── Limpa datasConfirmadas ao remover da grid ────────────────────────────
   useEffect(() => {
     if (refreshKey === 0) return;
     setDatasConfirmadas([]);
   }, [refreshKey]);
 
-  // ─── FIX 2: Busca ocupadas com chave "data|turno|funcao" ──────────────────
-  // Antes a chave era apenas "data|turno", o que fazia a data desaparecer
-  // de TODAS as funções quando qualquer uma delas estava ocupada.
-  // Agora cada função tem seu próprio banco de datas disponíveis.
-  // Também limpa datasConfirmadas ao trocar de função, pois cada função
-  // tem seu próprio conjunto de datas confirmadas nesta sessão.
+  // ─── Carrega indisponibilidades do ministério ─────────────────────────────
+  useEffect(() => {
+    if (!ministerioSelecionado) return;
+    let cancelled = false;
+    getDocs(query(
+      collection(db, "indisponibilidades"),
+      where("ministerioId", "==", ministerioSelecionado)
+    )).then(snap => {
+      if (cancelled) return;
+      const map = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        map[data.pessoaNome] = new Set(data.datas || []);
+      });
+      setIndisponiveisMap(map);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [ministerioSelecionado, refreshKey, indispRefreshKey]);
+
+  // ─── Busca datas ocupadas por função ─────────────────────────────────────
   useEffect(() => {
     setDatasOcupadas(new Set());
     setDatasIds([]);
     setDatasConfirmadas([]);
 
-    if (!funcaoSelecionada || !ministerioSelecionado) return;
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS" || !ministerioSelecionado) return;
 
     let cancelled = false;
     const buscarOcupadas = async () => {
       setCarregandoOcupadas(true);
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, "escalas"),
-            where("ministerioId", "==", ministerioSelecionado),
-            where("funcao", "==", funcaoSelecionada)
-          )
-        );
-
+        const snap = await getDocs(query(
+          collection(db, "escalas"),
+          where("ministerioId", "==", ministerioSelecionado),
+          where("funcao", "==", funcaoSelecionada)
+        ));
         if (cancelled) return;
-
-        // Chave inclui a função → cada função tem seu próprio conjunto de ocupadas
         const ocupadas = new Set();
         snap.docs.forEach(doc => {
           const d = doc.data();
           const turno = d.turno ?? "único";
-          // FIX: inclui funcao na chave para isolar por função
           ocupadas.add(`${d.data}|${turno}|${d.funcao}`);
         });
         setDatasOcupadas(ocupadas);
@@ -138,28 +158,59 @@ export default function SidebarFiltros({
     return () => { cancelled = true; };
   }, [ministerioSelecionado, funcaoSelecionada, refreshKey]);
 
+  // ─── Quando função muda (para ministérios com filtro), revalida pessoa ───
+  useEffect(() => {
+    if (!usaFiltro || !funcaoSelecionada || funcaoSelecionada === "TODOS") return;
+    const mapa = ministerioSelecionado === "louvor" ? pessoasPorFuncaoLouvor : pessoasPorFuncaoInfantil;
+    const permitidos = mapa[funcaoSelecionada] || [];
+    if (pessoaSelecionada && !permitidos.includes(pessoaSelecionada)) {
+      setPessoa("");
+    }
+  }, [funcaoSelecionada]);
+
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
   const funcoesDoMinisterio = funcoesPorMinisterio[ministerioSelecionado] || [];
   const podeEditar = podeEditarMinisterio(usuario, ministerioSelecionado);
 
-  // ─── FIX 3: Filtro usa a chave "data|turno|funcaoSelecionada" ─────────────
-  // Antes usava só "data|turno", removendo a data de todas as funções.
+  // Lista de pessoas filtrada por função (louvor/infantil)
+  const pessoasFiltradas = (() => {
+    if (!usaFiltro || !funcaoSelecionada || funcaoSelecionada === "TODOS") {
+      return pessoasDoMinisterio;
+    }
+    const mapa = ministerioSelecionado === "louvor" ? pessoasPorFuncaoLouvor : pessoasPorFuncaoInfantil;
+    return mapa[funcaoSelecionada] || pessoasDoMinisterio;
+  })();
+
+  // Datas visíveis — exclui ocupadas e indisponíveis da pessoa selecionada
   const datasVisiveis = datasDisponiveis.filter(d => {
-    // Datas já confirmadas nesta sessão para esta função ficam ocultas
     if (datasConfirmadas.includes(d.id)) return false;
-
     const turnoKey = d.turno ?? "único";
-    // FIX: verifica ocupação apenas para a função atualmente selecionada
     if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
-
+    if (pessoaSelecionada) {
+      const pessoaLower = pessoaSelecionada.toLowerCase();
+      const chave = `${d.data}|${turnoKey}`;
+      if (indisponiveisMap[pessoaLower]?.has(chave)) return false;
+    }
     return true;
   });
 
-  // Desseleciona datas que sumiram da lista visível
   useEffect(() => {
     const visiveisIds = new Set(datasVisiveis.map(d => d.id));
     setDatasIds(prev => prev.filter(id => visiveisIds.has(id)));
-  }, [datasOcupadas, datasConfirmadas]);
+  }, [datasOcupadas, datasConfirmadas, pessoaSelecionada, indisponiveisMap]);
+
+  // ─── Abre o acordeão automaticamente quando todas as datas já estão preenchidas ───
+  useEffect(() => {
+    if (
+      !carregandoOcupadas &&
+      funcaoSelecionada &&
+      funcaoSelecionada !== "TODOS" &&
+      datasDisponiveis.length > 0 &&
+      datasVisiveis.length === 0
+    ) {
+      setDatasAberta(true);
+    }
+  }, [carregandoOcupadas, datasVisiveis.length, datasDisponiveis.length, funcaoSelecionada]);
 
   const toggleData = (id) => {
     setDatasIds(prev =>
@@ -171,7 +222,9 @@ export default function SidebarFiltros({
   const handleConfirmarEscala = async () => {
     if (!podeEditar)           { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
     if (!pessoaSelecionada)    { onMensagem?.("Selecione uma pessoa", "erro"); return; }
-    if (!funcaoSelecionada)    { onMensagem?.("Selecione uma função", "erro"); return; }
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") {
+      onMensagem?.("Selecione uma função específica", "erro"); return;
+    }
     if (datasIds.length === 0) { onMensagem?.("Selecione ao menos uma data", "erro"); return; }
 
     setSalvando(true);
@@ -189,7 +242,6 @@ export default function SidebarFiltros({
       const turnoSalvo = dataObj.turno === "único" ? "único" : dataObj.turno;
 
       try {
-        // Verifica conflito com outro ministério para a mesma pessoa/data/turno
         const qConflito = query(
           collection(db, "escalas"),
           where("pessoaNome", "==", pessoaSelecionada.toLowerCase()),
@@ -201,12 +253,11 @@ export default function SidebarFiltros({
 
         if (conflitoOutro) {
           const dd = conflitoOutro.data();
-          const nomes = { comunicacao: "COMUNICAÇÕES", louvor: "LOUVOR", recepcao: "RECEPÇÃO", infantil: "INFANTIL" };
           if (!conflito) {
             conflito = {
               pessoa: pessoaSelecionada,
               data: formatarData(dataObj.data, dataObj.turno),
-              ministerio: nomes[dd.ministerioId],
+              ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
               funcao: dd.funcao,
             };
           }
@@ -214,7 +265,6 @@ export default function SidebarFiltros({
           continue;
         }
 
-        // Remove escala anterior para o mesmo ministério + função + data + turno
         const qExistente = query(
           collection(db, "escalas"),
           where("ministerioId", "==", ministerioSelecionado),
@@ -240,8 +290,6 @@ export default function SidebarFiltros({
         });
 
         idsSalvos.push(dataObj.id);
-
-        // Atualiza datasOcupadas localmente com chave que inclui a função
         setDatasOcupadas(prev => new Set([...prev, `${dataObj.data}|${turnoSalvo}|${funcaoSelecionada}`]));
 
       } catch (error) {
@@ -255,7 +303,6 @@ export default function SidebarFiltros({
 
     if (salvos > 0) {
       setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
-
       const plural = salvos === 1 ? "data" : "datas";
       onMensagem?.(
         `${pessoaSelecionada.toUpperCase()} escalado como ${funcaoSelecionada} em ${salvos} ${plural}`,
@@ -283,7 +330,7 @@ export default function SidebarFiltros({
       color: t.text, fontSize: "13px", fontFamily: "inherit",
       outline: "none", cursor: "pointer", appearance: "none",
       transition: "border-color 0.15s, box-shadow 0.15s",
-      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a677f' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
       backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
       paddingRight: "28px",
     },
@@ -291,13 +338,10 @@ export default function SidebarFiltros({
   };
 
   const datasHint = (() => {
-    if (!funcaoSelecionada) return null;
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return null;
     if (carregandoOcupadas) return { text: "Verificando disponibilidade...", color: t.textMuted };
     if (datasVisiveis.length === 0 && datasDisponiveis.length > 0) {
-      return {
-        text: "Todas as datas já estão preenchidas para esta função",
-        color: "#d2993a",
-      };
+      return { text: "Todas as datas já estão preenchidas para esta função", color: "#d2993a" };
     }
     return null;
   })();
@@ -329,18 +373,7 @@ export default function SidebarFiltros({
         )}
       </div>
 
-      {/* Pessoa */}
-      <div style={s.field}>
-        <label style={s.label}>Pessoa</label>
-        <select className="sidebar-select" value={pessoaSelecionada} onChange={e => { setPessoa(e.target.value); onConflito?.(null); }} style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }} disabled={!podeEditar}>
-          <option value="">Selecione...</option>
-          {pessoasDoMinisterio.map(p => (
-            <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Função */}
+      {/* ── Função PRIMEIRO (louvor/infantil) ou junto com pessoa (outros) ── */}
       <div style={s.field}>
         <label style={s.label}>Função</label>
         <select
@@ -354,51 +387,94 @@ export default function SidebarFiltros({
           {funcoesDoMinisterio.map(f => (
             <option key={f} value={f}>{f}</option>
           ))}
+          {usaFiltro && <option value="TODOS">TODOS (sem filtro)</option>}
         </select>
       </div>
 
-      {/* Datas — lista visível e compacta */}
-      <div style={{ ...s.field }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-          <label style={{ ...s.label, marginBottom: 0 }}>
+      {/* Pessoa (filtrada pela função se louvor/infantil) */}
+      <div style={s.field}>
+        <label style={s.label}>
+          Pessoa
+          {usaFiltro && funcaoSelecionada && funcaoSelecionada !== "TODOS" && (
+            <span style={{
+              marginLeft: "6px", fontSize: "9px", fontWeight: 600,
+              color: t.accent, background: t.accentDim,
+              borderRadius: "8px", padding: "1px 6px",
+              textTransform: "uppercase", letterSpacing: "0.3px",
+            }}>
+              {pessoasFiltradas.length} disponíveis
+            </span>
+          )}
+        </label>
+        <select
+          className="sidebar-select"
+          value={pessoaSelecionada}
+          onChange={e => { setPessoa(e.target.value); onConflito?.(null); }}
+          style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }}
+          disabled={!podeEditar}
+        >
+          <option value="">Selecione...</option>
+          {[...pessoasFiltradas].sort((a, b) => a.localeCompare(b, "pt")).map(p => (
+            <option key={p} value={p}>{p.toUpperCase()}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Datas — acordeão, desabilitado quando TODOS está selecionado */}
+      <div style={s.field}>
+        {/* Header clicável */}
+        <button
+          onClick={() => {
+            if (funcaoSelecionada) setDatasAberta(v => !v);
+          }}
+          disabled={!funcaoSelecionada}
+          style={{
+            width: "100%", display: "flex", alignItems: "center",
+            justifyContent: "space-between", marginBottom: datasAberta ? "6px" : "0",
+            background: "none", border: "none", padding: "0",
+            cursor: funcaoSelecionada ? "pointer" : "default",
+            fontFamily: "inherit",
+          }}
+        >
+          <span style={{ ...s.label, marginBottom: 0, display: "flex", alignItems: "center", gap: "6px" }}>
             Datas
             {datasIds.length > 0 && (
               <span style={{
-                marginLeft: "7px", background: t.accent, color: "white",
+                background: t.accent, color: "white",
                 borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: 700,
               }}>
                 {datasIds.length}
               </span>
             )}
-          </label>
-          {podeEditar && datasVisiveis.length > 0 && (
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={() => { setDatasIds(datasVisiveis.map(d => d.id)); onConflito?.(null); }}
-                style={{
-                  background: "transparent", border: "none", padding: 0,
-                  fontSize: "11px", fontWeight: 600, color: t.accent,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                Todas
-              </button>
-              <span style={{ color: t.border }}>·</span>
-              <button
-                onClick={() => { setDatasIds([]); onConflito?.(null); }}
-                style={{
-                  background: "transparent", border: "none", padding: 0,
-                  fontSize: "11px", fontWeight: 600, color: t.textMuted,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                Nenhuma
-              </button>
-            </div>
-          )}
-        </div>
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {datasAberta && podeEditar && datasVisiveis.length > 0 && (
+              <div style={{ display: "flex", gap: "8px" }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => { setDatasIds(datasVisiveis.map(d => d.id)); onConflito?.(null); }}
+                  style={{ background: "transparent", border: "none", padding: 0, fontSize: "11px", fontWeight: 600, color: t.accent, cursor: "pointer", fontFamily: "inherit" }}>
+                  Todas
+                </button>
+                <span style={{ color: t.border }}>·</span>
+                <button onClick={() => { setDatasIds([]); onConflito?.(null); }}
+                  style={{ background: "transparent", border: "none", padding: 0, fontSize: "11px", fontWeight: 600, color: t.textMuted, cursor: "pointer", fontFamily: "inherit" }}>
+                  Nenhuma
+                </button>
+              </div>
+            )}
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke={funcaoSelecionada ? t.textMuted : t.textDim}
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transition: "transform 0.2s", transform: datasAberta ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+        </button>
 
-        {/* Hint de datas ocupadas */}
+        {/* Conteúdo colapsável */}
+        <div style={{ display: datasAberta ? "block" : "none" }}>
+
         {datasHint && (
           <div style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -411,7 +487,6 @@ export default function SidebarFiltros({
           </div>
         )}
 
-        {/* Lista inline de datas */}
         <div style={{
           borderRadius: "6px", border: `1px solid ${t.border}`,
           overflow: "hidden",
@@ -427,7 +502,9 @@ export default function SidebarFiltros({
             </div>
           ) : datasVisiveis.length === 0 ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              Todas as datas já estão preenchidas
+              {pessoaSelecionada
+                ? "Nenhuma data disponível para esta pessoa e função"
+                : "Todas as datas já estão preenchidas"}
             </div>
           ) : (
             datasVisiveis.map((d, i) => {
@@ -469,6 +546,7 @@ export default function SidebarFiltros({
             })
           )}
         </div>
+        </div>{/* fim conteúdo colapsável */}
       </div>
 
       {/* Botão confirmar */}
