@@ -56,12 +56,12 @@ export default function ConfirmModal({ aberto, titulo, descricao, confirmLabel =
             onClick={onCancelar}
             style={{
               padding: "8px 18px", borderRadius: "6px", cursor: "pointer",
-              background: "transparent", border: `1px solid ${t.border}`,
-              color: t.textMuted, fontSize: "13px", fontFamily: "inherit", fontWeight: 500,
+              background: bgConfirm, border: `1px solid ${corConfirm}`,
+              color: corConfirm, fontSize: "13px", fontFamily: "inherit", fontWeight: 600,
               transition: "all 0.15s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderLight; e.currentTarget.style.color = t.text; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}
+            onMouseEnter={e => { e.currentTarget.style.background = corConfirm; e.currentTarget.style.color = "white"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = bgConfirm; e.currentTarget.style.color = corConfirm; }}
           >
             Cancelar
           </button>
@@ -69,12 +69,25 @@ export default function ConfirmModal({ aberto, titulo, descricao, confirmLabel =
             onClick={onConfirmar}
             style={{
               padding: "8px 18px", borderRadius: "6px", cursor: "pointer",
-              background: bgConfirm, border: `1px solid ${corConfirm}`,
-              color: corConfirm, fontSize: "13px", fontFamily: "inherit", fontWeight: 600,
+              background: "transparent", border: `1px solid ${t.border}`,
+              color: t.textMuted, fontSize: "13px", fontFamily: "inherit", fontWeight: 500,
               transition: "all 0.15s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = corConfirm; e.currentTarget.style.color = "white"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = bgConfirm; e.currentTarget.style.color = corConfirm; }}
+            onMouseEnter={e => {
+              if (!perigoso) {
+                e.currentTarget.style.borderColor = "rgba(52,211,153,0.5)";
+                e.currentTarget.style.color = "#34d399";
+                e.currentTarget.style.background = "rgba(52,211,153,0.08)";
+              } else {
+                e.currentTarget.style.borderColor = t.borderLight;
+                e.currentTarget.style.color = t.text;
+              }
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = t.border;
+              e.currentTarget.style.color = t.textMuted;
+              e.currentTarget.style.background = "transparent";
+            }}
           >
             {confirmLabel}
           </button>

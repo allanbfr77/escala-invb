@@ -43,7 +43,7 @@ export function gerarDatasEscala(anoMes) {
   return resultados;
 }
 
-export function formatarData(dataStr, turno) {
+export function formatarData(dataStr, turno, descricao) {
   const [ano, mes, dia] = dataStr.split("-");
   const data = new Date(ano, mes - 1, dia);
   const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "long" })
@@ -51,6 +51,7 @@ export function formatarData(dataStr, turno) {
     .replace("-FEIRA", "-FEIRA"); // mantém hífen em quarta-feira, sexta-feira etc.
   const diaMes = `${dia}/${mes}`;
 
+  if (descricao) return `${diaSemana}, ${diaMes} (${descricao.toUpperCase()})`;
   if (turno === "manhã") return `${diaSemana}, ${diaMes} (MANHÃ)`;
   if (turno === "noite") return `${diaSemana}, ${diaMes} (NOITE)`;
   return `${diaSemana}, ${diaMes}`;

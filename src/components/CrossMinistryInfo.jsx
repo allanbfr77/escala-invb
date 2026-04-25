@@ -134,8 +134,8 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))",
-          gridAutoRows: "1fr",
           gap: "10px",
+          paddingTop: "4px", /* evita corte da borda/sombra no topo pelo overflow:hidden pai */
         }}>
           {pessoas.map(nome => {
             const grupos = dados[nome];
@@ -155,7 +155,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                 onMouseLeave={() => setHovered(null)}
                 style={{
                   borderRadius: "8px",
-                  border: `1px solid ${isHovered ? cfgPrimary.color : t.border}`,
+                  border: `1px solid ${isHovered ? cfgPrimary.color : cfgPrimary.border}`,
                   background: t.surface,
                   overflow: "hidden",
                   display: "flex",
@@ -163,7 +163,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
                   transform: isHovered ? "translateY(-2px)" : "translateY(0)",
                   boxShadow: isHovered
-                    ? `0 6px 20px ${cfgPrimary.glow}, 0 0 0 1px ${cfgPrimary.color}`
+                    ? `0 6px 20px ${cfgPrimary.glow}`
                     : "none",
                   cursor: "default",
                 }}

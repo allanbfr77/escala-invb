@@ -64,7 +64,15 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
     <div style={{ fontFamily: "'Outfit', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: t.text }}>
+            Relatório do mês
+          </h2>
+          <p style={{ margin: 0, fontSize: "12px", color: t.textMuted }}>
+            {escalados.length} pessoa{escalados.length !== 1 ? "s" : ""} escalada{escalados.length !== 1 ? "s" : ""} · {datas.length} slot{datas.length !== 1 ? "s" : ""} no mês
+          </p>
+        </div>
         <button
           onClick={onVoltar}
           style={{
@@ -73,7 +81,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
             borderRadius: "6px", padding: "6px 12px",
             color: t.textMuted, fontSize: "13px", fontWeight: 500,
             cursor: "pointer", fontFamily: "inherit",
-            transition: "all 0.15s",
+            transition: "all 0.15s", flexShrink: 0,
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderLight; e.currentTarget.style.color = t.text; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}
@@ -83,14 +91,6 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
           </svg>
           Voltar para escala
         </button>
-        <div>
-          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: t.text }}>
-            Relatório do mês
-          </h2>
-          <p style={{ margin: 0, fontSize: "12px", color: t.textMuted }}>
-            {escalados.length} pessoa{escalados.length !== 1 ? "s" : ""} escalada{escalados.length !== 1 ? "s" : ""} · {datas.length} slot{datas.length !== 1 ? "s" : ""} no mês
-          </p>
-        </div>
       </div>
 
       {/* Cards das pessoas escaladas */}
@@ -157,28 +157,28 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                   <button
                     onClick={() => toggleExpandido(pessoa)}
                     style={{
-                      width: "100%", background: "rgba(210,153,58,0.07)",
-                      border: "1px solid rgba(210,153,58,0.25)",
+                      width: "100%", background: "rgba(96,165,250,0.07)",
+                      border: "1px solid rgba(96,165,250,0.25)",
                       borderRadius: aberto ? "6px 6px 0 0" : "6px",
                       padding: "7px 12px",
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       cursor: "pointer", fontFamily: "inherit",
                       transition: "background 0.15s",
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(210,153,58,0.12)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "rgba(210,153,58,0.07)"}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(96,165,250,0.12)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "rgba(96,165,250,0.07)"}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                         <path d="M12 9V14M12 17.5V18M12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3C16.97 3 21 7.03 21 12C21 16.97 16.97 21 12 21Z"
-                          stroke="#d2993a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#d2993a", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                         Turnos seguidos
                       </span>
                       <span style={{
-                        fontSize: "10px", fontWeight: 700, color: "#d2993a",
-                        background: "rgba(210,153,58,0.15)", borderRadius: "10px",
+                        fontSize: "10px", fontWeight: 700, color: "#60a5fa",
+                        background: "rgba(96,165,250,0.15)", borderRadius: "10px",
                         padding: "0px 6px",
                       }}>
                         {consecutivas.length}
@@ -187,38 +187,77 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                     {/* Chevron */}
                     <svg
                       width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="#d2993a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                       style={{ transition: "transform 0.2s", transform: aberto ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
                     >
                       <path d="M6 9l6 6 6-6"/>
                     </svg>
                   </button>
 
-                  {/* Conteúdo expansível em 2-3 colunas */}
+                  {/* Conteúdo expansível — colunas de 4 chips */}
                   <div style={{
                     overflow: "hidden",
                     maxHeight: aberto ? "600px" : "0",
                     transition: "max-height 0.28s ease",
                   }}>
-                    <div style={{
-                      background: "rgba(210,153,58,0.05)",
-                      border: "1px solid rgba(210,153,58,0.25)",
-                      borderTop: "none",
-                      borderRadius: "0 0 6px 6px",
-                      padding: "8px 12px",
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-                      gap: "4px 12px",
-                    }}>
-                      {consecutivas.map(([a, b], i) => (
-                        <span key={i} style={{
-                          fontSize: "12px", color: "#d2993a", fontWeight: 500,
-                          padding: "2px 0", lineHeight: 1.5,
+                    {(() => {
+                      // Agrupa em chunks de 4
+                      const chunks = [];
+                      for (let i = 0; i < consecutivas.length; i += 4) {
+                        chunks.push(consecutivas.slice(i, i + 4));
+                      }
+                      return (
+                        <div style={{
+                          background: "rgba(96,165,250,0.05)",
+                          border: "1px solid rgba(96,165,250,0.25)",
+                          borderTop: "none",
+                          borderRadius: "0 0 6px 6px",
+                          padding: "10px 14px",
+                          display: "flex",
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          alignItems: "flex-start",
+                          gap: "10px 0",
+                          overflowX: "auto",
                         }}>
-                          {formatarData(a.data, a.turno)} → {formatarData(b.data, b.turno)}
-                        </span>
-                      ))}
-                    </div>
+                          {chunks.map((chunk, colIdx) => (
+                            <div key={colIdx} style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
+                              {/* Divisória antes de cada coluna (exceto a primeira) */}
+                              {colIdx > 0 && (
+                                <div style={{
+                                  width: "1px",
+                                  alignSelf: "stretch",
+                                  background: "rgba(96,165,250,0.2)",
+                                  margin: "0 14px",
+                                  flexShrink: 0,
+                                }} />
+                              )}
+                              {/* Coluna de chips */}
+                              <div style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "4px",
+                                alignItems: "stretch",
+                              }}>
+                                {chunk.map(([a, b], i) => (
+                                  <span key={i} style={{
+                                    fontSize: "11px", color: "#60a5fa", fontWeight: 500,
+                                    whiteSpace: "nowrap",
+                                    background: "rgba(96,165,250,0.08)",
+                                    border: "1px solid rgba(96,165,250,0.2)",
+                                    borderRadius: "4px",
+                                    padding: "3px 10px",
+                                    display: "block",
+                                  }}>
+                                    {formatarData(a.data, a.turno)} → {formatarData(b.data, b.turno)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

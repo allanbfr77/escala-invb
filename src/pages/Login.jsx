@@ -242,19 +242,19 @@ export default function Login() {
                 style={{
                   padding: 0, cursor: "pointer", textAlign: "left",
                   outline: "none", overflow: "hidden",
-                  background: sel ? theme.accentGlow : theme.surface,
+                  background: sel ? "rgba(99,102,241,0.18)" : theme.surface,
                   border: `2px solid ${sel ? theme.accent : theme.border}`,
                   borderRadius: "10px",
                   transform: scale,
                   boxShadow: sel
-                    ? `0 0 0 3px ${theme.accentGlow}, 0 4px 20px rgba(47,129,247,0.2)`
+                    ? `0 0 0 3px rgba(99,102,241,0.15), 0 4px 20px rgba(47,129,247,0.2)`
                     : hovered && !formAtiva
                       ? "0 4px 16px rgba(0,0,0,0.3)"
                       : "none",
                   // Blur + dim non-selected cards when form is active (unless hovered)
                   filter: (outro && !hovered) ? "blur(1.5px) saturate(0.5)" : "none",
                   opacity: (outro && !hovered) ? 0.45 : carregando ? 0.6 : 1,
-                  transition: "transform 0.18s ease, opacity 0.25s ease, filter 0.25s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+                  transition: "transform 0.18s ease, background 0.2s ease, opacity 0.25s ease, filter 0.25s ease, box-shadow 0.18s ease, border-color 0.18s ease",
                 }}
               >
                 <div

@@ -19,11 +19,46 @@ export function EscalaProvider({ children, ministerioId, mes }) {
     setRetryCount(c => c + 1);
   }, []);
 
-  // Gerar datas do mês
+  // Gerar datas do mês + escutar cultos extras do ministério no Firestore
   useEffect(() => {
     const mesAlvo = mes || new Date().toISOString().slice(0, 7);
-    setDatas(gerarDatasEscala(mesAlvo));
-  }, [mes]);
+    const geradas = gerarDatasEscala(mesAlvo);
+
+    if (!ministerioId) {
+      setDatas(geradas);
+      return;
+    }
+
+    const q = query(
+      collection(db, "cultos_extras"),
+      where("ministerioId", "==", ministerioId),
+      where("mes", "==", mesAlvo)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const turnoOrder = { "manhã": 0, "único": 1, "noite": 2 };
+      const extrasFormatted = snap.docs.map(docSnap => {
+        const e = docSnap.data();
+        return {
+          id: `${e.data}-extra-${e.turno ?? "único"}`,
+          data: e.data,
+          tipo: "extra",
+          turno: e.turno ?? "único",
+          firestoreId: docSnap.id,
+          descricao: e.nome || e.descricao || "",
+        };
+      });
+      const todas = [...geradas, ...extrasFormatted].sort((a, b) => {
+        if (a.data !== b.data) return a.data.localeCompare(b.data);
+        return (turnoOrder[a.turno] ?? 1) - (turnoOrder[b.turno] ?? 1);
+      });
+      setDatas(todas);
+    }, () => {
+      setDatas(geradas);
+    });
+
+    return () => unsub();
+  }, [ministerioId, mes]);
 
   // Listener em tempo real
   useEffect(() => {

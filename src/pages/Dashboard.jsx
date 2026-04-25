@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { EscalaProvider, useEscalas } from "../context/EscalaContext";
 import SidebarFiltros from "../components/SidebarFiltros";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 import html2canvas from "html2canvas";
 
 import GridComunicacao from "../components/GridComunicacao";
@@ -18,6 +18,46 @@ import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { podeEditarMinisterio } from "../utils/permissions";
+import { formatarData } from "../utils/dateHelper";
+
+// ─── Helpers de controle de mês ──────────────────────────────────────────────
+
+/** Piso absoluto do sistema */
+const MES_ABSOLUTO = "2026-05";
+
+/** Mês mínimo navegável: max(MES_ABSOLUTO, mês civil atual − 1) */
+function getMesMinimo() {
+  const hoje = new Date();
+  const umMesAtras = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const candidato = umMesAtras.toISOString().slice(0, 7);
+  return candidato < MES_ABSOLUTO ? MES_ABSOLUTO : candidato;
+}
+
+/** Mês máximo navegável: Dezembro do ano corrente */
+function getMesMaximo() {
+  return `${new Date().getFullYear()}-12`;
+}
+
+/**
+ * Mês exibido por padrão:
+ *   - Dia >= 20 → mês seguinte (foco no planejamento)
+ *   - Dia  < 20 → mês atual
+ * Sempre limitado entre mesMinimo e mesMaximo.
+ */
+function getMesInicial() {
+  const hoje = new Date();
+  const base = hoje.getDate() >= 20
+    ? new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1)
+    : hoje;
+  const candidato = base.toISOString().slice(0, 7);
+  const min = getMesMinimo();
+  const max = getMesMaximo();
+  if (candidato < min) return min;
+  if (candidato > max) return max;
+  return candidato;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const theme = {
   bg: "#0F1117",
@@ -37,7 +77,7 @@ const theme = {
   successDim: "rgba(52,211,153,0.08)",
 };
 
-function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes }) {
+function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo }) {
   const { user, logout } = useAuth();
   const { escalas, datas, loading, error, retry } = useEscalas();
   // ── refreshKey dispara re-fetch no Sidebar quando uma escala é removida
@@ -50,7 +90,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [drawerAberto, setDrawerAberto] = useState(false);
   const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
   const [conflito, setConflito] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", onConfirmar: null });
+  const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", confirmLabel: "Confirmar", perigoso: false, onConfirmar: null });
   const [filtroNome, setFiltroNome] = useState("");
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const gridRef = useRef(null);
@@ -63,88 +103,169 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
   const podeEditar = podeEditarMinisterio(user, ministerioSelecionado);
 
+  const podeRetroceder = mes > mesMinimo;
+  const podeAvancar    = mes < mesMaximo;
+
   const handleMesAnterior = () => {
+    if (!podeRetroceder) return;
     const [ano, m] = mes.split("-").map(Number);
     setMes(new Date(ano, m - 2, 1).toISOString().slice(0, 7));
   };
 
   const handleMesProximo = () => {
+    if (!podeAvancar) return;
     const [ano, m] = mes.split("-").map(Number);
     setMes(new Date(ano, m, 1).toISOString().slice(0, 7));
   };
 
   const handleDownload = async () => {
-    if (!gridRef.current) return;
     setBaixando(true);
-
     try {
       const mesFormatado = new Date(mes + "-15")
         .toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
         .replace(" de ", " ")
         .toUpperCase();
 
-      // Wrapper holds title + grid clone
-      const wrapper = document.createElement("div");
-      wrapper.style.cssText = `
-        background: #0F1117;
-        padding: 20px 24px 24px;
-        font-family: 'Outfit', sans-serif;
-        display: inline-block;
-        min-width: ${gridRef.current.scrollWidth + 48}px;
-      `;
+      const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
+      const isMobile = window.innerWidth <= 768;
 
-      // Title row
-      const titleEl = document.createElement("div");
-      titleEl.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid #232838;
-      `;
-      titleEl.innerHTML = `
-        <div>
-          <div style="font-size:10px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;font-family:'Outfit',sans-serif;">Escala INVB</div>
-          <div style="font-size:15px;font-weight:700;color:#e2e8f0;letter-spacing:-0.2px;font-family:'Outfit',sans-serif;">${ministerioConfig[ministerioSelecionado].nome}</div>
+      // ── Paleta light ──────────────────────────────────────────────────────
+      const LT = {
+        bg:        "#F8FAFC",
+        surface:   "#FFFFFF",
+        border:    "#E2E8F0",
+        text:      "#0F172A",
+        textMuted: "#64748B",
+        textDim:   "#CBD5E1",
+        accent:    "#6366F1",
+        accentBg:  "rgba(99,102,241,0.08)",
+        zebra:     "rgba(99,102,241,0.04)",
+      };
+
+      // ── Header HTML (igual nos dois layouts) ─────────────────────────────
+      const headerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+          margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid ${LT.border};">
+          <div>
+            <div style="font-size:9px;font-weight:600;color:${LT.textMuted};
+              text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;
+              font-family:'Outfit',sans-serif;">Escala INVB</div>
+            <div style="font-size:15px;font-weight:700;color:${LT.text};
+              letter-spacing:-0.2px;font-family:'Outfit',sans-serif;">
+              ${ministerioConfig[ministerioSelecionado].nome}
+            </div>
+          </div>
+          <div style="font-size:11px;color:${LT.textMuted};font-weight:500;
+            font-family:'Outfit',sans-serif;">${mesFormatado}</div>
         </div>
-        <div style="font-size:12px;color:#94A3B8;font-weight:500;font-family:'Outfit',sans-serif;">${mesFormatado}</div>
       `;
 
-      // Grid clone
-      const gridClone = gridRef.current.cloneNode(true);
-      gridClone.style.overflow = "visible";
-      gridClone.style.overflowX = "visible";
-      gridClone.querySelectorAll("*").forEach(node => {
-        node.style.overflow  = "visible";
-        node.style.overflowX = "visible";
-        node.style.overflowY = "visible";
-      });
+      const wrapper = document.createElement("div");
+      wrapper.style.fontFamily = "'Outfit', sans-serif";
+      wrapper.style.background = LT.bg;
+      wrapper.style.display    = "inline-block";
 
-      // Fix sticky thead — causes header to render at wrong position in html2canvas
-      gridClone.querySelectorAll(".grid-thead th").forEach(el => {
-        el.style.position       = "static";
-        el.style.top            = "auto";
-        el.style.zIndex         = "auto";
-        el.style.backdropFilter = "none";
-        el.style.webkitBackdropFilter = "none";
-      });
+      if (isMobile) {
+        // ── MOBILE: cards lado a lado (3 colunas) ─────────────────────────
+        const cols = 3;
+        wrapper.style.padding = "16px";
+        wrapper.style.width   = "900px";
 
-      // Strip badges: replace styled chip with plain name text
-      gridClone.querySelectorAll(".grid-table td").forEach(td => {
-        const badge = td.querySelector("div");
-        if (badge) {
-          const nameSpan = badge.querySelector("span");
-          const name = nameSpan ? nameSpan.textContent.trim() : "";
-          if (name) {
-            td.innerHTML = `<span style="color:#e2e8f0;font-weight:500;font-size:12px;font-family:'Outfit',sans-serif;">${name}</span>`;
-          }
-        }
-      });
+        let cardsHTML = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px;">`;
 
-      wrapper.appendChild(titleEl);
-      wrapper.appendChild(gridClone);
+        datas.forEach(dataObj => {
+          const turnoKey = dataObj.turno ?? "único";
+          const dataLabel = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
 
+          let rowsHTML = "";
+          funcoes.forEach(f => {
+            const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+            const isDisponivel = pessoa === "disponível";
+            rowsHTML += `
+              <div style="display:flex;justify-content:space-between;align-items:baseline;
+                gap:4px;padding:2px 0;border-bottom:1px solid ${LT.border};">
+                <span style="font-size:8px;color:${LT.textMuted};font-weight:500;
+                  text-transform:uppercase;letter-spacing:0.2px;
+                  font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
+                  overflow:hidden;text-overflow:ellipsis;">${f}</span>
+                <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
+                  color:${isDisponivel ? "#a78bfa" : pessoa ? LT.text : LT.textDim};
+                  font-family:'Outfit',sans-serif;white-space:nowrap;">
+                  ${pessoa ? pessoa.toUpperCase() : "—"}
+                </span>
+              </div>
+            `;
+          });
+
+          cardsHTML += `
+            <div style="background:${LT.surface};border:1px solid ${LT.border};
+              border-radius:8px;overflow:hidden;">
+              <div style="background:${LT.accentBg};border-bottom:1px solid ${LT.border};
+                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.accent};
+                font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:0.3px;">
+                ${dataLabel}
+              </div>
+              <div style="padding:6px 10px;display:flex;flex-direction:column;gap:0px;">
+                ${rowsHTML}
+              </div>
+            </div>
+          `;
+        });
+
+        cardsHTML += "</div>";
+        wrapper.innerHTML = headerHTML + cardsHTML;
+
+      } else {
+        // ── DESKTOP: tabela light ──────────────────────────────────────────
+        const thStyle = `padding:9px 14px;text-align:left;font-weight:600;
+          color:${LT.textMuted};font-size:10px;text-transform:uppercase;
+          letter-spacing:0.8px;white-space:nowrap;font-family:'Outfit',sans-serif;`;
+
+        let theadHTML = `<tr style="border-bottom:1px solid ${LT.border};">
+          <th style="${thStyle}border-right:1px solid ${LT.border};">Data</th>`;
+        funcoes.forEach(f => {
+          theadHTML += `<th style="${thStyle}">${f}</th>`;
+        });
+        theadHTML += "</tr>";
+
+        let tbodyHTML = "";
+        datas.forEach((dataObj, idx) => {
+          const turnoKey = dataObj.turno ?? "único";
+          const rowBg = idx % 2 === 0 ? LT.surface : LT.zebra;
+          tbodyHTML += `<tr style="background:${rowBg};">
+            <td style="padding:9px 14px;font-weight:500;color:${LT.textMuted};
+              font-size:11px;font-family:'Outfit',sans-serif;white-space:nowrap;
+              border-right:1px solid ${LT.border};">
+              ${formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+            </td>`;
+          funcoes.forEach(f => {
+            const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+            const isDisponivel = pessoa === "disponível";
+            tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
+              <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
+                color:${isDisponivel ? "#a78bfa" : pessoa ? LT.text : LT.textDim};
+                font-family:'Outfit',sans-serif;">
+                ${pessoa ? pessoa.toUpperCase() : "—"}
+              </span>
+            </td>`;
+          });
+          tbodyHTML += "</tr>";
+        });
+
+        const tableHTML = `
+          <div style="border-radius:10px;border:1px solid ${LT.border};
+            background:${LT.surface};overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>${theadHTML}</thead>
+              <tbody>${tbodyHTML}</tbody>
+            </table>
+          </div>
+        `;
+        wrapper.style.padding  = "20px 24px 24px";
+        wrapper.innerHTML = headerHTML + tableHTML;
+      }
+
+      // ── html2canvas ───────────────────────────────────────────────────────
       wrapper.style.position = "fixed";
       wrapper.style.top      = "-99999px";
       wrapper.style.left     = "-99999px";
@@ -152,13 +273,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       document.body.appendChild(wrapper);
 
       const canvas = await html2canvas(wrapper, {
-        backgroundColor: theme.bg,
+        backgroundColor: LT.bg,
         scale: 2,
         useCORS: true,
         logging: false,
-        width: wrapper.scrollWidth,
+        width:  wrapper.scrollWidth,
         height: wrapper.scrollHeight,
-        windowWidth: wrapper.scrollWidth,
+        windowWidth:  wrapper.scrollWidth,
         windowHeight: wrapper.scrollHeight,
         scrollX: 0,
         scrollY: 0,
@@ -170,7 +291,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       link.download = `escala-${ministerioSelecionado}-${mes}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
+
     } catch (err) {
+      console.error(err);
       mostrarMensagem("Erro ao gerar imagem", "erro");
     } finally {
       setBaixando(false);
@@ -241,6 +364,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       aberto: true,
       titulo: "Limpar escala do mês",
       descricao: `Isso vai apagar toda a escala de ${ministerioConfig[ministerioSelecionado].nome} neste mês. Essa ação não pode ser desfeita.`,
+      confirmLabel: "Limpar tudo",
+      perigoso: true,
       onConfirmar: async () => {
         setConfirmModal(prev => ({ ...prev, aberto: false }));
         setLimpando(true);
@@ -266,6 +391,160 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       },
     });
   };
+
+  // ── Organizar grade de Louvor ─────────────────────────────────────────────
+  const handleOrganizarLouvor = useCallback(() => {
+    setConfirmModal({
+      aberto: true,
+      titulo: "Organizar grade de Louvor",
+      descricao: "Os BVocais e Músicos serão reorganizados para que cada pessoa ocupe sempre a mesma coluna ao longo do mês. Nenhuma pessoa é removida da escala.",
+      confirmLabel: "Confirmar",
+      perigoso: false,
+      onConfirmar: async () => {
+        setConfirmModal(prev => ({ ...prev, aberto: false }));
+
+        const grupos = [
+          ["BVOCAL 1", "BVOCAL 2", "BVOCAL 3", "BVOCAL 4"],
+          ["MÚSICO 1", "MÚSICO 2", "MÚSICO 3", "MÚSICO 4"],
+        ];
+
+        const changes = []; // { data, turno, funcaoAntiga, funcaoNova }
+
+        for (const funcoes of grupos) {
+          // ── 1. Contar ocorrências pessoa × coluna ────────────────────────
+          const countMatrix = {}; // pessoa → { funcao → count }
+          for (const dataObj of datas) {
+            const turnoKey = dataObj.turno ?? "único";
+            for (const f of funcoes) {
+              const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+              if (pessoa && pessoa !== "disponível") {
+                if (!countMatrix[pessoa]) countMatrix[pessoa] = {};
+                countMatrix[pessoa][f] = (countMatrix[pessoa][f] || 0) + 1;
+              }
+            }
+          }
+
+          const pessoas = Object.keys(countMatrix);
+          if (pessoas.length === 0) continue;
+
+          // ── 2. Atribuir coluna preferida (greedy) ────────────────────────
+          const candidatos = [];
+          for (const pessoa of pessoas) {
+            for (const f of funcoes) {
+              candidatos.push({ pessoa, funcao: f, count: countMatrix[pessoa][f] || 0 });
+            }
+          }
+          candidatos.sort((a, b) => b.count - a.count);
+
+          const preferred = {};
+          const assignedPessoas = new Set();
+          const usedFuncoes   = new Set();
+
+          for (const { pessoa, funcao } of candidatos) {
+            if (!assignedPessoas.has(pessoa) && !usedFuncoes.has(funcao)) {
+              preferred[pessoa] = funcao;
+              assignedPessoas.add(pessoa);
+              usedFuncoes.add(funcao);
+            }
+          }
+          // Sobras sem coluna preferida → colunas ainda livres
+          const remainingFuncoes = funcoes.filter(f => !usedFuncoes.has(f));
+          let ri = 0;
+          for (const pessoa of pessoas) {
+            if (!preferred[pessoa]) preferred[pessoa] = remainingFuncoes[ri++];
+          }
+
+          // ── 3. Para cada data, reposicionar ─────────────────────────────
+          for (const dataObj of datas) {
+            const turnoKey = dataObj.turno ?? "único";
+
+            // Slots com pessoas reais (ignora "disponível")
+            const currentAssignments = {}; // funcao → pessoa
+            const disponiveisSlots   = new Set();
+            for (const f of funcoes) {
+              const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+              if (pessoa === "disponível") disponiveisSlots.add(f);
+              else if (pessoa)             currentAssignments[f] = pessoa;
+            }
+
+            const pessoasHoje = Object.values(currentAssignments);
+            if (pessoasHoje.length === 0) continue;
+
+            // Slots disponíveis para pessoas reais (exclui slots de "disponível")
+            const availableSlots = funcoes.filter(f => !disponiveisSlots.has(f));
+
+            // Primeira passagem: quem tem coluna preferida disponível
+            const newAssignment = {}; // pessoa → funcaoNova
+            const takenSlots    = new Set();
+
+            const sorted = [...pessoasHoje].sort((a, b) =>
+              funcoes.indexOf(preferred[a] || funcoes[3]) -
+              funcoes.indexOf(preferred[b] || funcoes[3])
+            );
+            for (const pessoa of sorted) {
+              const pref = preferred[pessoa];
+              if (pref && availableSlots.includes(pref) && !takenSlots.has(pref)) {
+                newAssignment[pessoa] = pref;
+                takenSlots.add(pref);
+              }
+            }
+            // Segunda passagem: sobras
+            const freeSlots = availableSlots.filter(f => !takenSlots.has(f));
+            let si = 0;
+            for (const pessoa of sorted) {
+              if (!newAssignment[pessoa]) newAssignment[pessoa] = freeSlots[si++];
+            }
+
+            // Gerar mudanças
+            for (const [funcaoAntiga, pessoa] of Object.entries(currentAssignments)) {
+              const funcaoNova = newAssignment[pessoa];
+              if (funcaoNova && funcaoAntiga !== funcaoNova) {
+                changes.push({ data: dataObj.data, turno: turnoKey, funcaoAntiga, funcaoNova });
+              }
+            }
+          }
+        }
+
+        if (changes.length === 0) {
+          mostrarMensagem("Grade já está organizada", "sucesso");
+          return;
+        }
+
+        // ── 4. Aplicar no Firestore ──────────────────────────────────────
+        try {
+          const [ano, mesNum] = mes.split("-");
+          const inicio = `${ano}-${mesNum}-01`;
+          const fim    = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
+
+          const snap = await getDocs(query(
+            collection(db, "escalas"),
+            where("ministerioId", "==", "louvor"),
+            where("data", ">=", inicio),
+            where("data", "<=", fim)
+          ));
+
+          // Mapa: "${data}-${turno}-${funcao}" → docRef
+          const docMap = {};
+          snap.docs.forEach(d => {
+            const dd = d.data();
+            const t  = dd.turno ?? "único";
+            docMap[`${dd.data}-${t}-${dd.funcao}`] = d.ref;
+          });
+
+          for (const { data, turno, funcaoAntiga, funcaoNova } of changes) {
+            const ref = docMap[`${data}-${turno}-${funcaoAntiga}`];
+            if (ref) await updateDoc(ref, { funcao: funcaoNova });
+          }
+
+          setRefreshKey(k => k + 1);
+          mostrarMensagem(`Grade organizada — ${changes.length} ajuste${changes.length !== 1 ? "s" : ""}`, "sucesso");
+        } catch (err) {
+          console.error(err);
+          mostrarMensagem("Erro ao organizar grade", "erro");
+        }
+      },
+    });
+  }, [escalas, datas, mes]);
 
   // Reset relatório e filtro ao trocar de ministério ou mês
   const handleSetMinisterio = (v) => { setMinisterioSelecionado(v); setVerRelatorio(false); setFiltroNome(""); };
@@ -326,7 +605,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .skeleton-pulse { animation: skeleton-pulse 1.6s ease-in-out infinite; }
 
         /* Hover nas linhas da grid */
-        .grid-row:hover { background: rgba(99,102,241,0.05) !important; cursor: default; }
+        .grid-row:hover { background: rgba(255,255,255,0.08) !important; cursor: default; }
 
         /* Sticky header da grid */
         .grid-thead th {
@@ -431,6 +710,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           onConflito={setConflito}
           refreshKey={refreshKey}
           indispRefreshKey={indispRefreshKey}
+          mes={mes}
+          escalas={escalas}
         />
       </div>
 
@@ -474,16 +755,24 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
           {/* Navegação de mês */}
           <div className="mes-nav" style={{ display: "flex", alignItems: "center", gap: "1px", background: theme.bg, borderRadius: "7px", padding: "2px 3px", border: `1px solid ${theme.border}` }}>
-            <button onClick={handleMesAnterior} style={{ background: "transparent", border: "none", cursor: "pointer", color: theme.textMuted, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif" }}
-              onMouseEnter={e => { e.currentTarget.style.color = theme.text; e.currentTarget.style.background = theme.surface; }}
-              onMouseLeave={e => { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
+            <button
+              onClick={handleMesAnterior}
+              disabled={!podeRetroceder}
+              title={!podeRetroceder ? "Mês mais antigo disponível" : undefined}
+              style={{ background: "transparent", border: "none", cursor: podeRetroceder ? "pointer" : "not-allowed", color: podeRetroceder ? theme.textMuted : theme.textDim, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeRetroceder ? 1 : 0.35, transition: "all 0.15s" }}
+              onMouseEnter={e => { if (podeRetroceder) { e.currentTarget.style.color = theme.text; e.currentTarget.style.background = theme.surface; } }}
+              onMouseLeave={e => { if (podeRetroceder) { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; } }}
             >‹</button>
             <span style={{ color: theme.text, fontSize: "12px", fontFamily: "'JetBrains Mono', monospace", minWidth: "86px", textAlign: "center", fontWeight: 500, letterSpacing: "0.5px" }}>
               {new Date(mes + "-15").toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "").toUpperCase()}
             </span>
-            <button onClick={handleMesProximo} style={{ background: theme.accentDim, border: "none", cursor: "pointer", color: theme.accent, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif" }}
-              onMouseEnter={e => { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = "white"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; }}
+            <button
+              onClick={handleMesProximo}
+              disabled={!podeAvancar}
+              title={!podeAvancar ? "Dezembro é o último mês disponível" : undefined}
+              style={{ background: podeAvancar ? theme.accentDim : "transparent", border: "none", cursor: podeAvancar ? "pointer" : "not-allowed", color: podeAvancar ? theme.accent : theme.textDim, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeAvancar ? 1 : 0.35, transition: "all 0.15s" }}
+              onMouseEnter={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = "white"; } }}
+              onMouseLeave={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; } }}
             >›</button>
           </div>
         </div>
@@ -520,6 +809,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onConflito={setConflito}
             refreshKey={refreshKey}
             indispRefreshKey={indispRefreshKey}
+            mes={mes}
+            escalas={escalas}
           />
         </aside>
 
@@ -535,18 +826,20 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 padding: "6px", display: "flex", alignItems: "center", justifyContent: "center",
               }}>{current.icon}</div>
               <div style={{ minWidth: 0 }}>
-                <h2 style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "-0.1px", color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {current.nome}
-                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h2 style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "-0.1px", color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>
+                    {current.nome}
+                  </h2>
+                  {!podeEditar && (
+                    <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "20px", background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.3)", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.3px" }}>
+                      LEITURA
+                    </span>
+                  )}
+                </div>
                 <p style={{ fontSize: "11px", color: theme.textMuted, marginTop: "2px" }}>
                   {datas.length} datas · {Object.keys(escalas).length} escalas
                 </p>
               </div>
-              {!podeEditar && (
-                <span style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "20px", background: theme.accentDim, color: theme.accent, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.3px" }}>
-                  LEITURA
-                </span>
-              )}
             </div>
 
             {/* Alertas centralizados */}
@@ -561,21 +854,21 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   {mensagem.tipo === "sucesso" ? "✓" : "✕"} {mensagem.texto}
                 </div>
               )}
-              {conflito && !mensagem.texto && (
+              {conflito && (
                 <div style={{
                   padding: "7px 14px", borderRadius: "6px", fontSize: "12px", display: "flex", alignItems: "center", gap: "10px",
-                  background: "rgba(210,153,34,0.1)", border: "1px solid rgba(210,153,34,0.3)", color: "#d2993a",
+                  background: theme.dangerDim, border: `1px solid ${theme.danger}44`, color: theme.danger,
                 }}>
                   <span>⚠ <strong>{conflito.pessoa.toUpperCase()}</strong> já está em <strong>{conflito.ministerio}</strong> como <strong>{conflito.funcao}</strong> em {conflito.data}</span>
-                  <button onClick={() => setConflito(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d2993a", fontSize: "16px", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                  <button onClick={() => setConflito(null)} style={{ background: "none", border: "none", cursor: "pointer", color: theme.danger, fontSize: "16px", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
                 </div>
               )}
             </div>
 
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
 
-              {/* Filtro por nome — apenas no modo edição (próprio ministério) */}
-              {podeEditar && <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              {/* Filtro por nome — apenas no modo edição e fora do relatório */}
+              {podeEditar && !verRelatorio && <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                   style={{ position: "absolute", left: "8px", pointerEvents: "none", zIndex: 1 }}>
                   <circle cx="11" cy="11" r="8" stroke={theme.textMuted} strokeWidth="2"/>
@@ -656,19 +949,19 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   onClick={() => setVerRelatorio(v => !v)}
                   style={{
                     padding: "5px 10px", fontFamily: "inherit",
-                    background: verRelatorio ? theme.accentDim : "transparent",
-                    border: `1px solid ${verRelatorio ? theme.accent : theme.border}`,
+                    background: verRelatorio ? "rgba(52,211,153,0.1)" : "transparent",
+                    border: `1px solid ${verRelatorio ? "#34d399" : theme.border}`,
                     borderRadius: "5px",
-                    color: verRelatorio ? theme.accent : theme.textMuted,
+                    color: verRelatorio ? "#34d399" : theme.textMuted,
                     fontSize: "12px", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: "5px",
                     transition: "all 0.15s",
                   }}
                   onMouseEnter={e => {
                     if (!verRelatorio) {
-                      e.currentTarget.style.borderColor = theme.accent;
-                      e.currentTarget.style.color = theme.accent;
-                      e.currentTarget.style.background = theme.accentGlow;
+                      e.currentTarget.style.borderColor = "#34d399";
+                      e.currentTarget.style.color = "#34d399";
+                      e.currentTarget.style.background = "rgba(52,211,153,0.07)";
                     }
                   }}
                   onMouseLeave={e => {
@@ -701,8 +994,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   }}
                   onMouseEnter={e => {
                     if (!verIndisponibilidade) {
-                      e.currentTarget.style.borderColor = "rgba(251,146,60,0.35)";
-                      e.currentTarget.style.color = "#fb923c";
+                      e.currentTarget.style.borderColor = "#ef444466";
+                      e.currentTarget.style.color = "#ef4444";
                     }
                   }}
                   onMouseLeave={e => {
@@ -720,10 +1013,33 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </button>
               )}
 
+              {podeEditar && ministerioSelecionado === "louvor" && (
+                <button
+                  onClick={handleOrganizarLouvor}
+                  title="Organizar BVocais e Músicos por coluna"
+                  style={{
+                    padding: "5px 10px", background: "transparent",
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: "5px", color: theme.textMuted,
+                    fontSize: "12px", cursor: "pointer",
+                    fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#a78bfa66"; e.currentTarget.style.color = "#a78bfa"; e.currentTarget.style.background = "rgba(167,139,250,0.07)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                  <span className="btn-label">Organizar</span>
+                </button>
+              )}
+
               {podeEditar && (
                 <button onClick={handleLimparTudo} disabled={limpando}
                   style={{ padding: "5px 10px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; e.currentTarget.style.background = theme.dangerDim; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#38bdf866"; e.currentTarget.style.color = "#38bdf8"; e.currentTarget.style.background = "rgba(56,189,248,0.07)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -832,10 +1148,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         aberto={confirmModal.aberto}
         titulo={confirmModal.titulo}
         descricao={confirmModal.descricao}
-        confirmLabel="Limpar tudo"
+        confirmLabel={confirmModal.confirmLabel}
         onConfirmar={confirmModal.onConfirmar}
         onCancelar={() => setConfirmModal(prev => ({ ...prev, aberto: false }))}
-        perigoso
+        perigoso={confirmModal.perigoso}
         theme={theme}
       />
     </div>
@@ -844,12 +1160,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [mes, setMes] = useState(() => {
-    const hoje = new Date();
-    const data = hoje.getDate() > 15 ? new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1) : hoje;
-    return data.toISOString().slice(0, 7);
-  });
+  const [mes, setMes] = useState(getMesInicial);
   const [ministerioSelecionado, setMinisterioSelecionado] = useState(user?.ministerioId || "comunicacao");
+
+  const mesMinimo = getMesMinimo();
+  const mesMaximo = getMesMaximo();
 
   return (
     <EscalaProvider ministerioId={ministerioSelecionado} mes={mes}>
@@ -858,6 +1173,8 @@ export default function Dashboard() {
         setMinisterioSelecionado={setMinisterioSelecionado}
         mes={mes}
         setMes={setMes}
+        mesMinimo={mesMinimo}
+        mesMaximo={mesMaximo}
       />
     </EscalaProvider>
   );

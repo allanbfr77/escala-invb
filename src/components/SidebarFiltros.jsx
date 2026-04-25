@@ -1,7 +1,7 @@
 // ===== src/components/SidebarFiltros.jsx =====
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { db } from "../firebase";
-import { collection, addDoc, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
@@ -59,8 +59,16 @@ const MINISTERIOS_COM_FILTRO = ["louvor", "infantil"];
 
 const NOMES_MINISTERIOS = {
   comunicacao: "COMUNICAÇÕES", louvor: "LOUVOR", recepcao: "INTRODUÇÃO", infantil: "INFANTIL",
-
 };
+
+// Funções agrupadas do Louvor (intercambiáveis entre si)
+const GRUPO_FUNCOES = {
+  "BVOCAL": ["BVOCAL 1", "BVOCAL 2", "BVOCAL 3", "BVOCAL 4"],
+  "MÚSICO":  ["MÚSICO 1",  "MÚSICO 2",  "MÚSICO 3",  "MÚSICO 4"],
+};
+
+// Lista simplificada exibida na sidebar para o Louvor
+const FUNCOES_LOUVOR_SIDEBAR = ["MINISTRANTE", "BVOCAL", "MÚSICO"];
 
 export default function SidebarFiltros({
   usuario, ministerioSelecionado, setMinisterioSelecionado,
@@ -68,6 +76,8 @@ export default function SidebarFiltros({
   onMensagem, onConflito,
   refreshKey = 0,
   indispRefreshKey = 0,
+  mes = "",
+  escalas = {},
 }) {
   const t = theme || {};
   const [salvando, setSalvando]               = useState(false);
@@ -75,10 +85,32 @@ export default function SidebarFiltros({
   const [funcaoSelecionada, setFuncao]        = useState("");
   const [datasIds, setDatasIds]               = useState([]);
   const [datasConfirmadas, setDatasConfirmadas] = useState([]);
-  const [datasOcupadas, setDatasOcupadas]     = useState(new Set());
-  const [carregandoOcupadas, setCarregandoOcupadas] = useState(false);
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [datasAberta, setDatasAberta]         = useState(false);
+  const [extrasAberta, setExtrasAberta]       = useState(false);
+  const [minDropAberto, setMinDropAberto]     = useState(false);
+  const minDropRef                            = useRef(null);
+  // ─── Fecha dropdown de ministério ao clicar fora ─────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (minDropRef.current && !minDropRef.current.contains(e.target)) {
+        setMinDropAberto(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const TIPOS_EXTRA = [
+    "Consagração",
+    "Culto das Mulheres",
+    "Encontro de Amigas",
+    "Encontro de Casados",
+    "Encontro de Guerreiros",
+  ];
+
+  const [novoExtra, setNovoExtra]             = useState({ data: "", turno: "único", nome: "" });
+  const [adicionandoExtra, setAdicionandoExtra] = useState(false);
 
   const usaFiltro = MINISTERIOS_COM_FILTRO.includes(ministerioSelecionado);
 
@@ -91,11 +123,15 @@ export default function SidebarFiltros({
     setDatasAberta(false);
   }, [ministerioSelecionado]);
 
-  // ─── Colapsa datas ao trocar função ─────────────────────────────────────
+  // ─── Abre datas automaticamente quando ambos estão selecionados ─────────
   useEffect(() => {
-    setDatasAberta(false);
     setDatasIds([]);
-  }, [funcaoSelecionada]);
+    if (funcaoSelecionada && pessoaSelecionada) {
+      setDatasAberta(true);
+    } else {
+      setDatasAberta(false);
+    }
+  }, [funcaoSelecionada, pessoaSelecionada]);
 
   // ─── Limpa datasConfirmadas ao remover da grid ────────────────────────────
   useEffect(() => {
@@ -122,54 +158,55 @@ export default function SidebarFiltros({
     return () => { cancelled = true; };
   }, [ministerioSelecionado, refreshKey, indispRefreshKey]);
 
-  // ─── Busca datas ocupadas por função ─────────────────────────────────────
-  useEffect(() => {
-    setDatasOcupadas(new Set());
-    setDatasIds([]);
-    setDatasConfirmadas([]);
-
-    if (!funcaoSelecionada || funcaoSelecionada === "TODOS" || !ministerioSelecionado) return;
-
-    let cancelled = false;
-    const buscarOcupadas = async () => {
-      setCarregandoOcupadas(true);
-      try {
-        const snap = await getDocs(query(
-          collection(db, "escalas"),
-          where("ministerioId", "==", ministerioSelecionado),
-          where("funcao", "==", funcaoSelecionada)
-        ));
-        if (cancelled) return;
-        const ocupadas = new Set();
-        snap.docs.forEach(doc => {
-          const d = doc.data();
-          const turno = d.turno ?? "único";
-          ocupadas.add(`${d.data}|${turno}|${d.funcao}`);
-        });
-        setDatasOcupadas(ocupadas);
-      } catch (err) {
-        console.error("Erro ao buscar datas ocupadas:", err);
-      } finally {
-        if (!cancelled) setCarregandoOcupadas(false);
+  // ─── Datas ocupadas — computado direto do escalas (onSnapshot, sempre atual) ─
+  const datasOcupadas = useMemo(() => {
+    const ocupadas = new Set();
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS" || !ministerioSelecionado) return ocupadas;
+    datasDisponiveis.forEach(d => {
+      const turnoKey = d.turno ?? "único";
+      if (GRUPO_FUNCOES[funcaoSelecionada]) {
+        // Agrupada: conta sub-slots com pessoas reais (ignora "disponível")
+        const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
+        const count = subFuncoes.filter(f => {
+          const p = escalas[`${d.data}-${turnoKey}-${f}`];
+          return p && p !== "disponível";
+        }).length;
+        if (count >= subFuncoes.length) {
+          ocupadas.add(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
+        }
+      } else {
+        // Simples: slot ocupado por qualquer pessoa
+        const p = escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`];
+        if (p) ocupadas.add(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
       }
-    };
-
-    buscarOcupadas();
-    return () => { cancelled = true; };
-  }, [ministerioSelecionado, funcaoSelecionada, refreshKey]);
+    });
+    return ocupadas;
+  }, [escalas, funcaoSelecionada, datasDisponiveis, ministerioSelecionado]);
 
   // ─── Quando função muda (para ministérios com filtro), revalida pessoa ───
   useEffect(() => {
     if (!usaFiltro || !funcaoSelecionada || funcaoSelecionada === "TODOS") return;
-    const mapa = ministerioSelecionado === "louvor" ? pessoasPorFuncaoLouvor : pessoasPorFuncaoInfantil;
-    const permitidos = mapa[funcaoSelecionada] || [];
+    let permitidos = [];
+    if (ministerioSelecionado === "louvor") {
+      if (GRUPO_FUNCOES[funcaoSelecionada]) {
+        permitidos = [...new Set(
+          GRUPO_FUNCOES[funcaoSelecionada].flatMap(f => pessoasPorFuncaoLouvor[f] || [])
+        )];
+      } else {
+        permitidos = pessoasPorFuncaoLouvor[funcaoSelecionada] || [];
+      }
+    } else {
+      permitidos = pessoasPorFuncaoInfantil[funcaoSelecionada] || [];
+    }
     if (pessoaSelecionada && !permitidos.includes(pessoaSelecionada)) {
       setPessoa("");
     }
   }, [funcaoSelecionada]);
 
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
-  const funcoesDoMinisterio = funcoesPorMinisterio[ministerioSelecionado] || [];
+  const funcoesDoMinisterio = ministerioSelecionado === "louvor"
+    ? FUNCOES_LOUVOR_SIDEBAR
+    : (funcoesPorMinisterio[ministerioSelecionado] || []);
   const podeEditar = podeEditarMinisterio(usuario, ministerioSelecionado);
 
   // Lista de pessoas filtrada por função (louvor/infantil)
@@ -177,8 +214,16 @@ export default function SidebarFiltros({
     if (!usaFiltro || !funcaoSelecionada || funcaoSelecionada === "TODOS") {
       return pessoasDoMinisterio;
     }
-    const mapa = ministerioSelecionado === "louvor" ? pessoasPorFuncaoLouvor : pessoasPorFuncaoInfantil;
-    return mapa[funcaoSelecionada] || pessoasDoMinisterio;
+    if (ministerioSelecionado === "louvor") {
+      // Função agrupada: união deduplicada de todas as sub-funções
+      if (GRUPO_FUNCOES[funcaoSelecionada]) {
+        return [...new Set(
+          GRUPO_FUNCOES[funcaoSelecionada].flatMap(f => pessoasPorFuncaoLouvor[f] || [])
+        )];
+      }
+      return pessoasPorFuncaoLouvor[funcaoSelecionada] || pessoasDoMinisterio;
+    }
+    return pessoasPorFuncaoInfantil[funcaoSelecionada] || pessoasDoMinisterio;
   })();
 
   // Datas visíveis — exclui ocupadas e indisponíveis da pessoa selecionada
@@ -186,6 +231,20 @@ export default function SidebarFiltros({
     if (datasConfirmadas.includes(d.id)) return false;
     const turnoKey = d.turno ?? "único";
     if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
+
+    // DISPONÍVEL não pode ser colocado em cima de outro DISPONÍVEL
+    if (pessoaSelecionada?.toLowerCase() === "disponível") {
+      if (GRUPO_FUNCOES[funcaoSelecionada]) {
+        const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
+        const jaTemDisponivel = subFuncoes.some(
+          f => escalas[`${d.data}-${turnoKey}-${f}`] === "disponível"
+        );
+        if (jaTemDisponivel) return false;
+      } else {
+        if (escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`] === "disponível") return false;
+      }
+    }
+
     if (pessoaSelecionada) {
       const pessoaLower = pessoaSelecionada.toLowerCase();
       const chave = `${d.data}|${turnoKey}`;
@@ -199,18 +258,6 @@ export default function SidebarFiltros({
     setDatasIds(prev => prev.filter(id => visiveisIds.has(id)));
   }, [datasOcupadas, datasConfirmadas, pessoaSelecionada, indisponiveisMap]);
 
-  // ─── Abre o acordeão automaticamente quando todas as datas já estão preenchidas ───
-  useEffect(() => {
-    if (
-      !carregandoOcupadas &&
-      funcaoSelecionada &&
-      funcaoSelecionada !== "TODOS" &&
-      datasDisponiveis.length > 0 &&
-      datasVisiveis.length === 0
-    ) {
-      setDatasAberta(true);
-    }
-  }, [carregandoOcupadas, datasVisiveis.length, datasDisponiveis.length, funcaoSelecionada]);
 
   const toggleData = (id) => {
     setDatasIds(prev =>
@@ -241,35 +288,56 @@ export default function SidebarFiltros({
     for (const dataObj of datasObj) {
       const turnoSalvo = dataObj.turno === "único" ? "único" : dataObj.turno;
 
-      try {
-        const qConflito = query(
-          collection(db, "escalas"),
-          where("pessoaNome", "==", pessoaSelecionada.toLowerCase()),
-          where("data", "==", dataObj.data),
-          where("turno", "==", turnoSalvo)
-        );
-        const conflitoSnap = await getDocs(qConflito);
-        const conflitoOutro = conflitoSnap.docs.find(d => d.data().ministerioId !== ministerioSelecionado);
-
-        if (conflitoOutro) {
-          const dd = conflitoOutro.data();
-          if (!conflito) {
-            conflito = {
-              pessoa: pessoaSelecionada,
-              data: formatarData(dataObj.data, dataObj.turno),
-              ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
-              funcao: dd.funcao,
-            };
+      // ── Determina slot real para funções agrupadas ──────────────────────
+      let funcaoReal = funcaoSelecionada;
+      if (GRUPO_FUNCOES[funcaoSelecionada]) {
+        const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
+        funcaoReal = null;
+        for (const slot of subFuncoes) {
+          const ocupante = escalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
+          // Slot vazio ou com "disponível" → pode usar
+          if (!ocupante || ocupante === "disponível") {
+            funcaoReal = slot;
+            break;
           }
-          erros++;
-          continue;
+        }
+        if (!funcaoReal) { erros++; continue; } // Todos os slots com pessoas reais
+      }
+
+      try {
+        // Conflito entre ministérios (ignora para "disponível")
+        const pessoaLower = pessoaSelecionada.toLowerCase();
+        if (pessoaLower !== "disponível") {
+          const qConflito = query(
+            collection(db, "escalas"),
+            where("pessoaNome", "==", pessoaLower),
+            where("data", "==", dataObj.data),
+            where("turno", "==", turnoSalvo)
+          );
+          const conflitoSnap = await getDocs(qConflito);
+          const conflitoOutro = conflitoSnap.docs.find(d => d.data().ministerioId !== ministerioSelecionado);
+
+          if (conflitoOutro) {
+            const dd = conflitoOutro.data();
+            if (!conflito) {
+              conflito = {
+                pessoa: pessoaSelecionada,
+                data: formatarData(dataObj.data, dataObj.turno, dataObj.descricao),
+                ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
+                funcao: dd.funcao,
+              };
+            }
+            erros++;
+            continue;
+          }
         }
 
+        // Remove doc existente no slot real (inclusive "disponível")
         const qExistente = query(
           collection(db, "escalas"),
           where("ministerioId", "==", ministerioSelecionado),
           where("data", "==", dataObj.data),
-          where("funcao", "==", funcaoSelecionada),
+          where("funcao", "==", funcaoReal),
           where("turno", "==", turnoSalvo)
         );
         const existenteSnap = await getDocs(qExistente);
@@ -277,7 +345,7 @@ export default function SidebarFiltros({
 
         await addDoc(collection(db, "escalas"), {
           pessoaNome: pessoaSelecionada.toLowerCase(),
-          funcao: funcaoSelecionada,
+          funcao: funcaoReal,
           ministerioId: ministerioSelecionado,
           data: dataObj.data,
           turno: turnoSalvo,
@@ -290,7 +358,6 @@ export default function SidebarFiltros({
         });
 
         idsSalvos.push(dataObj.id);
-        setDatasOcupadas(prev => new Set([...prev, `${dataObj.data}|${turnoSalvo}|${funcaoSelecionada}`]));
 
       } catch (error) {
         console.error(error);
@@ -302,11 +369,14 @@ export default function SidebarFiltros({
     if (conflito) onConflito?.(conflito);
 
     if (salvos > 0) {
-      setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
+      if (!GRUPO_FUNCOES[funcaoSelecionada]) {
+        // Simples: esconde imediatamente via datasConfirmadas enquanto onSnapshot atualiza
+        setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
+      }
       const plural = salvos === 1 ? "data" : "datas";
       onMensagem?.(
         `${pessoaSelecionada.toUpperCase()} escalado como ${funcaoSelecionada} em ${salvos} ${plural}`,
-        erros > 0 ? "aviso" : "sucesso"
+        "sucesso"
       );
       setDatasIds([]);
       if (onRefresh) onRefresh();
@@ -316,6 +386,56 @@ export default function SidebarFiltros({
     }
 
     setSalvando(false);
+  };
+
+  // ─── Cultos extras do mês atual ──────────────────────────────────────────
+  const extrasDoMes = datasDisponiveis.filter(d => d.tipo === "extra");
+
+  // Min/Max para o date input
+  const mesMinMax = (() => {
+    const m = mes || new Date().toISOString().slice(0, 7);
+    const [ano, mesN] = m.split("-");
+    const last = new Date(parseInt(ano), parseInt(mesN), 0).getDate();
+    return {
+      min: `${m}-01`,
+      max: `${m}-${String(last).padStart(2, "0")}`,
+    };
+  })();
+
+  const handleAdicionarExtra = async () => {
+    if (!novoExtra.nome) { onMensagem?.("Selecione o tipo de culto", "erro"); return; }
+    if (!novoExtra.data) { onMensagem?.("Selecione uma data", "erro"); return; }
+    const jaExiste = datasDisponiveis.some(d => d.data === novoExtra.data && d.turno === novoExtra.turno);
+    if (jaExiste) { onMensagem?.("Já existe um culto neste dia/turno", "erro"); return; }
+    setAdicionandoExtra(true);
+    try {
+      await addDoc(collection(db, "cultos_extras"), {
+        data: novoExtra.data,
+        turno: novoExtra.turno,
+        nome: novoExtra.nome,
+        mes: mes || new Date().toISOString().slice(0, 7),
+        ministerioId: ministerioSelecionado,
+        criadoPor: usuario?.uid || "",
+        criadoEm: new Date().toISOString(),
+      });
+      setNovoExtra({ data: "", turno: "único", nome: "" });
+      onMensagem?.("Culto extra adicionado", "sucesso");
+    } catch (err) {
+      console.error(err);
+      onMensagem?.("Erro ao adicionar culto extra", "erro");
+    } finally {
+      setAdicionandoExtra(false);
+    }
+  };
+
+  const handleRemoverExtra = async (firestoreId) => {
+    try {
+      await deleteDoc(doc(db, "cultos_extras", firestoreId));
+      onMensagem?.("Culto extra removido", "sucesso");
+    } catch (err) {
+      console.error(err);
+      onMensagem?.("Erro ao remover culto extra", "erro");
+    }
   };
 
   const s = {
@@ -339,7 +459,6 @@ export default function SidebarFiltros({
 
   const datasHint = (() => {
     if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return null;
-    if (carregandoOcupadas) return { text: "Verificando disponibilidade...", color: t.textMuted };
     if (datasVisiveis.length === 0 && datasDisponiveis.length > 0) {
       return { text: "Todas as datas já estão preenchidas para esta função", color: "#d2993a" };
     }
@@ -355,23 +474,123 @@ export default function SidebarFiltros({
         </p>
       </div>
 
-      {/* Ministério */}
-      <div style={s.field}>
-        <label style={s.label}>Ministério</label>
-        <select value={ministerioSelecionado} onChange={e => { setMinisterioSelecionado(e.target.value); onConflito?.(null); }} style={s.select}>
-          {ministerios.map(m => (
-            <option key={m.id} value={m.id}>{m.nome}{m.id === usuario?.ministerioId ? " (meu)" : ""}</option>
-          ))}
-        </select>
-        {!podeEditar && (
-          <div style={{ marginTop: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(210,153,34,0.08)", border: "1px solid rgba(210,153,34,0.25)", display: "flex", alignItems: "center", gap: "7px" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 9V14M12 17.5V18M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" stroke="#d2993a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span style={{ fontSize: "11px", color: "#d2993a", fontWeight: 600, letterSpacing: "0.3px" }}>SOMENTE LEITURA</span>
+      {/* Ministério — dropdown customizado */}
+      {(() => {
+        const CORES_MIN = {
+          comunicacao: { color: "#60a5fa", bg: "rgba(96,165,250,0.09)",  border: "rgba(96,165,250,0.28)"  },
+          louvor:      { color: "#a78bfa", bg: "rgba(167,139,250,0.09)", border: "rgba(167,139,250,0.28)" },
+          recepcao:    { color: "#34d399", bg: "rgba(52,211,153,0.09)",  border: "rgba(52,211,153,0.28)"  },
+          infantil:    { color: "#f472b6", bg: "rgba(244,114,182,0.09)", border: "rgba(244,114,182,0.28)" },
+        };
+        const atual = ministerios.find(m => m.id === ministerioSelecionado);
+        const corAtual = CORES_MIN[ministerioSelecionado] || { color: t.accent, bg: t.accentDim, border: t.accent };
+        const isMeuAtual = ministerioSelecionado === usuario?.ministerioId;
+
+        return (
+          <div style={{ ...s.field, position: "relative" }} ref={minDropRef}>
+            <label style={s.label}>Ministério</label>
+
+            {/* Trigger */}
+            <button
+              onClick={() => setMinDropAberto(v => !v)}
+              style={{
+                width: "100%", padding: "9px 12px",
+                borderRadius: minDropAberto ? "6px 6px 0 0" : "6px",
+                border: `1px solid ${minDropAberto ? corAtual.border : t.border}`,
+                background: t.bg, color: t.text,
+                fontSize: "13px", fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                cursor: "pointer", transition: "border-color 0.15s",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {isMeuAtual && (
+                  <span style={{
+                    width: "6px", height: "6px", borderRadius: "50%",
+                    background: corAtual.color, flexShrink: 0,
+                  }} />
+                )}
+                <span>{atual?.nome}</span>
+                {isMeuAtual && (
+                  <span style={{
+                    fontSize: "9px", fontWeight: 700, color: corAtual.color,
+                    background: corAtual.bg, border: `1px solid ${corAtual.border}`,
+                    borderRadius: "8px", padding: "1px 6px", letterSpacing: "0.3px",
+                  }}>meu</span>
+                )}
+              </div>
+              <svg
+                width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transition: "transform 0.2s", transform: minDropAberto ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
+              >
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+
+            {/* Lista suspensa */}
+            {minDropAberto && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
+                background: t.surface,
+                border: `1px solid ${t.border}`, borderTop: "none",
+                borderRadius: "0 0 6px 6px",
+                overflow: "hidden",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+              }}>
+                {ministerios.map((m, i) => {
+                  const isMeu      = m.id === usuario?.ministerioId;
+                  const isSelected = ministerioSelecionado === m.id;
+                  const cor        = CORES_MIN[m.id] || { color: t.accent, bg: t.accentDim, border: t.accent };
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => { setMinisterioSelecionado(m.id); onConflito?.(null); setMinDropAberto(false); }}
+                      style={{
+                        width: "100%", padding: "9px 12px",
+                        borderBottom: i < ministerios.length - 1 ? `1px solid ${t.border}` : "none",
+                        background: isSelected ? cor.bg : "transparent",
+                        border: "none", borderLeft: `3px solid ${isMeu ? cor.color : "transparent"}`,
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        cursor: "pointer", fontFamily: "inherit", transition: "background 0.12s",
+                      }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = cor.bg; }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <span style={{
+                        fontSize: "13px",
+                        fontWeight: isSelected ? 700 : isMeu ? 600 : 400,
+                        color: isSelected ? cor.color : isMeu ? cor.color : t.text,
+                      }}>
+                        {m.nome}
+                      </span>
+                      {isMeu && (
+                        <span style={{
+                          fontSize: "9px", fontWeight: 700,
+                          color: cor.color, background: cor.bg,
+                          border: `1px solid ${cor.border}`,
+                          borderRadius: "8px", padding: "1px 6px",
+                          letterSpacing: "0.3px", flexShrink: 0,
+                        }}>meu</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {!podeEditar && (
+              <div style={{ marginTop: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", display: "flex", alignItems: "center", gap: "7px" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9V14M12 17.5V18M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 600, letterSpacing: "0.3px" }}>SOMENTE LEITURA</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
+
 
       {/* ── Função PRIMEIRO (louvor/infantil) ou junto com pessoa (outros) ── */}
       <div style={s.field}>
@@ -414,6 +633,9 @@ export default function SidebarFiltros({
           disabled={!podeEditar}
         >
           <option value="">Selecione...</option>
+          {ministerioSelecionado === "louvor" && (
+            <option value="Disponível">✦ DISPONÍVEL</option>
+          )}
           {[...pessoasFiltradas].sort((a, b) => a.localeCompare(b, "pt")).map(p => (
             <option key={p} value={p}>{p.toUpperCase()}</option>
           ))}
@@ -425,9 +647,9 @@ export default function SidebarFiltros({
         {/* Header clicável */}
         <button
           onClick={() => {
-            if (funcaoSelecionada) setDatasAberta(v => !v);
+            if (funcaoSelecionada && pessoaSelecionada) setDatasAberta(v => !v);
           }}
-          disabled={!funcaoSelecionada}
+          disabled={!funcaoSelecionada || !pessoaSelecionada}
           style={{
             width: "100%", display: "flex", alignItems: "center",
             justifyContent: "space-between", marginBottom: datasAberta ? "6px" : "0",
@@ -463,7 +685,7 @@ export default function SidebarFiltros({
             )}
             <svg
               width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke={funcaoSelecionada ? t.textMuted : t.textDim}
+              stroke={funcaoSelecionada && pessoaSelecionada ? t.textMuted : t.textDim}
               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               style={{ transition: "transform 0.2s", transform: datasAberta ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
             >
@@ -490,15 +712,11 @@ export default function SidebarFiltros({
         <div style={{
           borderRadius: "6px", border: `1px solid ${t.border}`,
           overflow: "hidden",
-          opacity: !podeEditar || carregandoOcupadas ? 0.5 : 1,
+          opacity: !podeEditar ? 0.5 : 1,
         }}>
-          {carregandoOcupadas ? (
+          {!funcaoSelecionada || !pessoaSelecionada ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              Verificando disponibilidade...
-            </div>
-          ) : !funcaoSelecionada ? (
-            <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              Selecione uma função primeiro
+              Selecione função e pessoa primeiro
             </div>
           ) : datasVisiveis.length === 0 ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
@@ -539,7 +757,7 @@ export default function SidebarFiltros({
                     color: checked ? t.text : t.textMuted,
                     fontWeight: checked ? 500 : 400,
                   }}>
-                    {formatarData(d.data, d.turno)}
+                    {formatarData(d.data, d.turno, d.descricao)}
                   </span>
                 </div>
               );
@@ -554,13 +772,27 @@ export default function SidebarFiltros({
         onClick={handleConfirmarEscala}
         disabled={salvando || !podeEditar}
         style={{
-          width: "100%", padding: "12px", borderRadius: "6px", border: "none",
-          background: salvando || !podeEditar ? t.borderLight : t.accent,
-          color: salvando || !podeEditar ? t.textDim : "white",
+          width: "100%", padding: "12px", borderRadius: "6px",
+          border: `1px solid ${salvando || !podeEditar ? t.border : "rgba(52,211,153,0.35)"}`,
+          background: salvando || !podeEditar ? "transparent" : "rgba(52,211,153,0.08)",
+          color: salvando || !podeEditar ? t.textDim : "#34d399",
           fontSize: "14px", fontWeight: 600,
           cursor: salvando || !podeEditar ? "not-allowed" : "pointer",
           fontFamily: "inherit", letterSpacing: "-0.2px",
           transition: "all 0.15s", marginBottom: "8px",
+          opacity: !podeEditar ? 0.5 : 1,
+        }}
+        onMouseEnter={e => {
+          if (!salvando && podeEditar) {
+            e.currentTarget.style.background = "rgba(52,211,153,0.15)";
+            e.currentTarget.style.borderColor = "rgba(52,211,153,0.55)";
+          }
+        }}
+        onMouseLeave={e => {
+          if (!salvando && podeEditar) {
+            e.currentTarget.style.background = "rgba(52,211,153,0.08)";
+            e.currentTarget.style.borderColor = "rgba(52,211,153,0.35)";
+          }
         }}
       >
         {salvando
@@ -577,20 +809,215 @@ export default function SidebarFiltros({
           setFuncao("");
           setDatasIds([]);
           setDatasConfirmadas([]);
-          setDatasOcupadas(new Set());
           onConflito?.(null);
         }}
         disabled={!podeEditar}
         style={{
           width: "100%", padding: "10px", borderRadius: "6px",
-          border: `1px solid ${t.border}`, background: "transparent",
-          color: t.textMuted, fontSize: "13px",
-          cursor: !podeEditar ? "not-allowed" : "pointer",
-          fontFamily: "inherit", opacity: !podeEditar ? 0.5 : 1,
+          border: `1px solid ${!podeEditar ? t.border : "rgba(248,113,113,0.3)"}`,
+          background: !podeEditar ? "transparent" : "rgba(248,113,113,0.06)",
+          color: !podeEditar ? t.textDim : "#f87171",
+          fontSize: "14px", fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          transition: "all 0.15s",
+        }}
+        onMouseEnter={e => {
+          if (podeEditar) {
+            e.currentTarget.style.background = "rgba(248,113,113,0.13)";
+            e.currentTarget.style.borderColor = "rgba(248,113,113,0.5)";
+          }
+        }}
+        onMouseLeave={e => {
+          if (podeEditar) {
+            e.currentTarget.style.background = "rgba(248,113,113,0.06)";
+            e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
+          }
         }}
       >
         Limpar seleção
       </button>
+
+      {/* ─── Cultos Extras ─────────────────────────────────────────────── */}
+      {podeEditar && (
+        <div style={{ marginTop: "22px", paddingTop: "18px", borderTop: `1px solid ${t.border}` }}>
+
+          {/* Header acordeão */}
+          <button
+            onClick={() => setExtrasAberta(v => !v)}
+            style={{
+              width: "100%", display: "flex", alignItems: "center",
+              justifyContent: "space-between",
+              background: "none", border: "none", padding: "0",
+              cursor: "pointer", fontFamily: "inherit",
+              marginBottom: extrasAberta ? "12px" : "0",
+            }}
+          >
+            <span style={{
+              fontSize: "11px", fontWeight: 600, color: t.textMuted,
+              textTransform: "uppercase", letterSpacing: "0.6px",
+              display: "flex", alignItems: "center", gap: "7px",
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+                  stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 14h.01M8 14h.01M16 14h.01M12 18h.01M8 18h.01M16 18h.01"
+                  stroke={t.textMuted} strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+              Cultos Extras
+              {extrasDoMes.length > 0 && (
+                <span style={{
+                  background: t.accent, color: "white",
+                  borderRadius: "10px", padding: "1px 6px",
+                  fontSize: "10px", fontWeight: 700,
+                }}>
+                  {extrasDoMes.length}
+                </span>
+              )}
+            </span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transition: "transform 0.2s", transform: extrasAberta ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+
+          {/* Conteúdo colapsável */}
+          <div style={{ display: extrasAberta ? "block" : "none" }}>
+
+            {/* Formulário de adição */}
+            <div style={{ marginBottom: "10px" }}>
+              <select
+                value={novoExtra.nome}
+                onChange={e => setNovoExtra(prev => ({ ...prev, nome: e.target.value }))}
+                style={{
+                  width: "100%", padding: "8px 10px", borderRadius: "6px",
+                  border: `1px solid ${novoExtra.nome ? t.accent : t.border}`,
+                  background: t.bg, color: novoExtra.nome ? t.text : t.textMuted,
+                  fontSize: "13px", fontFamily: "inherit", outline: "none",
+                  cursor: "pointer", marginBottom: "6px",
+                  transition: "border-color 0.15s",
+                }}
+              >
+                <option value="">Tipo de culto...</option>
+                {TIPOS_EXTRA.map(tipo => (
+                  <option key={tipo} value={tipo}>{tipo}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                min={mesMinMax.min}
+                max={mesMinMax.max}
+                value={novoExtra.data}
+                onChange={e => setNovoExtra(prev => ({ ...prev, data: e.target.value }))}
+                style={{
+                  width: "100%", padding: "8px 10px", borderRadius: "6px",
+                  border: `1px solid ${novoExtra.data ? t.accent : t.border}`,
+                  background: t.bg, color: t.text, fontSize: "13px",
+                  fontFamily: "inherit", outline: "none",
+                  marginBottom: "6px", transition: "border-color 0.15s",
+                  colorScheme: "dark",
+                }}
+              />
+              <div style={{ display: "flex", gap: "6px" }}>
+                <button
+                  onClick={handleAdicionarExtra}
+                  disabled={!novoExtra.data || adicionandoExtra}
+                  style={{
+                    padding: "8px 14px", borderRadius: "6px", cursor: "pointer",
+                    background: !novoExtra.data || adicionandoExtra ? t.borderLight : t.accent,
+                    border: "none",
+                    color: !novoExtra.data || adicionandoExtra ? t.textDim : "white",
+                    fontSize: "13px", fontWeight: 600, fontFamily: "inherit",
+                    transition: "all 0.15s", flexShrink: 0,
+                  }}
+                  onMouseEnter={e => {
+                    if (novoExtra.data && !adicionandoExtra)
+                      e.currentTarget.style.background = "#4f52d9";
+                  }}
+                  onMouseLeave={e => {
+                    if (novoExtra.data && !adicionandoExtra)
+                      e.currentTarget.style.background = t.accent;
+                  }}
+                >
+                  {adicionandoExtra ? "..." : "+ Add"}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de extras existentes */}
+            {extrasDoMes.length === 0 ? (
+              <p style={{
+                fontSize: "12px", color: t.textMuted, textAlign: "center",
+                padding: "10px 0", fontStyle: "italic",
+              }}>
+                Nenhum culto extra neste mês
+              </p>
+            ) : (
+              <div style={{
+                borderRadius: "6px", border: `1px solid ${t.border}`,
+                overflow: "hidden",
+              }}>
+                {extrasDoMes.map((e, i) => (
+                  <div
+                    key={e.id}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "7px 10px",
+                      borderBottom: i < extrasDoMes.length - 1 ? `1px solid ${t.border}` : "none",
+                      background: "transparent",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
+                      <span style={{
+                        width: "5px", height: "5px", borderRadius: "50%",
+                        background: t.accent, flexShrink: 0,
+                      }} />
+                      <div style={{ minWidth: 0 }}>
+                        {e.descricao && (
+                          <div style={{
+                            fontSize: "11px", fontWeight: 700, color: t.accent,
+                            textTransform: "uppercase", letterSpacing: "0.3px",
+                            lineHeight: 1.3,
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}>
+                            {e.descricao}
+                          </div>
+                        )}
+                        <div style={{ fontSize: "11px", color: t.textMuted, fontWeight: 400, lineHeight: 1.4 }}>
+                          {formatarData(e.data, e.turno)}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoverExtra(e.firestoreId)}
+                      title="Remover culto extra"
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: t.textMuted, padding: "2px 5px", borderRadius: "4px",
+                        fontSize: "14px", lineHeight: 1, fontFamily: "inherit",
+                        transition: "color 0.15s, background 0.15s",
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.color = t.danger;
+                        e.currentTarget.style.background = t.dangerDim;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.color = t.textMuted;
+                        e.currentTarget.style.background = "none";
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -2,9 +2,21 @@
 import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
 
-const thStyle = (t) => ({
+const FUNCAO_CORES = {
+  "MINISTRANTE": "#60a5fa",  // azul
+  "BVOCAL 1":    "#34d399",  // verde
+  "BVOCAL 2":    "#34d399",
+  "BVOCAL 3":    "#34d399",
+  "BVOCAL 4":    "#34d399",
+  "MÚSICO 1":    "#f59e0b",  // dourado
+  "MÚSICO 2":    "#f59e0b",
+  "MÚSICO 3":    "#f59e0b",
+  "MÚSICO 4":    "#f59e0b",
+};
+
+const thStyle = (t, f) => ({
   padding: "9px 14px", textAlign: "left", fontWeight: 600,
-  color: t.textMuted, fontSize: "10px", textTransform: "uppercase",
+  color: FUNCAO_CORES[f] || t.textMuted, fontSize: "10px", textTransform: "uppercase",
   letterSpacing: "0.8px", whiteSpace: "nowrap", fontFamily: "'Outfit', sans-serif",
 });
 
@@ -31,16 +43,16 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
         <thead className="grid-thead">
           <tr style={{ borderBottom: `1px solid ${t.border}` }}>
             <th style={{ ...thStyle(t), borderRight: `1px solid ${t.border}` }}>Data</th>
-            {funcoes.map(f => <th key={f} style={thStyle(t)}>{f}</th>)}
+            {funcoes.map(f => <th key={f} style={thStyle(t, f)}>{f}</th>)}
           </tr>
         </thead>
         <tbody>
           {datas.map((dataObj, idx) => {
             const turnoKey = dataObj.turno ?? "único";
             return (
-              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : "rgba(99,102,241,0.04)", transition: "background 0.15s" }}>
-                <td className="grid-date-cell" data-label="Data" style={{ padding: "10px 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}` }}>
-                  {formatarData(dataObj.data, dataObj.turno)}
+              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : "rgba(99,102,241,0.04)", transition: "background 0.15s", height: "38px" }}>
+                <td className="grid-date-cell" data-label="Data" style={{ padding: "0 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}`, verticalAlign: "middle" }}>
+                  {formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
                 </td>
                 {funcoes.map(f => {
                   const chipKey = `${dataObj.data}-${turnoKey}-${f}`;
@@ -48,8 +60,9 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                   const match   = filtro && pessoa && pessoa.toLowerCase().includes(filtro);
                   const dim     = filtro && pessoa && !match;
                   const hovered = hoveredChip === chipKey;
+                  const isDisponivel = pessoa === "disponível";
                   return (
-                    <td key={f} data-label={f} style={{ padding: "6px 14px", whiteSpace: "nowrap" }}>
+                    <td key={f} data-label={f} style={{ padding: "0 14px", whiteSpace: "nowrap", verticalAlign: "middle" }}>
                       {pessoa ? (
                         <div
                           onMouseEnter={() => setHoveredChip(chipKey)}
@@ -66,7 +79,7 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                           }}
                         >
                           <span style={{
-                            color: match ? t.accent : t.text,
+                            color: isDisponivel ? "#a78bfa" : match ? t.accent : t.text,
                             fontWeight: match ? 700 : 500,
                             fontSize: "12px", fontFamily: "'Outfit', sans-serif",
                             letterSpacing: "0.2px",

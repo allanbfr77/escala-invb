@@ -69,6 +69,24 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
     return indisponiveisMap[pessoaNome.toLowerCase()] || new Set();
   };
 
+  const limparSelecao = async (pessoaNome) => {
+    const key = pessoaNome.toLowerCase();
+    setIndisponiveisMap(prev => ({ ...prev, [key]: new Set() }));
+    setSalvando(prev => ({ ...prev, [key]: true }));
+    try {
+      const docId = `${ministerioId}_${key.replace(/\s+/g, "_").replace(/\./g, "")}`;
+      await setDoc(doc(db, "indisponibilidades", docId), {
+        ministerioId,
+        pessoaNome: key,
+        datas: [],
+      });
+    } catch (err) {
+      console.error("Erro ao limpar indisponibilidades:", err);
+    } finally {
+      setSalvando(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
   if (!aberto) return null;
 
   return (
@@ -178,14 +196,31 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
 
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       {qtd > 0 && (
-                        <span style={{
-                          fontSize: "10px", fontWeight: 700,
-                          color: "#fb923c", background: "rgba(251,146,60,0.12)",
-                          borderRadius: "10px", padding: "1px 7px",
-                          border: "1px solid rgba(251,146,60,0.25)",
-                        }}>
-                          {qtd} indisponível{qtd !== 1 ? "is" : ""}
-                        </span>
+                        <>
+                          <span style={{
+                            fontSize: "10px", fontWeight: 700,
+                            color: "#f87171", background: "rgba(248,113,113,0.12)",
+                            borderRadius: "10px", padding: "1px 7px",
+                            border: "1px solid rgba(248,113,113,0.25)",
+                          }}>
+                            {qtd} indisponível{qtd !== 1 ? "is" : ""}
+                          </span>
+                          <button
+                            onClick={e => { e.stopPropagation(); limparSelecao(pessoa); }}
+                            title="Limpar seleção"
+                            style={{
+                              background: "none", border: "none", cursor: "pointer",
+                              fontSize: "10px", fontWeight: 600,
+                              color: t.textMuted, padding: "1px 6px",
+                              borderRadius: "4px", fontFamily: "inherit",
+                              transition: "color 0.15s, background 0.15s",
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.color = t.danger; e.currentTarget.style.background = "rgba(251,113,133,0.08)"; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = t.textMuted; e.currentTarget.style.background = "none"; }}
+                          >
+                            Limpar
+                          </button>
+                        </>
                       )}
                       <svg
                         width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -223,16 +258,16 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
                                 onClick={() => toggleData(pessoa, d.data, d.turno)}
                                 style={{
                                   padding: "6px 10px", borderRadius: "5px",
-                                  border: `1px solid ${marcada ? "rgba(251,146,60,0.4)" : t.border}`,
-                                  background: marcada ? "rgba(251,146,60,0.1)" : "transparent",
-                                  color: marcada ? "#fb923c" : t.textMuted,
+                                  border: `1px solid ${marcada ? "rgba(248,113,113,0.4)" : t.border}`,
+                                  background: marcada ? "rgba(248,113,113,0.1)" : "transparent",
+                                  color: marcada ? "#f87171" : t.textMuted,
                                   fontSize: "11px", fontWeight: marcada ? 600 : 400,
                                   cursor: "pointer", fontFamily: "inherit",
                                   display: "flex", alignItems: "center", gap: "5px",
                                   transition: "all 0.15s", textAlign: "left",
                                 }}
                                 onMouseEnter={e => {
-                                  if (!marcada) e.currentTarget.style.borderColor = "rgba(251,146,60,0.3)";
+                                  if (!marcada) e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
                                 }}
                                 onMouseLeave={e => {
                                   if (!marcada) e.currentTarget.style.borderColor = t.border;
@@ -240,10 +275,10 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
                               >
                                 {marcada && (
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                                    <path d="M18 6L6 18M6 6l12 12" stroke="#fb923c" strokeWidth="2.5" strokeLinecap="round"/>
+                                    <path d="M18 6L6 18M6 6l12 12" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round"/>
                                   </svg>
                                 )}
-                                {formatarData(d.data, d.turno)}
+                                {formatarData(d.data, d.turno, d.descricao)}
                               </button>
                             );
                           })}
