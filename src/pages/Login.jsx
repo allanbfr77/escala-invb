@@ -153,8 +153,8 @@ export default function Login() {
           .logo-title { font-size: 22px !important; }
         .logo-sub   { font-size: 12px !important; }
           .perfil-img { height: 100px !important; }
-          .perfil-nome { font-size: 10px !important; }
-          .perfil-desc { display: none; }
+          .perfil-nome { font-size: 9px !important; letter-spacing: 0 !important; }
+          .perfil-desc { font-size: 8px !important; }
         }
       `}</style>
 
@@ -179,7 +179,7 @@ export default function Login() {
             textTransform: "uppercase", letterSpacing: "1px",
             fontFamily: "'DM Mono', monospace",
           }}>
-            Sistema de Escala · v.1
+            Sistema de Escala · v1.0.0
           </span>
         </div>
 
@@ -269,13 +269,13 @@ export default function Login() {
                 <div style={{ padding: "10px 12px" }}>
                   <div
                     className="perfil-nome"
-                    style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : theme.text, letterSpacing: "0.3px", lineHeight: 1.3 }}
+                    style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : theme.text, letterSpacing: "0.3px", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   >
                     {p.nome}
                   </div>
                   <div
                     className="perfil-desc"
-                    style={{ fontSize: "10px", color: theme.textMuted, marginTop: "3px", lineHeight: 1.4 }}
+                    style={{ fontSize: "10px", color: theme.textMuted, marginTop: "3px", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   >
                     {p.desc}
                   </div>

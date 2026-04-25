@@ -25,7 +25,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
     const turnoKey = dataObj.turno ?? "único";
     funcoes.forEach(f => {
       const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
-      if (pessoa) {
+      if (pessoa && pessoa !== "disponível") {
         if (!porPessoa[pessoa]) porPessoa[pessoa] = [];
         porPessoa[pessoa].push({ ...dataObj, funcao: f });
       }
@@ -62,6 +62,15 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
 
   return (
     <div style={{ fontFamily: "'Outfit', sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .turnos-container { flex-direction: column !important; overflow-x: hidden !important; gap: 4px !important; }
+          .turnos-col-wrapper { flex-direction: column !important; width: 100% !important; }
+          .turnos-divider { display: none !important; }
+          .turno-col { width: 100% !important; }
+          .turno-chip { white-space: normal !important; font-size: 10px !important; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
@@ -207,7 +216,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                         chunks.push(consecutivas.slice(i, i + 4));
                       }
                       return (
-                        <div style={{
+                        <div className="turnos-container" style={{
                           background: "rgba(96,165,250,0.05)",
                           border: "1px solid rgba(96,165,250,0.25)",
                           borderTop: "none",
@@ -221,10 +230,10 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                           overflowX: "auto",
                         }}>
                           {chunks.map((chunk, colIdx) => (
-                            <div key={colIdx} style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
+                            <div key={colIdx} className="turnos-col-wrapper" style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
                               {/* Divisória antes de cada coluna (exceto a primeira) */}
                               {colIdx > 0 && (
-                                <div style={{
+                                <div className="turnos-divider" style={{
                                   width: "1px",
                                   alignSelf: "stretch",
                                   background: "rgba(96,165,250,0.2)",
@@ -233,14 +242,14 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                                 }} />
                               )}
                               {/* Coluna de chips */}
-                              <div style={{
+                              <div className="turno-col" style={{
                                 display: "flex",
                                 flexDirection: "column",
                                 gap: "4px",
                                 alignItems: "stretch",
                               }}>
                                 {chunk.map(([a, b], i) => (
-                                  <span key={i} style={{
+                                  <span key={i} className="turno-chip" style={{
                                     fontSize: "11px", color: "#60a5fa", fontWeight: 500,
                                     whiteSpace: "nowrap",
                                     background: "rgba(96,165,250,0.08)",

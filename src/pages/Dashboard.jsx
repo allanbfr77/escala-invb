@@ -663,6 +663,29 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             flex-shrink: 0;
           }
           .grid-date-cell { border-right: none !important; background: rgba(99,102,241,0.04); }
+          .grid-row { height: auto !important; }
+
+          /* Cores das funções nos labels mobile (data-label) */
+          .grid-row td[data-label="PROJEÇÃO"]::before,
+          .grid-row td[data-label="MINISTRANTE"]::before,
+          .grid-row td[data-label="INTRODUTOR(A) 1"]::before,
+          .grid-row td[data-label="BERÇÁRIO"]::before { color: #60a5fa !important; }
+
+          .grid-row td[data-label="MESA DE SOM"]::before,
+          .grid-row td[data-label="BVOCAL 1"]::before,
+          .grid-row td[data-label="BVOCAL 2"]::before,
+          .grid-row td[data-label="BVOCAL 3"]::before,
+          .grid-row td[data-label="BVOCAL 4"]::before,
+          .grid-row td[data-label="INTRODUTOR(A) 2"]::before,
+          .grid-row td[data-label="MATERNAL"]::before { color: #34d399 !important; }
+
+          .grid-row td[data-label="TRANSMISSÃO"]::before,
+          .grid-row td[data-label="MÚSICO 1"]::before,
+          .grid-row td[data-label="MÚSICO 2"]::before,
+          .grid-row td[data-label="MÚSICO 3"]::before,
+          .grid-row td[data-label="MÚSICO 4"]::before,
+          .grid-row td[data-label="INTRODUTOR(A) 3"]::before,
+          .grid-row td[data-label="JUNIORES"]::before { color: #f59e0b !important; }
         }
       `}</style>
 
