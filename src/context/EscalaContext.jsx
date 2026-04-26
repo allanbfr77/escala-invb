@@ -109,7 +109,7 @@ export function EscalaProvider({ children, ministerioId, mes }) {
   }, [ministerioId, mes, retryCount]);
 
   return (
-    <EscalaContext.Provider value={{ escalas, datas, loading, error, retry, setLoading }}>
+    <EscalaContext.Provider value={{ escalas, datas, loading, error, retry }}>
       {children}
     </EscalaContext.Provider>
   );

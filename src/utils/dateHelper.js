@@ -11,7 +11,10 @@ export function gerarDatasEscala(anoMes) {
 
   for (let d = new Date(primeiroDia); d <= ultimoDia; d.setDate(d.getDate() + 1)) {
     const diaSemana = d.getDay(); // 0 = domingo, 3 = quarta
-    const dataStr = d.toISOString().split("T")[0];
+    const y  = d.getFullYear();
+    const m  = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const dataStr = `${y}-${m}-${dd}`;
 
     if (diaSemana === 3) {
       // Quartas-feiras

@@ -1,0 +1,20 @@
+[33m78f0804[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m backup: antes das correcoes do relatorio de analise
+[33m5155fa3[m[33m ([m[1;31morigin/main[m[33m)[m user master
+[33ma9ca970[m ajustes versao mobile
+[33m5cef0a1[m novas implementacoes
+[33ma983a03[m melhorias infinitas
+[33m6e6408a[m checkpoint: projeto 100% - login redesign, filtro, cross-ministry, relatorio, persistencia de sessao
+[33m8a69675[m checkpoint-v3-filtro-login-relatorio-crossministry
+[33m5b723a3[m new version
+[33m87cec2b[m estilo-v2
+[33md88ed2e[m estilo-atual
+[33m593ea8c[m correcao gridrecepcao
+[33mfa6cd3f[m check box datas
+[33m909f65b[m feat: alertas no header da grid
+[33m49ecccb[m fix: inclusao nome PR HUMBERTO
+[33m8de7fa7[m fix: logout automático ao abrir o app
+[33mbd71aeb[m fix: alteracao ppessoa para pessoa
+[33m5566c1c[m fix: nomes em maiúsculo
+[33m42e55f4[m firebase config via env vars
+[33m7d7bf2e[m first commit
+[33ma954467[m first commit
