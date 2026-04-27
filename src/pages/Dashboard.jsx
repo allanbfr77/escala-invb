@@ -833,6 +833,19 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .grid-row td[data-label="MÚSICO 4"]::before,
           .grid-row td[data-label="INTRODUTOR(A) 3"]::before,
           .grid-row td[data-label="JUNIORES"]::before { color: #f59e0b !important; }
+
+          /* Botão remover — sempre visível e com área de toque maior no mobile */
+          .chip-remove-btn {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 13px !important;
+            justify-content: center !important;
+            color: ${theme.danger} !important;
+            border-radius: 6px !important;
+            margin-left: 2px !important;
+          }
         }
       `}</style>
 

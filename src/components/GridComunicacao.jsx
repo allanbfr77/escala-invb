@@ -81,6 +81,7 @@ export default function GridComunicacao({ escalas, datas, loading, onRemover, po
                           </span>
                           {podeEditar && (
                             <button
+                              className="chip-remove-btn"
                               onClick={() => onRemover(dataObj.data, turnoKey, f)}
                               title="Remover"
                               style={{

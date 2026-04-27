@@ -19,6 +19,17 @@ export function EscalaProvider({ children, ministerioId, mes }) {
     setRetryCount(c => c + 1);
   }, []);
 
+  // Re-assina o snapshot quando o app volta ao primeiro plano (mobile)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setRetryCount(c => c + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   // Gerar datas do mês + escutar cultos extras do ministério no Firestore
   useEffect(() => {
     const mesAlvo = mes || new Date().toISOString().slice(0, 7);

@@ -88,6 +88,7 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                           </span>
                           {podeEditar && (
                             <button
+                              className="chip-remove-btn"
                               onClick={() => onRemover(dataObj.data, turnoKey, f)}
                               title="Remover"
                               style={{

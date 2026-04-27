@@ -81,6 +81,7 @@ export default function GridRecepcao({ escalas, datas, loading, onRemover, podeE
                           </span>
                           {podeEditar && (
                             <button
+                              className="chip-remove-btn"
                               onClick={() => onRemover(dataObj.data, turnoKey, f)}
                               title="Remover"
                               style={{
