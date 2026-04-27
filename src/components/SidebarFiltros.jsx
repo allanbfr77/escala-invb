@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
-import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil } from "../data/pessoas";
+import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil, pessoasPorFuncaoRecepcao } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
 
@@ -55,7 +55,19 @@ const ministerios = [
 ];
 
 // Ministérios com filtro Função → Pessoa
-const MINISTERIOS_COM_FILTRO = ["louvor", "infantil"];
+const MINISTERIOS_COM_FILTRO = ["louvor", "infantil", "recepcao"];
+
+// Funções exibidas na sidebar para recepcao
+const FUNCOES_RECEPCAO_SIDEBAR = ["INTRODUTOR", "INTRODUTORA"];
+
+// Slots reais no Firestore para recepcao
+const RECEPCAO_SLOTS = ["INTRODUTOR(A) 1", "INTRODUTOR(A) 2", "INTRODUTOR(A) 3"];
+
+// Ordem de preferência de preenchimento por função
+const RECEPCAO_PREFERENCIA = {
+  "INTRODUTOR":  ["INTRODUTOR(A) 1", "INTRODUTOR(A) 2", "INTRODUTOR(A) 3"],
+  "INTRODUTORA": ["INTRODUTOR(A) 2", "INTRODUTOR(A) 3", "INTRODUTOR(A) 1"],
+};
 
 const NOMES_MINISTERIOS = {
   comunicacao: "COMUNICAÇÕES", louvor: "LOUVOR", recepcao: "INTRODUÇÃO", infantil: "INFANTIL",
@@ -164,6 +176,17 @@ export default function SidebarFiltros({
     if (!funcaoSelecionada || funcaoSelecionada === "TODOS" || !ministerioSelecionado) return ocupadas;
     datasDisponiveis.forEach(d => {
       const turnoKey = d.turno ?? "único";
+
+      // Recepcao: ocupado apenas quando os 3 slots estão preenchidos
+      if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoSelecionada]) {
+        const allFull = RECEPCAO_SLOTS.every(f => {
+          const p = escalas[`${d.data}-${turnoKey}-${f}`];
+          return p && p !== "disponível";
+        });
+        if (allFull) ocupadas.add(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
+        return;
+      }
+
       if (GRUPO_FUNCOES[funcaoSelecionada]) {
         // Agrupada: conta sub-slots com pessoas reais (ignora "disponível")
         const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
@@ -195,6 +218,8 @@ export default function SidebarFiltros({
       } else {
         permitidos = pessoasPorFuncaoLouvor[funcaoSelecionada] || [];
       }
+    } else if (ministerioSelecionado === "recepcao") {
+      permitidos = pessoasPorFuncaoRecepcao[funcaoSelecionada] || [];
     } else {
       permitidos = pessoasPorFuncaoInfantil[funcaoSelecionada] || [];
     }
@@ -206,10 +231,12 @@ export default function SidebarFiltros({
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
   const funcoesDoMinisterio = ministerioSelecionado === "louvor"
     ? FUNCOES_LOUVOR_SIDEBAR
-    : (funcoesPorMinisterio[ministerioSelecionado] || []);
+    : ministerioSelecionado === "recepcao"
+      ? FUNCOES_RECEPCAO_SIDEBAR
+      : (funcoesPorMinisterio[ministerioSelecionado] || []);
   const podeEditar = podeEditarMinisterio(usuario, ministerioSelecionado);
 
-  // Lista de pessoas filtrada por função (louvor/infantil)
+  // Lista de pessoas filtrada por função (louvor/infantil/recepcao)
   const pessoasFiltradas = (() => {
     if (!usaFiltro || !funcaoSelecionada || funcaoSelecionada === "TODOS") {
       return pessoasDoMinisterio;
@@ -222,6 +249,9 @@ export default function SidebarFiltros({
         )];
       }
       return pessoasPorFuncaoLouvor[funcaoSelecionada] || pessoasDoMinisterio;
+    }
+    if (ministerioSelecionado === "recepcao") {
+      return pessoasPorFuncaoRecepcao[funcaoSelecionada] || pessoasDoMinisterio;
     }
     return pessoasPorFuncaoInfantil[funcaoSelecionada] || pessoasDoMinisterio;
   })();
@@ -290,7 +320,19 @@ export default function SidebarFiltros({
 
       // ── Determina slot real para funções agrupadas ──────────────────────
       let funcaoReal = funcaoSelecionada;
-      if (GRUPO_FUNCOES[funcaoSelecionada]) {
+      if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoSelecionada]) {
+        // Recepcao: percorre slots na ordem de preferência da função
+        const prefSlots = RECEPCAO_PREFERENCIA[funcaoSelecionada];
+        funcaoReal = null;
+        for (const slot of prefSlots) {
+          const ocupante = escalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
+          if (!ocupante || ocupante === "disponível") {
+            funcaoReal = slot;
+            break;
+          }
+        }
+        if (!funcaoReal) { erros++; continue; } // Todos os 3 slots ocupados
+      } else if (GRUPO_FUNCOES[funcaoSelecionada]) {
         const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
         funcaoReal = null;
         for (const slot of subFuncoes) {
@@ -369,7 +411,9 @@ export default function SidebarFiltros({
     if (conflito) onConflito?.(conflito);
 
     if (salvos > 0) {
-      if (!GRUPO_FUNCOES[funcaoSelecionada]) {
+      const isGrupo = GRUPO_FUNCOES[funcaoSelecionada] ||
+        (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoSelecionada]);
+      if (!isGrupo) {
         // Simples: esconde imediatamente via datasConfirmadas enquanto onSnapshot atualiza
         setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
       }

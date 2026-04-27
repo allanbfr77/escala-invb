@@ -394,6 +394,151 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     });
   };
 
+  // ── Organizar grade de Recepcao ──────────────────────────────────────────
+  const handleOrganizarRecepcao = useCallback(() => {
+    setConfirmModal({
+      aberto: true,
+      titulo: "Organizar grade de Introdução",
+      descricao: "Os slots serão reorganizados para que cada pessoa ocupe sempre a mesma coluna ao longo do mês. Nenhuma pessoa é removida da escala.",
+      confirmLabel: "Confirmar",
+      perigoso: false,
+      onConfirmar: async () => {
+        setConfirmModal(prev => ({ ...prev, aberto: false }));
+
+        const funcoes = ["INTRODUTOR(A) 1", "INTRODUTOR(A) 2", "INTRODUTOR(A) 3"];
+        const changes = [];
+
+        // ── 1. Contar ocorrências pessoa × coluna ────────────────────────
+        const countMatrix = {};
+        for (const dataObj of datas) {
+          const turnoKey = dataObj.turno ?? "único";
+          for (const f of funcoes) {
+            const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+            if (pessoa && pessoa !== "disponível") {
+              if (!countMatrix[pessoa]) countMatrix[pessoa] = {};
+              countMatrix[pessoa][f] = (countMatrix[pessoa][f] || 0) + 1;
+            }
+          }
+        }
+
+        const pessoas = Object.keys(countMatrix);
+        if (pessoas.length === 0) {
+          mostrarMensagem("Grade já está organizada", "sucesso");
+          return;
+        }
+
+        // ── 2. Atribuir coluna preferida (greedy) ────────────────────────
+        const candidatos = [];
+        for (const pessoa of pessoas) {
+          for (const f of funcoes) {
+            candidatos.push({ pessoa, funcao: f, count: countMatrix[pessoa][f] || 0 });
+          }
+        }
+        candidatos.sort((a, b) => b.count - a.count);
+
+        const preferred = {};
+        const assignedPessoas = new Set();
+        const usedFuncoes    = new Set();
+
+        for (const { pessoa, funcao } of candidatos) {
+          if (!assignedPessoas.has(pessoa) && !usedFuncoes.has(funcao)) {
+            preferred[pessoa] = funcao;
+            assignedPessoas.add(pessoa);
+            usedFuncoes.add(funcao);
+          }
+        }
+        // Sobras sem coluna preferida → colunas ainda livres
+        const remainingFuncoes = funcoes.filter(f => !usedFuncoes.has(f));
+        let ri = 0;
+        for (const pessoa of pessoas) {
+          if (!preferred[pessoa]) preferred[pessoa] = remainingFuncoes[ri++];
+        }
+
+        // ── 3. Para cada data, reposicionar ─────────────────────────────
+        for (const dataObj of datas) {
+          const turnoKey = dataObj.turno ?? "único";
+
+          const currentAssignments = {};
+          const disponiveisSlots   = new Set();
+          for (const f of funcoes) {
+            const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+            if (pessoa === "disponível") disponiveisSlots.add(f);
+            else if (pessoa)             currentAssignments[f] = pessoa;
+          }
+
+          const pessoasHoje = Object.values(currentAssignments);
+          if (pessoasHoje.length === 0) continue;
+
+          const availableSlots = funcoes.filter(f => !disponiveisSlots.has(f));
+
+          const newAssignment = {};
+          const takenSlots    = new Set();
+
+          const sorted = [...pessoasHoje].sort((a, b) =>
+            funcoes.indexOf(preferred[a] || funcoes[2]) -
+            funcoes.indexOf(preferred[b] || funcoes[2])
+          );
+          for (const pessoa of sorted) {
+            const pref = preferred[pessoa];
+            if (pref && availableSlots.includes(pref) && !takenSlots.has(pref)) {
+              newAssignment[pessoa] = pref;
+              takenSlots.add(pref);
+            }
+          }
+          const freeSlots = availableSlots.filter(f => !takenSlots.has(f));
+          let si = 0;
+          for (const pessoa of sorted) {
+            if (!newAssignment[pessoa]) newAssignment[pessoa] = freeSlots[si++];
+          }
+
+          for (const [funcaoAntiga, pessoa] of Object.entries(currentAssignments)) {
+            const funcaoNova = newAssignment[pessoa];
+            if (funcaoNova && funcaoAntiga !== funcaoNova) {
+              changes.push({ data: dataObj.data, turno: turnoKey, funcaoAntiga, funcaoNova });
+            }
+          }
+        }
+
+        if (changes.length === 0) {
+          mostrarMensagem("Grade já está organizada", "sucesso");
+          return;
+        }
+
+        // ── 4. Aplicar no Firestore ──────────────────────────────────────
+        try {
+          const [ano, mesNum] = mes.split("-");
+          const inicio = `${ano}-${mesNum}-01`;
+          const fim    = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
+
+          const snap = await getDocs(query(
+            collection(db, "escalas"),
+            where("ministerioId", "==", "recepcao"),
+            where("data", ">=", inicio),
+            where("data", "<=", fim)
+          ));
+
+          const docMap = {};
+          snap.docs.forEach(d => {
+            const dd = d.data();
+            const tk = dd.turno ?? "único";
+            docMap[`${dd.data}-${tk}-${dd.funcao}`] = d.ref;
+          });
+
+          for (const { data, turno, funcaoAntiga, funcaoNova } of changes) {
+            const ref = docMap[`${data}-${turno}-${funcaoAntiga}`];
+            if (ref) await updateDoc(ref, { funcao: funcaoNova });
+          }
+
+          setRefreshKey(k => k + 1);
+          mostrarMensagem(`Grade organizada — ${changes.length} ajuste${changes.length !== 1 ? "s" : ""}`, "sucesso");
+        } catch (err) {
+          console.error(err);
+          mostrarMensagem("Erro ao organizar grade", "erro");
+        }
+      },
+    });
+  }, [escalas, datas, mes]);
+
   // ── Organizar grade de Louvor ─────────────────────────────────────────────
   const handleOrganizarLouvor = useCallback(() => {
     setConfirmModal({
@@ -1078,6 +1223,29 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                   </svg>
                   <span className="btn-label">Indisponível</span>
+                </button>
+              )}
+
+              {podeEditar && ministerioSelecionado === "recepcao" && (
+                <button
+                  onClick={handleOrganizarRecepcao}
+                  title="Organizar introdutores por coluna"
+                  style={{
+                    padding: "5px 10px", background: "transparent",
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: "5px", color: theme.textMuted,
+                    fontSize: "12px", cursor: "pointer",
+                    fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#a78bfa66"; e.currentTarget.style.color = "#a78bfa"; e.currentTarget.style.background = "rgba(167,139,250,0.07)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                  <span className="btn-label">Organizar</span>
                 </button>
               )}
 

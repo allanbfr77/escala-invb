@@ -11,6 +11,11 @@ export const pessoasPorFuncaoLouvor = {
   "MÚSICO 4":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
 };
 
+export const pessoasPorFuncaoRecepcao = {
+  "INTRODUTOR":  ["ALFREDO", "ATAYDE", "JOÃO", "MARCIO", "WELLINGTON"],
+  "INTRODUTORA": ["CLEUSA", "FRANCISCA", "HELENA", "LIA", "LUCIANA FERNANDES", "LUCIANE MARTINS", "MARILDA", "MIRIAN", "ROSE"],
+};
+
 export const pessoasPorFuncaoInfantil = {
   "BERÇÁRIO": ["BIANCA", "CELIANA", "CRIS MEDEIROS", "ELIZANGELA", "MARILDA", "MARILIA", "RAPHAELA", "VANESSA HONORATO"],
   "MATERNAL": ["ALAN", "ANNA BEATRIZ", "ELIZANGELA", "FRANCISCA", "LUCIANE MARTINS", "LUCYENE PAULINO", "MARILIA", "MEDEIROS", "RAPHAELA", "SEBASTIANA", "SUELLEN"],
@@ -72,6 +77,8 @@ export const pessoasPorMinisterio = {
   recepcao: [
     "ALFREDO",
     "ATAYDE",
+    "CLEUSA",
+    "FRANCISCA",
     "HELENA",
     "JOÃO",
     "LIA",
