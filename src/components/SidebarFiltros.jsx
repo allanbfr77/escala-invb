@@ -1,5 +1,5 @@
 // ===== src/components/SidebarFiltros.jsx =====
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
@@ -256,37 +256,82 @@ export default function SidebarFiltros({
     return pessoasPorFuncaoInfantil[funcaoSelecionada] || pessoasDoMinisterio;
   })();
 
-  // Datas visíveis — exclui ocupadas e indisponíveis da pessoa selecionada
-  const datasVisiveis = datasDisponiveis.filter(d => {
+  /** Mesma regra de `datasVisiveis` para uma pessoa concreta (sidebar + limpeza de seleção). */
+  const dataEscalavelParaPessoa = useCallback((d, nomePessoa) => {
     if (datasConfirmadas.includes(d.id)) return false;
     const turnoKey = d.turno ?? "único";
     if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
 
-    // DISPONÍVEL não pode ser colocado em cima de outro DISPONÍVEL
-    if (pessoaSelecionada?.toLowerCase() === "disponível") {
+    const pl = nomePessoa.toLowerCase();
+    if (pl === "disponível") {
       if (GRUPO_FUNCOES[funcaoSelecionada]) {
         const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
-        const jaTemDisponivel = subFuncoes.some(
-          f => escalas[`${d.data}-${turnoKey}-${f}`] === "disponível"
-        );
-        if (jaTemDisponivel) return false;
-      } else {
-        if (escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`] === "disponível") return false;
+        if (subFuncoes.some(f => escalas[`${d.data}-${turnoKey}-${f}`] === "disponível")) return false;
+      } else if (funcaoSelecionada && escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`] === "disponível") {
+        return false;
       }
     }
 
-    if (pessoaSelecionada) {
-      const pessoaLower = pessoaSelecionada.toLowerCase();
-      const chave = `${d.data}|${turnoKey}`;
-      if (indisponiveisMap[pessoaLower]?.has(chave)) return false;
-    }
+    const chave = `${d.data}|${turnoKey}`;
+    if (indisponiveisMap[pl]?.has(chave)) return false;
     return true;
+  }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap]);
+
+  /** Esconde da lista quem não tem nenhuma data livre para a função atual (indisp. + ocupação). */
+  const pessoasComSlotNaSidebar = useMemo(() => {
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return pessoasFiltradas;
+    return pessoasFiltradas.filter(p =>
+      datasDisponiveis.some(d => dataEscalavelParaPessoa(d, p))
+    );
+  }, [funcaoSelecionada, pessoasFiltradas, datasDisponiveis, dataEscalavelParaPessoa]);
+
+  const disponivelTemDatas = useMemo(() => {
+    if (ministerioSelecionado !== "louvor") return true;
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return true;
+    return datasDisponiveis.some(d => dataEscalavelParaPessoa(d, "Disponível"));
+  }, [ministerioSelecionado, funcaoSelecionada, datasDisponiveis, dataEscalavelParaPessoa]);
+
+  /** Só quando todos os cultos do mês estão ocupados na função (não confundir com indisponibilidade pessoal). */
+  const todasDatasOcupadasNaFuncao = useMemo(() => {
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return false;
+    const candidatas = datasDisponiveis.filter(d => !datasConfirmadas.includes(d.id));
+    if (candidatas.length === 0) return false;
+    return candidatas.every(d => {
+      const turnoKey = d.turno ?? "único";
+      return datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
+    });
+  }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas]);
+
+  // Datas visíveis — exclui ocupadas e indisponíveis da pessoa selecionada
+  const datasVisiveis = datasDisponiveis.filter(d => {
+    if (!pessoaSelecionada) {
+      if (datasConfirmadas.includes(d.id)) return false;
+      const turnoKey = d.turno ?? "único";
+      if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
+      return true;
+    }
+    return dataEscalavelParaPessoa(d, pessoaSelecionada);
   });
 
   useEffect(() => {
     const visiveisIds = new Set(datasVisiveis.map(d => d.id));
     setDatasIds(prev => prev.filter(id => visiveisIds.has(id)));
   }, [datasOcupadas, datasConfirmadas, pessoaSelecionada, indisponiveisMap]);
+
+  useEffect(() => {
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return;
+    if (!pessoaSelecionada) return;
+    if (pessoaSelecionada === "Disponível") {
+      if (!disponivelTemDatas) setPessoa("");
+      return;
+    }
+    if (!pessoasComSlotNaSidebar.includes(pessoaSelecionada)) setPessoa("");
+  }, [
+    funcaoSelecionada,
+    pessoaSelecionada,
+    pessoasComSlotNaSidebar,
+    disponivelTemDatas,
+  ]);
 
 
   const toggleData = (id) => {
@@ -503,7 +548,7 @@ export default function SidebarFiltros({
 
   const datasHint = (() => {
     if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return null;
-    if (datasVisiveis.length === 0 && datasDisponiveis.length > 0) {
+    if (datasVisiveis.length === 0 && datasDisponiveis.length > 0 && todasDatasOcupadasNaFuncao) {
       return { text: "Todas as datas já estão preenchidas para esta função", color: "#d2993a" };
     }
     return null;
@@ -658,14 +703,14 @@ export default function SidebarFiltros({
       <div style={s.field}>
         <label style={s.label}>
           Pessoa
-          {usaFiltro && funcaoSelecionada && funcaoSelecionada !== "TODOS" && (
+          {funcaoSelecionada && funcaoSelecionada !== "TODOS" && (
             <span style={{
               marginLeft: "6px", fontSize: "9px", fontWeight: 600,
               color: t.accent, background: t.accentDim,
               borderRadius: "8px", padding: "1px 6px",
               textTransform: "uppercase", letterSpacing: "0.3px",
             }}>
-              {pessoasFiltradas.length} disponíveis
+              {pessoasComSlotNaSidebar.length} disponíveis
             </span>
           )}
         </label>
@@ -677,10 +722,10 @@ export default function SidebarFiltros({
           disabled={!podeEditar}
         >
           <option value="">Selecione...</option>
-          {ministerioSelecionado === "louvor" && (
+          {ministerioSelecionado === "louvor" && disponivelTemDatas && (
             <option value="Disponível">✦ DISPONÍVEL</option>
           )}
-          {[...pessoasFiltradas].sort((a, b) => a.localeCompare(b, "pt")).map(p => (
+          {[...pessoasComSlotNaSidebar].sort((a, b) => a.localeCompare(b, "pt")).map(p => (
             <option key={p} value={p}>{p.toUpperCase()}</option>
           ))}
         </select>
