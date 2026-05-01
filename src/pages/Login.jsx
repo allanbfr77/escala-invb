@@ -151,11 +151,10 @@ export default function Login() {
         .logo-title { text-wrap: balance; }
 
         .perfil-nome {
-          white-space: normal !important;
+          white-space: nowrap !important;
           overflow: visible !important;
           text-overflow: clip !important;
-          word-break: break-word;
-          hyphens: auto;
+          letter-spacing: 0.1px;
         }
 
         @media (max-width: 480px) {
@@ -164,7 +163,8 @@ export default function Login() {
           .logo-title { font-size: 20px !important; letter-spacing: -0.45px !important; padding: 0 4px; }
           .logo-sub { font-size: 12px !important; padding: 0 4px; }
           .perfil-img { height: 100px !important; }
-          .perfil-nome { font-size: 9px !important; letter-spacing: 0 !important; line-height: 1.25 !important; }
+          .perfil-meta { padding: 9px 8px !important; }
+          .perfil-nome { font-size: 7.4px !important; letter-spacing: 0 !important; line-height: 1.2 !important; font-weight: 600 !important; }
           .perfil-desc { font-size: 8px !important; }
         }
       `}</style>
@@ -290,7 +290,7 @@ export default function Login() {
                     style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", padding: "12px" }}
                   />
                 </div>
-                <div style={{ padding: "10px 12px" }}>
+                <div className="perfil-meta" style={{ padding: "10px 12px" }}>
                   <div
                     className="perfil-nome"
                     style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : theme.text, letterSpacing: "0.2px", lineHeight: 1.25 }}
