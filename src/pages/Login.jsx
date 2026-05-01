@@ -198,8 +198,8 @@ export default function Login() {
         }}>
           <div style={{
             width: "5px", height: "5px", borderRadius: "50%",
-            background: theme.accent,
-            boxShadow: `0 0 8px ${accentAlpha(0.9)}`,
+            background: "#34d399",
+            boxShadow: "0 0 8px rgba(52,211,153,0.85)",
           }} />
           <span style={{
             fontSize: "10px", fontWeight: 700, color: theme.accentBright,
@@ -254,6 +254,24 @@ export default function Login() {
             else if (sel)                     scale = "scale(1.03)";
             else if (hovered && !formAtiva)   scale = "scale(1.05)";
 
+            const cardBackground = sel
+              ? `linear-gradient(160deg, ${accentAlpha(0.24)} 0%, ${accentAlpha(0.14)} 100%)`
+              : hovered && !formAtiva
+                ? `linear-gradient(160deg, ${accentAlpha(0.1)} 0%, ${loginCardBg} 100%)`
+                : loginCardBg;
+
+            const cardBorderColor = sel
+              ? theme.accentBright
+              : hovered && !formAtiva
+                ? theme.accentMuted
+                : theme.border;
+
+            const cardShadow = sel
+              ? `0 0 0 1px ${accentAlpha(0.35)} inset, 0 0 0 3px ${accentAlpha(0.26)}, 0 0 28px ${accentAlpha(0.4)}, 0 10px 30px rgba(0,0,0,0.38)`
+              : hovered && !formAtiva
+                ? `0 0 0 1px ${accentAlpha(0.22)} inset, 0 0 18px ${accentAlpha(0.25)}, 0 8px 24px rgba(0,0,0,0.34)`
+                : "none";
+
             return (
               <button
                 key={p.id}
@@ -266,19 +284,15 @@ export default function Login() {
                 style={{
                   padding: 0, cursor: "pointer", textAlign: "left",
                   outline: "none", overflow: "hidden",
-                  background: sel ? theme.accentSelectedBg : loginCardBg,
-                  border: `2px solid ${sel ? theme.accent : theme.border}`,
+                  background: cardBackground,
+                  border: `2px solid ${cardBorderColor}`,
                   borderRadius: "10px",
                   transform: scale,
-                  boxShadow: sel
-                    ? `0 0 0 3px ${accentAlpha(0.2)}, 0 8px 28px ${accentAlpha(0.25)}`
-                    : hovered && !formAtiva
-                      ? "0 4px 16px rgba(0,0,0,0.3)"
-                      : "none",
+                  boxShadow: cardShadow,
                   // Blur + dim non-selected cards when form is active (unless hovered)
                   filter: (outro && !hovered) ? "blur(1.5px) saturate(0.5)" : "none",
                   opacity: (outro && !hovered) ? 0.45 : carregando ? 0.6 : 1,
-                  transition: "transform 0.18s ease, background 0.2s ease, opacity 0.25s ease, filter 0.25s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+                  transition: "transform 0.18s ease, background 0.22s ease, opacity 0.25s ease, filter 0.25s ease, box-shadow 0.22s ease, border-color 0.22s ease",
                 }}
               >
                 <div
