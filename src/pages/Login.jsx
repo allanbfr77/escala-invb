@@ -91,18 +91,26 @@ export default function Login() {
   const formAtiva  = !!perfilSelecionado;
 
   return (
-    <div style={{
-      minHeight: "100vh",
+    <div className="login-page-root" style={{
       background: "linear-gradient(165deg, #050505 0%, #0c0c0c 40%, #101010 100%)",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      fontFamily: "'DM Sans', sans-serif", padding: "16px",
+      fontFamily: "'DM Sans', sans-serif",
+      padding: "16px",
+      paddingTop: "calc(16px + env(safe-area-inset-top, 0px))",
+      paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
       position: "relative",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: ${theme.bg}; }
+        html { background: #070708; }
+        body { background: #070708; }
+
+        .login-page-root {
+          min-height: 100vh;
+          min-height: 100dvh;
+        }
 
         input:-webkit-autofill {
           -webkit-box-shadow: 0 0 0 100px ${loginCardInset} inset !important;
@@ -142,13 +150,21 @@ export default function Login() {
 
         .logo-title { text-wrap: balance; }
 
+        .perfil-nome {
+          white-space: normal !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+          word-break: break-word;
+          hyphens: auto;
+        }
+
         @media (max-width: 480px) {
           .login-card { max-width: 100% !important; }
           .login-grid { grid-template-columns: 1fr 1fr !important; }
           .logo-title { font-size: 20px !important; letter-spacing: -0.45px !important; padding: 0 4px; }
           .logo-sub { font-size: 12px !important; padding: 0 4px; }
           .perfil-img { height: 100px !important; }
-          .perfil-nome { font-size: 9px !important; letter-spacing: 0 !important; }
+          .perfil-nome { font-size: 9px !important; letter-spacing: 0 !important; line-height: 1.25 !important; }
           .perfil-desc { font-size: 8px !important; }
         }
       `}</style>
@@ -201,7 +217,7 @@ export default function Login() {
             fontSize: "28px", fontWeight: 700,
             letterSpacing: "-0.6px", lineHeight: 1.15,
             marginBottom: "8px",
-            color: theme.accent,
+            color: "#ffffff",
           }}
         >
           Selecione o seu perfil para{"\u00A0"}continuar
@@ -211,7 +227,7 @@ export default function Login() {
         <p
           className="logo-sub"
           style={{
-            fontSize: "14px", color: theme.accent,
+            fontSize: "14px", color: "rgba(255,255,255,0.88)",
             fontWeight: 400, letterSpacing: "0.1px",
           }}
         >
@@ -277,7 +293,7 @@ export default function Login() {
                 <div style={{ padding: "10px 12px" }}>
                   <div
                     className="perfil-nome"
-                    style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : theme.text, letterSpacing: "0.3px", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                    style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : theme.text, letterSpacing: "0.2px", lineHeight: 1.25 }}
                   >
                     {p.nome}
                   </div>
