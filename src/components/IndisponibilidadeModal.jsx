@@ -5,11 +5,13 @@ import { collection, query, where, getDocs, setDoc, doc } from "firebase/firesto
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 
-export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId, datasDisponiveis, theme: t }) {
+export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId, datasDisponiveis, mes, theme: t }) {
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [salvando, setSalvando] = useState({});
   const [expandida, setExpandida] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [importando, setImportando] = useState(false);
+  const [importResult, setImportResult] = useState(null); // { adicionadas: number } | null
 
   const pessoas = pessoasPorMinisterio[ministerioId] || [];
 
@@ -17,6 +19,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
   useEffect(() => {
     if (!aberto || !ministerioId) return;
     setLoading(true);
+    setImportResult(null);
     let cancelled = false;
 
     getDocs(query(
@@ -47,7 +50,6 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
       atual.add(chave);
     }
 
-    // Atualiza estado imediatamente
     setIndisponiveisMap(prev => ({ ...prev, [key]: atual }));
     setSalvando(prev => ({ ...prev, [key]: true }));
 
@@ -87,6 +89,84 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
     }
   };
 
+  // ── Importa datas de outros ministérios automaticamente ─────────────────
+  const importarEscalasCruzadas = async () => {
+    if (!mes || importando) return;
+    setImportando(true);
+    setImportResult(null);
+
+    const [ano, mesNum] = mes.split("-");
+    const inicio = `${ano}-${mesNum}-01`;
+    const fim    = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
+
+    const pessoasLower = new Set(pessoas.map(p => p.toLowerCase()));
+
+    try {
+      // Busca todas as escalas do mês em todos os ministérios
+      const snap = await getDocs(query(
+        collection(db, "escalas"),
+        where("data", ">=", inicio),
+        where("data", "<=", fim)
+      ));
+
+      // Monta mapa: pessoaNome (lower) → Set de "data|turno" de OUTROS ministérios
+      const crossMap = {};
+      snap.docs.forEach(d => {
+        const escala = d.data();
+        if (escala.ministerioId === ministerioId) return; // ignora o próprio ministério
+        if (!pessoasLower.has(escala.pessoaNome))  return; // ignora quem não é deste ministério
+
+        const key = escala.pessoaNome; // já em lowercase no Firestore
+        if (!crossMap[key]) crossMap[key] = new Set();
+        crossMap[key].add(`${escala.data}|${escala.turno ?? "único"}`);
+      });
+
+      if (Object.keys(crossMap).length === 0) {
+        setImportResult({ adicionadas: 0 });
+        setImportando(false);
+        return;
+      }
+
+      // Mescla com indisponibilidades existentes e persiste
+      const novoMap = { ...indisponiveisMap };
+      let totalAdicionadas = 0;
+
+      await Promise.all(
+        Object.entries(crossMap).map(async ([pessoaNome, novasDatas]) => {
+          const atual = new Set(novoMap[pessoaNome] || []);
+          let qtdNova = 0;
+
+          novasDatas.forEach(chave => {
+            if (!atual.has(chave)) {
+              atual.add(chave);
+              qtdNova++;
+            }
+          });
+
+          if (qtdNova > 0) {
+            novoMap[pessoaNome] = atual;
+            totalAdicionadas += qtdNova;
+
+            const docId = `${ministerioId}_${pessoaNome.replace(/\s+/g, "_").replace(/\./g, "")}`;
+            await setDoc(doc(db, "indisponibilidades", docId), {
+              ministerioId,
+              pessoaNome,
+              datas: [...atual],
+            });
+          }
+        })
+      );
+
+      setIndisponiveisMap(novoMap);
+      setImportResult({ adicionadas: totalAdicionadas });
+    } catch (err) {
+      console.error("Erro ao importar escalas cruzadas:", err);
+      setImportResult({ adicionadas: -1 }); // sinaliza erro
+    } finally {
+      setImportando(false);
+    }
+  };
+
   if (!aberto) return null;
 
   return (
@@ -99,6 +179,9 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
           background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)",
         }}
       />
+
+      {/* Animação de spin */}
+      <style>{`@keyframes indispSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
       {/* Panel */}
       <div style={{
@@ -140,6 +223,107 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
+        </div>
+
+        {/* Botão: importar escalas cruzadas */}
+        <div style={{
+          padding: "10px 20px",
+          borderBottom: `1px solid ${t.border}`,
+          flexShrink: 0,
+          display: "flex", flexDirection: "column", gap: "6px",
+        }}>
+          <button
+            onClick={importarEscalasCruzadas}
+            disabled={importando || loading}
+            title="Busca automaticamente as datas em que membros deste ministério já estão escalados em outros ministérios e marca como indisponíveis"
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              background: importando ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.08)",
+              border: `1px solid ${importando ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.3)"}`,
+              borderRadius: "7px",
+              color: importando ? t.textMuted : t.accent,
+              fontSize: "12px", fontWeight: 600,
+              cursor: (importando || loading) ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
+              transition: "all 0.15s",
+              opacity: loading ? 0.5 : 1,
+            }}
+            onMouseEnter={e => {
+              if (!importando && !loading) {
+                e.currentTarget.style.background = "rgba(99,102,241,0.15)";
+                e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)";
+              }
+            }}
+            onMouseLeave={e => {
+              if (!importando && !loading) {
+                e.currentTarget.style.background = "rgba(99,102,241,0.08)";
+                e.currentTarget.style.borderColor = "rgba(99,102,241,0.3)";
+              }
+            }}
+          >
+            {importando ? (
+              <>
+                <svg
+                  width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ animation: "indispSpin 0.8s linear infinite" }}
+                >
+                  <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+                </svg>
+                Buscando escalas...
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                  <path d="m15 5 4 4"/>
+                </svg>
+                Detectar de outros ministérios
+              </>
+            )}
+          </button>
+
+          {/* Resultado da importação */}
+          {importResult !== null && (
+            <div style={{
+              padding: "6px 10px",
+              borderRadius: "6px",
+              fontSize: "11px", fontWeight: 500,
+              display: "flex", alignItems: "center", gap: "6px",
+              ...(importResult.adicionadas < 0 ? {
+                background: "rgba(251,113,133,0.08)",
+                border: "1px solid rgba(251,113,133,0.25)",
+                color: "#f87171",
+              } : importResult.adicionadas === 0 ? {
+                background: "rgba(148,163,184,0.06)",
+                border: `1px solid ${t.border}`,
+                color: t.textMuted,
+              } : {
+                background: "rgba(52,211,153,0.08)",
+                border: "1px solid rgba(52,211,153,0.25)",
+                color: "#34d399",
+              }),
+            }}>
+              {importResult.adicionadas < 0 ? (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  Erro ao buscar escalas. Tente novamente.
+                </>
+              ) : importResult.adicionadas === 0 ? (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  Nenhuma nova data encontrada nos outros ministérios
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  {importResult.adicionadas} data{importResult.adicionadas !== 1 ? "s" : ""} marcada{importResult.adicionadas !== 1 ? "s" : ""} automaticamente
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Body */}

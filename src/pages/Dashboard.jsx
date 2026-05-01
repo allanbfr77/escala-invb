@@ -1390,6 +1390,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         onFechar={() => { setVerIndisponibilidade(false); setIndispRefreshKey(k => k + 1); }}
         ministerioId={ministerioSelecionado}
         datasDisponiveis={datas}
+        mes={mes}
         theme={theme}
       />
 
