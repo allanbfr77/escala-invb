@@ -72,22 +72,35 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
     return indisponiveisMap[pessoaNome.toLowerCase()] || new Set();
   };
 
-  const limparSelecao = async (pessoaNome) => {
+  const salvarDatasPessoa = async (pessoaNome, datasSet) => {
     const key = pessoaNome.toLowerCase();
-    setIndisponiveisMap(prev => ({ ...prev, [key]: new Set() }));
+    const datasNormalizadas = new Set(datasSet || []);
+
+    setIndisponiveisMap(prev => ({ ...prev, [key]: datasNormalizadas }));
     setSalvando(prev => ({ ...prev, [key]: true }));
     try {
       const docId = `${ministerioId}_${key.replace(/\s+/g, "_").replace(/\./g, "")}`;
       await setDoc(doc(db, "indisponibilidades", docId), {
         ministerioId,
         pessoaNome: key,
-        datas: [],
+        datas: [...datasNormalizadas],
       });
     } catch (err) {
-      console.error("Erro ao limpar indisponibilidades:", err);
+      console.error("Erro ao salvar indisponibilidades:", err);
     } finally {
       setSalvando(prev => ({ ...prev, [key]: false }));
     }
+  };
+
+  const limparSelecao = async (pessoaNome) => {
+    await salvarDatasPessoa(pessoaNome, new Set());
+  };
+
+  const selecionarTodasDatas = async (pessoaNome) => {
+    const todasAsDatas = new Set(
+      datasDisponiveis.map(d => `${d.data}|${d.turno ?? "único"}`)
+    );
+    await salvarDatasPessoa(pessoaNome, todasAsDatas);
   };
 
   // ── Importa datas de outros ministérios automaticamente ─────────────────
@@ -428,46 +441,129 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
                           Nenhuma data disponível neste mês
                         </p>
                       ) : (
-                        <div style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: "4px",
-                          marginTop: "4px",
-                        }}>
-                          {datasDisponiveis.map(d => {
-                            const chave = `${d.data}|${d.turno ?? "único"}`;
-                            const marcada = indisponiveis.has(chave);
-                            return (
+                        <>
+                          <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "8px",
+                            marginTop: "4px",
+                            marginBottom: "6px",
+                          }}>
+                            <span style={{ fontSize: "10px", color: t.textMuted, fontWeight: 600 }}>
+                              Ações rápidas
+                            </span>
+                            <div style={{ display: "flex", gap: "6px" }}>
                               <button
-                                key={d.id}
-                                onClick={() => toggleData(pessoa, d.data, d.turno)}
+                                onClick={() => selecionarTodasDatas(pessoa)}
+                                disabled={isSalvando}
                                 style={{
-                                  padding: "6px 10px", borderRadius: "5px",
-                                  border: `1px solid ${marcada ? "rgba(248,113,113,0.4)" : t.border}`,
-                                  background: marcada ? "rgba(248,113,113,0.1)" : "transparent",
-                                  color: marcada ? "#f87171" : t.textMuted,
-                                  fontSize: "11px", fontWeight: marcada ? 600 : 400,
-                                  cursor: "pointer", fontFamily: "inherit",
-                                  display: "flex", alignItems: "center", gap: "5px",
-                                  transition: "all 0.15s", textAlign: "left",
+                                  padding: "4px 8px",
+                                  borderRadius: "5px",
+                                  border: `1px solid ${t.border}`,
+                                  background: "transparent",
+                                  color: t.textMuted,
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  cursor: isSalvando ? "not-allowed" : "pointer",
+                                  opacity: isSalvando ? 0.6 : 1,
+                                  fontFamily: "inherit",
+                                  transition: "all 0.15s",
                                 }}
                                 onMouseEnter={e => {
-                                  if (!marcada) e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
+                                  if (!isSalvando) {
+                                    e.currentTarget.style.borderColor = "rgba(248,113,113,0.45)";
+                                    e.currentTarget.style.background = "rgba(248,113,113,0.1)";
+                                    e.currentTarget.style.color = "#f87171";
+                                  }
                                 }}
                                 onMouseLeave={e => {
-                                  if (!marcada) e.currentTarget.style.borderColor = t.border;
+                                  if (!isSalvando) {
+                                    e.currentTarget.style.borderColor = t.border;
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.color = t.textMuted;
+                                  }
                                 }}
                               >
-                                {marcada && (
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                                    <path d="M18 6L6 18M6 6l12 12" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round"/>
-                                  </svg>
-                                )}
-                                {formatarData(d.data, d.turno, d.descricao)}
+                                Selecionar todas
                               </button>
-                            );
-                          })}
-                        </div>
+                              <button
+                                onClick={() => limparSelecao(pessoa)}
+                                disabled={isSalvando}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "5px",
+                                  border: `1px solid ${t.border}`,
+                                  background: "transparent",
+                                  color: t.textMuted,
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  cursor: isSalvando ? "not-allowed" : "pointer",
+                                  opacity: isSalvando ? 0.6 : 1,
+                                  fontFamily: "inherit",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={e => {
+                                  if (!isSalvando) {
+                                    e.currentTarget.style.borderColor = "rgba(52,211,153,0.45)";
+                                    e.currentTarget.style.background = "rgba(52,211,153,0.1)";
+                                    e.currentTarget.style.color = "#34d399";
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  if (!isSalvando) {
+                                    e.currentTarget.style.borderColor = t.border;
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.color = t.textMuted;
+                                  }
+                                }}
+                              >
+                                Limpar todas
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "4px",
+                            marginTop: "4px",
+                          }}>
+                            {datasDisponiveis.map(d => {
+                              const chave = `${d.data}|${d.turno ?? "único"}`;
+                              const marcada = indisponiveis.has(chave);
+                              return (
+                                <button
+                                  key={d.id}
+                                  onClick={() => toggleData(pessoa, d.data, d.turno)}
+                                  style={{
+                                    padding: "6px 10px", borderRadius: "5px",
+                                    border: `1px solid ${marcada ? "rgba(248,113,113,0.4)" : t.border}`,
+                                    background: marcada ? "rgba(248,113,113,0.1)" : "transparent",
+                                    color: marcada ? "#f87171" : t.textMuted,
+                                    fontSize: "11px", fontWeight: marcada ? 600 : 400,
+                                    cursor: "pointer", fontFamily: "inherit",
+                                    display: "flex", alignItems: "center", gap: "5px",
+                                    transition: "all 0.15s", textAlign: "left",
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (!marcada) e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (!marcada) e.currentTarget.style.borderColor = t.border;
+                                  }}
+                                >
+                                  {marcada && (
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                                      <path d="M18 6L6 18M6 6l12 12" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round"/>
+                                    </svg>
+                                  )}
+                                  {formatarData(d.data, d.turno, d.descricao)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}

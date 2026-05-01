@@ -1,5 +1,5 @@
-const CACHE = 'escala-v2';
-const STATIC = ['.js','.css','.svg','.png','.woff2'];
+const CACHE = 'escala-v3';
+const STATIC = ['.svg', '.png', '.woff2'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -16,7 +16,14 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  const isLocalDev =
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.port === '5173';
   const isStatic = STATIC.some(ext => url.pathname.endsWith(ext));
+
+  // Em desenvolvimento (Vite), não intercepta para evitar JS/CSS stale no HMR
+  if (isLocalDev) return;
 
   if (e.request.mode === 'navigate') {
     e.respondWith(
