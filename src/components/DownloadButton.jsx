@@ -33,20 +33,7 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
           cursor: (baixando || !podeEditar) ? "not-allowed" : "pointer",
           fontFamily: "inherit",
           display: "flex", alignItems: "center", gap: "5px",
-          transition: "all 0.15s",
           opacity: !podeEditar ? 0.35 : 1,
-        }}
-        onMouseEnter={e => {
-          if (!baixando && podeEditar) {
-            e.currentTarget.style.borderColor = theme.accent;
-            e.currentTarget.style.color = theme.accent;
-            e.currentTarget.style.background = theme.accentGlow;
-          }
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.borderColor = theme.border;
-          e.currentTarget.style.color = !podeEditar ? theme.textDim : theme.textMuted;
-          e.currentTarget.style.background = "transparent";
         }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -92,12 +79,9 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
                 border: "none", padding: "8px 12px", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: "10px",
                 color: theme.text, fontFamily: "inherit",
-                transition: "background 0.1s",
               }}
-              onMouseEnter={e => e.currentTarget.style.background = theme.accentGlow}
-              onMouseLeave={e => e.currentTarget.style.background = "none"}
             >
-              <span style={{ fontSize: "15px", lineHeight: 1, color: theme.accent }}>{opt.icon}</span>
+              <span style={{ fontSize: "15px", lineHeight: 1, color: theme.textMuted }}>{opt.icon}</span>
               <div>
                 <div style={{ fontSize: "12px", fontWeight: 600 }}>{opt.label}</div>
                 <div style={{ fontSize: "10px", color: theme.textMuted }}>{opt.desc}</div>

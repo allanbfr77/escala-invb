@@ -394,31 +394,14 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
 
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       {qtd > 0 && (
-                        <>
-                          <span style={{
-                            fontSize: "10px", fontWeight: 700,
-                            color: "#f87171", background: "rgba(248,113,113,0.12)",
-                            borderRadius: "10px", padding: "1px 7px",
-                            border: "1px solid rgba(248,113,113,0.25)",
-                          }}>
-                            {qtd} indisponível{qtd !== 1 ? "is" : ""}
-                          </span>
-                          <button
-                            onClick={e => { e.stopPropagation(); limparSelecao(pessoa); }}
-                            title="Limpar seleção"
-                            style={{
-                              background: "none", border: "none", cursor: "pointer",
-                              fontSize: "10px", fontWeight: 600,
-                              color: t.textMuted, padding: "1px 6px",
-                              borderRadius: "4px", fontFamily: "inherit",
-                              transition: "color 0.15s, background 0.15s",
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.color = t.danger; e.currentTarget.style.background = "rgba(251,113,133,0.08)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.color = t.textMuted; e.currentTarget.style.background = "none"; }}
-                          >
-                            Limpar
-                          </button>
-                        </>
+                        <span style={{
+                          fontSize: "10px", fontWeight: 700,
+                          color: "#f87171", background: "rgba(248,113,113,0.12)",
+                          borderRadius: "10px", padding: "1px 7px",
+                          border: "1px solid rgba(248,113,113,0.25)",
+                        }}>
+                          {qtd} {qtd === 1 ? "indisponível" : "indisponíveis"}
+                        </span>
                       )}
                       <svg
                         width="12" height="12" viewBox="0 0 24 24" fill="none"
