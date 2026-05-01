@@ -17,9 +17,9 @@ const LT = {
   text:      "#0F172A",
   textMuted: "#64748B",
   textDim:   "#CBD5E1",
-  accent:    "#6366F1",
-  accentBg:  "rgba(99,102,241,0.08)",
-  zebra:     "rgba(99,102,241,0.04)",
+  accent:    "#b8942e",
+  accentBg:  "rgba(184,148,46,0.08)",
+  zebra:     "rgba(184,148,46,0.04)",
 };
 
 export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostrarMensagem }) {
@@ -81,7 +81,7 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
                   font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
                   overflow:hidden;text-overflow:ellipsis;">${f}</span>
                 <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
-                  color:${isDisponivel ? "#a78bfa" : pessoa ? LT.text : LT.textDim};
+                  color:${isDisponivel ? "#c9a227" : pessoa ? LT.text : LT.textDim};
                   font-family:'Outfit',sans-serif;white-space:nowrap;">
                   ${pessoa ? pessoa.toUpperCase() : "—"}
                 </span>
@@ -134,7 +134,7 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
             const isDisponivel = pessoa === "disponível";
             tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
               <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
-                color:${isDisponivel ? "#a78bfa" : pessoa ? LT.text : LT.textDim};
+                color:${isDisponivel ? "#c9a227" : pessoa ? LT.text : LT.textDim};
                 font-family:'Outfit',sans-serif;">
                 ${pessoa ? pessoa.toUpperCase() : "—"}
               </span>

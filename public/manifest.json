@@ -4,14 +4,14 @@
   "description": "Sistema de escala de ministerios INVB",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#6366f1",
+  "background_color": "#070708",
+  "theme_color": "#d4af37",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/ministerios/logo2.png",
+      "sizes": "409x452",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

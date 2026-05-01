@@ -12,8 +12,8 @@ export default function NavBar({ mes, mesMinimo, mesMaximo, user, logout, onMesA
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         {/* Logo */}
-        <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, #818cf8)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={theme.accentOnAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
         </div>
@@ -40,7 +40,7 @@ export default function NavBar({ mes, mesMinimo, mesMaximo, user, logout, onMesA
             disabled={!podeAvancar}
             title={!podeAvancar ? "Dezembro é o último mês disponível" : undefined}
             style={{ background: podeAvancar ? theme.accentDim : "transparent", border: "none", cursor: podeAvancar ? "pointer" : "not-allowed", color: podeAvancar ? theme.accent : theme.textDim, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeAvancar ? 1 : 0.35, transition: "all 0.15s" }}
-            onMouseEnter={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = "white"; } }}
+            onMouseEnter={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = theme.accentOnAccent; } }}
             onMouseLeave={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; } }}
           >›</button>
         </div>

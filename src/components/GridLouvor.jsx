@@ -35,8 +35,8 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
   return (
     <div style={{
       overflowX: "auto", borderRadius: "10px",
-      border: `1px solid rgba(99,102,241,0.15)`,
-      background: "rgba(15,17,23,0.7)",
+      border: `1px solid ${t.accentBorder}`,
+      background: t.surfaceTranslucent,
       backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
     }}>
       <table className="grid-table" style={{ width: "auto", minWidth: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -50,7 +50,7 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
           {datas.map((dataObj, idx) => {
             const turnoKey = dataObj.turno ?? "único";
             return (
-              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : "rgba(99,102,241,0.04)", transition: "background 0.15s", height: "38px" }}>
+              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s", height: "38px" }}>
                 <td className="grid-date-cell" data-label="Data" style={{ padding: "0 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}`, verticalAlign: "middle" }}>
                   {formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
                 </td>
@@ -72,14 +72,14 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                             borderRadius: "5px", padding: "2px 6px",
                             opacity: dim ? 0.3 : 1,
                             background: match
-                              ? "rgba(99,102,241,0.15)"
-                              : hovered ? "rgba(99,102,241,0.08)" : "transparent",
+                              ? t.accentSelectedBg
+                              : hovered ? t.accentHoverBg : "transparent",
                             transition: "background 0.15s",
                             cursor: "default",
                           }}
                         >
                           <span style={{
-                            color: isDisponivel ? "#a78bfa" : match ? t.accent : t.text,
+                            color: isDisponivel ? t.slotAvailable : match ? t.accent : t.text,
                             fontWeight: match ? 700 : 500,
                             fontSize: "12px", fontFamily: "'Outfit', sans-serif",
                             letterSpacing: "0.2px",

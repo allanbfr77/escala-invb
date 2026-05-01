@@ -4,12 +4,13 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
+import { ACCENT_RGB, accentAlpha } from "../constants/theme";
 
 const MINISTERIOS = {
-  comunicacao: { label: "COMUNICAÇÕES", color: "#60a5fa", bg: "rgba(96,165,250,0.09)",  border: "rgba(96,165,250,0.22)",  glow: "rgba(96,165,250,0.35)"  },
-  louvor:      { label: "LOUVOR",       color: "#a78bfa", bg: "rgba(167,139,250,0.09)", border: "rgba(167,139,250,0.22)", glow: "rgba(167,139,250,0.35)" },
-  recepcao:    { label: "INTRODUÇÃO",   color: "#34d399", bg: "rgba(52,211,153,0.09)",  border: "rgba(52,211,153,0.22)",  glow: "rgba(52,211,153,0.35)"  },
-  infantil:    { label: "INFANTIL",     color: "#f472b6", bg: "rgba(244,114,182,0.09)", border: "rgba(244,114,182,0.22)", glow: "rgba(244,114,182,0.35)" },
+  comunicacao: { label: "COMUNICAÇÕES", color: "#60a5fa", rgb: "96,165,250", bg: "rgba(96,165,250,0.09)", border: "rgba(96,165,250,0.22)", glow: "rgba(96,165,250,0.35)" },
+  louvor:      { label: "LOUVOR",       color: "#e8c766", rgb: "232,199,102", bg: "rgba(232,199,102,0.09)", border: "rgba(232,199,102,0.22)", glow: "rgba(232,199,102,0.35)" },
+  recepcao:    { label: "INTRODUÇÃO",   color: "#34d399", rgb: "52,211,153", bg: "rgba(52,211,153,0.09)", border: "rgba(52,211,153,0.22)", glow: "rgba(52,211,153,0.35)" },
+  infantil:    { label: "INFANTIL",     color: "#f472b6", rgb: "244,114,182", bg: "rgba(244,114,182,0.09)", border: "rgba(244,114,182,0.22)", glow: "rgba(244,114,182,0.35)" },
 };
 
 export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
@@ -144,7 +145,10 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
 
             // Cor dominante para o hover (primeiro ministério)
             const cfgPrimary = MINISTERIOS[ministeriosIds[0]] || {
-              color: t.accent, glow: "rgba(99,102,241,0.35)", border: t.accent,
+              color: t.accent,
+              rgb: ACCENT_RGB.replace(/\s/g, ""),
+              glow: accentAlpha(0.35),
+              border: t.accent,
             };
             const isHovered = hoveredCard === nome;
 
@@ -185,7 +189,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   <span style={{
                     fontSize: "10px", fontWeight: 700,
                     color: cfgPrimary.color,
-                    background: `rgba(${cfgPrimary.color === "#60a5fa" ? "96,165,250" : cfgPrimary.color === "#a78bfa" ? "167,139,250" : cfgPrimary.color === "#34d399" ? "52,211,153" : "244,114,182"}, 0.15)`,
+                    background: `rgba(${cfgPrimary.rgb}, 0.15)`,
                     borderRadius: "10px", padding: "2px 8px",
                     border: `1px solid ${cfgPrimary.border || t.border}`,
                     flexShrink: 0,

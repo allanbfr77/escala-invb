@@ -22,7 +22,7 @@ export default function ConfirmModal({ aberto, titulo, descricao, confirmLabel =
           width: "100%", maxWidth: "400px",
           background: "rgba(14,14,27,0.97)",
           backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-          border: "1px solid rgba(167,139,250,0.15)",
+          border: `1px solid ${t.accentBorder}`,
           borderRadius: "12px", padding: "24px",
           fontFamily: "'Outfit', sans-serif",
         }}

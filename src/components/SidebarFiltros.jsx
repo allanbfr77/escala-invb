@@ -522,7 +522,7 @@ export default function SidebarFiltros({
       {(() => {
         const CORES_MIN = {
           comunicacao: { color: "#60a5fa", bg: "rgba(96,165,250,0.09)",  border: "rgba(96,165,250,0.28)"  },
-          louvor:      { color: "#a78bfa", bg: "rgba(167,139,250,0.09)", border: "rgba(167,139,250,0.28)" },
+          louvor:      { color: "#e8c766", bg: "rgba(232,199,102,0.09)", border: "rgba(232,199,102,0.28)" },
           recepcao:    { color: "#34d399", bg: "rgba(52,211,153,0.09)",  border: "rgba(52,211,153,0.28)"  },
           infantil:    { color: "#f472b6", bg: "rgba(244,114,182,0.09)", border: "rgba(244,114,182,0.28)" },
         };
@@ -778,7 +778,7 @@ export default function SidebarFiltros({
                   style={{
                     display: "flex", alignItems: "center", gap: "10px",
                     padding: "7px 10px", cursor: podeEditar ? "pointer" : "default",
-                    background: checked ? (t.accentDim || "rgba(99,102,241,0.08)") : "transparent",
+                    background: checked ? t.accentDim : "transparent",
                     borderBottom: i < datasVisiveis.length - 1 ? `1px solid ${t.border}` : "none",
                     transition: "background 0.1s",
                   }}

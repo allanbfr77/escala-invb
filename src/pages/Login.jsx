@@ -3,27 +3,17 @@ import { useState, useRef, useEffect } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { theme, accentAlpha } from "../constants/theme";
 
-const theme = {
-  bg: "#0F1117",
-  surface: "#161922",
-  border: "#232838",
-  borderLight: "#2e3650",
-  accent: "#6366F1",
-  accentDim: "rgba(99,102,241,0.12)",
-  accentGlow: "rgba(99,102,241,0.08)",
-  text: "#e2e8f0",
-  textMuted: "#94A3B8",
-  textDim: "#3a4258",
-  danger: "#fb7185",
-  dangerDim: "rgba(251,113,133,0.1)",
-};
+/** Fundos dos cards na login — neutros quentes (evita cinza/azulado do surface global) */
+const loginCardBg = "#141414";
+const loginCardInset = "#0c0c0c";
 
 const perfis = [
-  { id: "comunicacao", nome: "MINISTÉRIO DE COMUNICAÇÕES", img: "/ministerios/comunicacoes.jpg", desc: "Líderes: ALAN e JEAN" },
-  { id: "louvor",      nome: "MINISTÉRIO DE LOUVOR",       img: "/ministerios/louvor.jpg",        desc: "Líderes: ALESSANDRO e RAPHAELA" },
-  { id: "recepcao",   nome: "MINISTÉRIO DE INTRODUÇÃO",    img: "/ministerios/recepcao.jpg",       desc: "Líder: Dc. ATAYDE" },
-  { id: "infantil",   nome: "MINISTÉRIO DE INFANTIL",     img: "/ministerios/infantil.jpg",       desc: "Líder: MARÍLIA" },
+  { id: "comunicacao", nome: "MINISTÉRIO DE COMUNICAÇÕES", img: "/ministerios/comunicacoes2.png", desc: "Líderes: ALAN e JEAN" },
+  { id: "louvor",      nome: "MINISTÉRIO DE LOUVOR",       img: "/ministerios/louvor2.png",       desc: "Líderes: ALESSANDRO e RAPHAELA" },
+  { id: "recepcao",   nome: "MINISTÉRIO DE INTRODUÇÃO",    img: "/ministerios/recepcao2.png",      desc: "Líder: Dc. ATAYDE" },
+  { id: "infantil",   nome: "MINISTÉRIO DE INFANTIL",     img: "/ministerios/infantil2.png",      desc: "Líder: MARÍLIA" },
 ];
 
 function mensagemDeErro(codigo) {
@@ -102,10 +92,12 @@ export default function Login() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: theme.bg,
+      minHeight: "100vh",
+      background: "linear-gradient(165deg, #050505 0%, #0c0c0c 40%, #101010 100%)",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       fontFamily: "'DM Sans', sans-serif", padding: "16px",
+      position: "relative",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
@@ -113,20 +105,20 @@ export default function Login() {
         body { background: ${theme.bg}; }
 
         input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 100px ${theme.surface} inset !important;
+          -webkit-box-shadow: 0 0 0 100px ${loginCardInset} inset !important;
           -webkit-text-fill-color: ${theme.text} !important;
           caret-color: ${theme.text};
         }
 
         .login-input {
           width: 100%; padding: 9px 12px; border-radius: 6px;
-          border: 1px solid ${theme.border}; background: ${theme.bg};
+          border: 1px solid ${theme.border}; background: ${loginCardInset};
           color: ${theme.text}; font-size: 14px; font-family: inherit;
           outline: none; transition: border-color 0.15s, box-shadow 0.15s;
         }
         .login-input:focus {
           border-color: ${theme.accent};
-          box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+          box-shadow: 0 0 0 3px ${accentAlpha(0.2)};
         }
         .login-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -142,41 +134,59 @@ export default function Login() {
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner {
           width: 14px; height: 14px; border-radius: 50%;
-          border: 2px solid rgba(255,255,255,0.25);
-          border-top-color: white;
+          border: 2px solid ${accentAlpha(0.35)};
+          border-top-color: ${theme.accentBright};
           animation: spin 0.7s linear infinite;
           flex-shrink: 0;
         }
 
+        .logo-title { text-wrap: balance; }
+
         @media (max-width: 480px) {
           .login-card { max-width: 100% !important; }
           .login-grid { grid-template-columns: 1fr 1fr !important; }
-          .logo-title { font-size: 22px !important; }
-        .logo-sub   { font-size: 12px !important; }
+          .logo-title { font-size: 20px !important; letter-spacing: -0.45px !important; padding: 0 4px; }
+          .logo-sub { font-size: 12px !important; padding: 0 4px; }
           .perfil-img { height: 100px !important; }
           .perfil-nome { font-size: 9px !important; letter-spacing: 0 !important; }
           .perfil-desc { font-size: 8px !important; }
         }
       `}</style>
 
-      {/* Logo */}
-      <div style={{ marginBottom: "32px", textAlign: "center" }}>
+      <div style={{
+        position: "absolute", inset: 0,
+        background: `radial-gradient(ellipse 80% 50% at 50% -20%, ${accentAlpha(0.12)}, transparent 55%)`,
+        pointerEvents: "none",
+      }} />
+
+      {/* Marca + título */}
+      <div style={{ marginBottom: "32px", textAlign: "center", position: "relative", zIndex: 1 }}>
+
+        <img
+          src="/logo.png"
+          alt="Igreja"
+          style={{
+            height: "auto", maxHeight: "88px", width: "auto", maxWidth: "min(280px, 86vw)",
+            minHeight: "48px", objectFit: "contain", display: "block", margin: "0 auto 20px",
+            filter: `drop-shadow(0 6px 28px ${accentAlpha(0.35)})`,
+          }}
+        />
 
         {/* Badge de sistema */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "6px",
-          background: "rgba(52,211,153,0.08)",
-          border: "1px solid rgba(52,211,153,0.22)",
+          background: accentAlpha(0.1),
+          border: `1px solid ${accentAlpha(0.35)}`,
           borderRadius: "20px", padding: "3px 10px",
           marginBottom: "12px",
         }}>
           <div style={{
             width: "5px", height: "5px", borderRadius: "50%",
-            background: "#34d399",
-            boxShadow: "0 0 6px rgba(52,211,153,0.8)",
+            background: theme.accent,
+            boxShadow: `0 0 8px ${accentAlpha(0.9)}`,
           }} />
           <span style={{
-            fontSize: "10px", fontWeight: 700, color: "#34d399",
+            fontSize: "10px", fontWeight: 700, color: theme.accentBright,
             textTransform: "uppercase", letterSpacing: "1px",
             fontFamily: "'DM Mono', monospace",
           }}>
@@ -191,20 +201,17 @@ export default function Login() {
             fontSize: "28px", fontWeight: 700,
             letterSpacing: "-0.6px", lineHeight: 1.15,
             marginBottom: "8px",
-            background: "linear-gradient(135deg, #e6edf3 20%, #7db8ff 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
+            color: theme.accent,
           }}
         >
-          Selecione o seu perfil para continuar
+          Selecione o seu perfil para{"\u00A0"}continuar
         </h1>
 
         {/* Subtítulo */}
         <p
           className="logo-sub"
           style={{
-            fontSize: "14px", color: theme.textMuted,
+            fontSize: "14px", color: theme.accent,
             fontWeight: 400, letterSpacing: "0.1px",
           }}
         >
@@ -212,7 +219,7 @@ export default function Login() {
         </p>
       </div>
 
-      <div className="login-card" style={{ width: "100%", maxWidth: "520px" }}>
+      <div className="login-card" style={{ width: "100%", maxWidth: "520px", position: "relative", zIndex: 1 }}>
 
         {/* Grid de perfis */}
         <div
@@ -243,12 +250,12 @@ export default function Login() {
                 style={{
                   padding: 0, cursor: "pointer", textAlign: "left",
                   outline: "none", overflow: "hidden",
-                  background: sel ? "rgba(99,102,241,0.18)" : theme.surface,
+                  background: sel ? theme.accentSelectedBg : loginCardBg,
                   border: `2px solid ${sel ? theme.accent : theme.border}`,
                   borderRadius: "10px",
                   transform: scale,
                   boxShadow: sel
-                    ? `0 0 0 3px rgba(99,102,241,0.15), 0 4px 20px rgba(47,129,247,0.2)`
+                    ? `0 0 0 3px ${accentAlpha(0.2)}, 0 8px 28px ${accentAlpha(0.25)}`
                     : hovered && !formAtiva
                       ? "0 4px 16px rgba(0,0,0,0.3)"
                       : "none",
@@ -260,7 +267,7 @@ export default function Login() {
               >
                 <div
                   className="perfil-img"
-                  style={{ width: "100%", height: "130px", background: theme.bg, overflow: "hidden" }}
+                  style={{ width: "100%", height: "130px", background: loginCardInset, overflow: "hidden" }}
                 >
                   <img
                     src={p.img} alt={p.nome}
@@ -317,13 +324,13 @@ export default function Login() {
                 width: 0, height: 0,
                 borderLeft: "7px solid transparent",
                 borderRight: "7px solid transparent",
-                borderBottom: `7px solid ${theme.surface}`,
+                borderBottom: `7px solid ${loginCardBg}`,
               }} />
             </div>
 
             {/* Card do formulário */}
             <div style={{
-              background: theme.surface,
+              background: loginCardBg,
               border: `1px solid ${theme.border}`,
               borderRadius: "10px",
               padding: "18px",
@@ -432,8 +439,8 @@ export default function Login() {
                 onClick={handleLogin}
                 disabled={carregando}
                 style={{
-                  background: carregando ? theme.borderLight : theme.accent,
-                  color: carregando ? theme.textDim : "white",
+                  background: carregando ? theme.borderLight : `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`,
+                  color: carregando ? theme.textDim : theme.accentOnAccent,
                 }}
               >
                 {carregando && <span className="spinner" />}

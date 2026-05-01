@@ -4,6 +4,7 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
+import { accentAlpha } from "../constants/theme";
 
 export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId, datasDisponiveis, mes, theme: t }) {
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
@@ -239,8 +240,8 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
             style={{
               width: "100%",
               padding: "8px 12px",
-              background: importando ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.08)",
-              border: `1px solid ${importando ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.3)"}`,
+              background: importando ? accentAlpha(0.06) : accentAlpha(0.08),
+              border: `1px solid ${importando ? accentAlpha(0.2) : accentAlpha(0.3)}`,
               borderRadius: "7px",
               color: importando ? t.textMuted : t.accent,
               fontSize: "12px", fontWeight: 600,
@@ -252,14 +253,14 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
             }}
             onMouseEnter={e => {
               if (!importando && !loading) {
-                e.currentTarget.style.background = "rgba(99,102,241,0.15)";
-                e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)";
+                e.currentTarget.style.background = accentAlpha(0.15);
+                e.currentTarget.style.borderColor = accentAlpha(0.5);
               }
             }}
             onMouseLeave={e => {
               if (!importando && !loading) {
-                e.currentTarget.style.background = "rgba(99,102,241,0.08)";
-                e.currentTarget.style.borderColor = "rgba(99,102,241,0.3)";
+                e.currentTarget.style.background = accentAlpha(0.08);
+                e.currentTarget.style.borderColor = accentAlpha(0.3);
               }
             }}
           >
@@ -356,7 +357,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       transition: "background 0.15s",
                     }}
-                    onMouseEnter={e => { if (!aberta) e.currentTarget.style.background = `rgba(99,102,241,0.04)`; }}
+                    onMouseEnter={e => { if (!aberta) e.currentTarget.style.background = accentAlpha(0.04); }}
                     onMouseLeave={e => { if (!aberta) e.currentTarget.style.background = "transparent"; }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -420,7 +421,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
                   {aberta && (
                     <div style={{
                       padding: "6px 20px 12px",
-                      background: "rgba(99,102,241,0.03)",
+                      background: accentAlpha(0.03),
                     }}>
                       {datasDisponiveis.length === 0 ? (
                         <p style={{ fontSize: "12px", color: t.textMuted, margin: "8px 0 0" }}>
