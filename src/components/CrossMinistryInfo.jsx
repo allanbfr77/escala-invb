@@ -73,15 +73,19 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
   if (loading || pessoas.length === 0) return null;
 
   return (
-    <div style={{ marginTop: "24px" }}>
+    <div style={{ marginTop: "24px", minWidth: 0, maxWidth: "100%" }}>
 
       {/* Header */}
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between",
+        gap: "10px",
         marginBottom: visivel ? "12px" : "0",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+        <div style={{
+          display: "flex", flexWrap: "wrap", alignItems: "center", gap: "7px",
+          flex: "1 1 auto", minWidth: 0,
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
             <circle cx="12" cy="12" r="9" stroke={t.textMuted} strokeWidth="1.8"/>
             <path d="M12 8v4M12 16h.01" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round"/>
           </svg>
@@ -89,25 +93,32 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
             fontSize: "10px", fontWeight: 600, color: t.textMuted,
             textTransform: "uppercase", letterSpacing: "0.7px",
             fontFamily: "'Outfit', sans-serif",
+            lineHeight: 1.35,
+            flex: "1 1 140px", minWidth: 0,
+            wordBreak: "break-word",
           }}>
             Membros escalados em outros ministérios este mês
           </span>
           <span style={{
             fontSize: "10px", fontWeight: 700, color: t.accent,
             background: t.accentDim, borderRadius: "10px", padding: "1px 7px",
+            flexShrink: 0,
           }}>
             {pessoas.length}
           </span>
         </div>
 
         <button
+          type="button"
           onClick={() => setVisivel(v => !v)}
           title={visivel ? "Ocultar" : "Mostrar"}
           style={{
             background: "none", border: "none", cursor: "pointer",
             color: visivel ? t.accent : t.textMuted,
-            padding: "3px", display: "flex", alignItems: "center",
+            padding: "8px", minWidth: "44px", minHeight: "44px",
+            display: "flex", alignItems: "center", justifyContent: "center",
             transition: "color 0.15s", flexShrink: 0,
+            WebkitTapHighlightColor: "transparent",
           }}
           onMouseEnter={e => e.currentTarget.style.color = t.accent}
           onMouseLeave={e => e.currentTarget.style.color = visivel ? t.accent : t.textMuted}
@@ -132,13 +143,13 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
         opacity: visivel ? 1 : 0,
         transition: "max-height 0.3s ease, opacity 0.2s ease",
       }}>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))",
-          gap: "10px",
-          alignItems: "start",
-          paddingTop: "4px", /* evita corte da borda/sombra no topo pelo overflow:hidden pai */
-        }}>
+        <div
+          className="cross-ministry-grid"
+          style={{
+            /* grid definido em Dashboard (breakpoint mobile/desktop) */
+            minWidth: 0,
+          }}
+        >
           {pessoas.map(nome => {
             const grupos = dados[nome];
             const ministeriosIds = Object.keys(grupos);
@@ -186,6 +197,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   <span style={{
                     fontSize: "13px", fontWeight: 700, color: t.text,
                     letterSpacing: "0.3px", fontFamily: "'Outfit', sans-serif",
+                    wordBreak: "break-word", minWidth: 0,
                   }}>
                     {nome}
                   </span>

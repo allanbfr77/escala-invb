@@ -111,10 +111,9 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                     lineHeight: 1.25,
                     borderRight: `1px solid ${t.border}`,
                     verticalAlign: "middle",
-                    maxWidth: 0,
                   }}
                 >
-                  {dataStr}
+                  <span className="grid-louvor-date-text">{dataStr}</span>
                 </td>
                 {funcoes.map(f => {
                   const chipKey = `${dataObj.data}-${turnoKey}-${f}`;
@@ -132,7 +131,6 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                       style={{
                         padding: "4px 5px",
                         verticalAlign: "middle",
-                        maxWidth: 0,
                       }}
                     >
                       {pessoa ? (
@@ -143,13 +141,13 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                           title={nomeTitulo}
                           style={{
                             display: "flex",
-                            alignItems: "flex-start",
+                            alignItems: "center",
                             gap: "4px",
                             minWidth: 0,
                             width: "100%",
                             maxWidth: "100%",
                             borderRadius: "5px",
-                            padding: "3px 4px",
+                            padding: "2px 4px",
                             opacity: dim ? 0.3 : 1,
                             background: match
                               ? t.accentSelectedBg
@@ -194,7 +192,7 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                           )}
                         </div>
                       ) : (
-                        <span style={{ color: t.textDim, fontSize: "11px", opacity: dim ? 0.3 : 1 }}>—</span>
+                        <span className="grid-louvor-empty-slot" style={{ color: t.textDim, fontSize: "11px", opacity: dim ? 0.3 : 1 }}>—</span>
                       )}
                     </td>
                   );

@@ -839,24 +839,135 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             margin-left: 2px !important;
           }
 
-          /* Louvor: desktop usa ellipsis na tabela; em cards o texto volta ao fluxo normal */
-          .grid-louvor-wrap .grid-row td {
-            max-width: none !important;
-            overflow: visible !important;
+          /* Louvor mobile: table-layout/colgroup do desktop não pode limitar largura das células */
+          .grid-louvor-wrap .grid-table {
+            table-layout: auto !important;
+            width: 100% !important;
           }
+          .grid-louvor-wrap colgroup {
+            display: none !important;
+          }
+          .grid-louvor-wrap .grid-row {
+            width: 100% !important;
+          }
+          /* Louvor mobile ─────────────────────────────────────────────────── */
+
+          /* TODAS as células de função: altura idêntica (42px), flex, overflow clipped */
+          .grid-louvor-wrap .grid-row td:not(.grid-date-cell) {
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            /* Padding vertical 0: a altura fixa garante espaço — nada "escapando" do geral */
+            padding: 0 12px !important;
+            /* Altura exata: nem mais, nem menos — vazio = preenchido */
+            height: 42px !important;
+            min-height: 42px !important;
+            max-height: 42px !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            align-self: start !important;
+            justify-self: stretch !important;
+          }
+
+          /* Célula de data: altura livre, padding normal */
           .grid-louvor-wrap .grid-row td.grid-date-cell {
+            box-sizing: border-box !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            padding: 8px 12px !important;
             overflow: visible !important;
-            text-overflow: unset !important;
-            white-space: normal !important;
           }
+
+          /* Rótulo da função: sempre uma linha, sem truncar */
+          .grid-louvor-wrap .grid-row td::before {
+            flex: 0 0 auto !important;
+            align-self: center !important;
+            white-space: nowrap !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            min-width: 0 !important;
+            line-height: 1 !important;
+            padding: 0 !important;
+          }
+
+          /* Chip (nome + botão ✕): ocupa o espaço restante, alinhado à direita */
           .grid-louvor-wrap .grid-louvor-chip {
-            max-width: none !important;
+            flex: 1 1 0% !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            gap: 6px !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            align-self: center !important;
+            height: 100% !important;
+            padding: 0 !important;
+          }
+
+          /* Nome da pessoa: trunca com ellipsis se longo */
+          .grid-louvor-wrap .grid-louvor-chip > span {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            text-align: right !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            line-height: 1.2 !important;
+          }
+
+          /* Traço das linhas vazias: exatamente como o nome, sem altura extra */
+          .grid-louvor-wrap .grid-row td .grid-louvor-empty-slot {
+            flex: 0 0 auto !important;
+            display: block !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            align-self: center !important;
+          }
+
+          /* Data (linha topo): texto à direita, pode quebrar */
+          .grid-louvor-wrap .grid-date-cell .grid-louvor-date-text {
+            flex: 1 1 auto !important;
+            text-align: right !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            line-height: 1.3 !important;
             overflow: visible !important;
           }
-          .grid-louvor-wrap .grid-row td span {
-            white-space: normal !important;
-            overflow: visible !important;
-            text-overflow: unset !important;
+
+          /* Botão ✕: área de toque mínima 40px, sem inflar a linha (encaixado nos 42px) */
+          .grid-louvor-wrap .chip-remove-btn {
+            box-sizing: border-box !important;
+            flex-shrink: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 40px !important;
+            height: 40px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
+
+        /* Membros em outros ministérios: 1 coluna no estreito; grade a partir de ~tablet */
+        .cross-ministry-grid {
+          display: grid;
+          gap: 10px;
+          align-items: start;
+          padding-top: 4px;
+          grid-template-columns: minmax(0, 1fr);
+        }
+        @media (min-width: 560px) {
+          .cross-ministry-grid {
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
           }
         }
       `}</style>
@@ -1419,23 +1530,29 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             style={{
               width: "100%",
               maxWidth: "440px",
+              maxHeight: "min(90vh, 520px)",
+              overflowY: "auto",
+              WebkitOverflowScrolling: "touch",
               background: "rgba(14,14,27,0.98)",
               border: `1px solid rgba(248,113,113,0.45)`,
               borderRadius: "12px",
-              padding: "24px",
+              padding: "clamp(16px, 4vw, 24px)",
               boxShadow: "0 20px 56px rgba(0,0,0,0.55)",
               fontFamily: "'Outfit', sans-serif",
+              boxSizing: "border-box",
             }}
           >
             <p
               id="conflito-escala-msg"
               style={{
-                fontSize: "15px",
+                fontSize: "clamp(13px, 3.8vw, 15px)",
                 fontWeight: 600,
                 color: theme.text,
                 lineHeight: 1.5,
                 margin: 0,
                 marginBottom: "20px",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
               }}
             >
               ⚠ <strong>{conflito.pessoa.toUpperCase()}</strong> já está em{" "}
