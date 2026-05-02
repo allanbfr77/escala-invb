@@ -54,6 +54,7 @@ export default function GridComunicacao({ escalas, datas, loading, onRemover, po
                   const match   = filtro && pessoa && pessoa.toLowerCase().includes(filtro);
                   const dim     = filtro && pessoa && !match;
                   const hovered = hoveredChip === chipKey;
+                  const isDisponivel = pessoa === "disponível";
                   return (
                     <td key={f} data-label={f} style={{ padding: "0 14px", whiteSpace: "nowrap", verticalAlign: "middle" }}>
                       {pessoa ? (
@@ -72,7 +73,7 @@ export default function GridComunicacao({ escalas, datas, loading, onRemover, po
                           }}
                         >
                           <span style={{
-                            color: match ? t.accent : t.text,
+                            color: isDisponivel ? t.slotAvailable : match ? t.accent : t.text,
                             fontWeight: match ? 700 : 500,
                             fontSize: "12px", fontFamily: "'Outfit', sans-serif",
                             letterSpacing: "0.2px",

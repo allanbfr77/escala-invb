@@ -1,5 +1,6 @@
 // ===== src/pages/Dashboard.jsx =====
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { EscalaProvider, useEscalas } from "../context/EscalaContext";
 import SidebarFiltros from "../components/SidebarFiltros";
@@ -84,6 +85,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setTimeout(() => setMensagem({ texto: "", tipo: "" }), 3000);
   };
 
+  useEffect(() => {
+    if (!conflito) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [conflito]);
+
   const podeEditar = podeEditarMinisterio(user, ministerioSelecionado);
 
   const podeRetroceder = mes > mesMinimo;
@@ -123,6 +133,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         accent:    "#b8942e",
         accentBg:  "rgba(184,148,46,0.08)",
         zebra:     "rgba(184,148,46,0.04)",
+        slotDisponivel: "#9d8fc9",
       };
 
       // ── Header HTML (igual nos dois layouts) ─────────────────────────────
@@ -172,7 +183,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
                   overflow:hidden;text-overflow:ellipsis;">${f}</span>
                 <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
-                  color:${isDisponivel ? "#c9a227" : pessoa ? LT.text : LT.textDim};
+                  color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                   font-family:'Outfit',sans-serif;white-space:nowrap;">
                   ${pessoa ? pessoa.toUpperCase() : "—"}
                 </span>
@@ -183,8 +194,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           cardsHTML += `
             <div style="background:${LT.surface};border:1px solid ${LT.border};
               border-radius:8px;overflow:hidden;">
-              <div style="background:${LT.accentBg};border-bottom:1px solid ${LT.border};
-                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.accent};
+              <div style="background:#F1F5F9;border-bottom:1px solid ${LT.border};
+                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.textMuted};
                 font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:0.3px;">
                 ${dataLabel}
               </div>
@@ -226,7 +237,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             const isDisponivel = pessoa === "disponível";
             tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
               <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
-                color:${isDisponivel ? "#c9a227" : pessoa ? LT.text : LT.textDim};
+                color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                 font-family:'Outfit',sans-serif;">
                 ${pessoa ? pessoa.toUpperCase() : "—"}
               </span>
@@ -827,6 +838,26 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             border-radius: 6px !important;
             margin-left: 2px !important;
           }
+
+          /* Louvor: desktop usa ellipsis na tabela; em cards o texto volta ao fluxo normal */
+          .grid-louvor-wrap .grid-row td {
+            max-width: none !important;
+            overflow: visible !important;
+          }
+          .grid-louvor-wrap .grid-row td.grid-date-cell {
+            overflow: visible !important;
+            text-overflow: unset !important;
+            white-space: normal !important;
+          }
+          .grid-louvor-wrap .grid-louvor-chip {
+            max-width: none !important;
+            overflow: visible !important;
+          }
+          .grid-louvor-wrap .grid-row td span {
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+          }
         }
       `}</style>
 
@@ -1016,15 +1047,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   border: `1px solid ${mensagem.tipo === "sucesso" ? theme.success : theme.danger}33`,
                 }}>
                   {mensagem.tipo === "sucesso" ? "✓" : "✕"} {mensagem.texto}
-                </div>
-              )}
-              {conflito && (
-                <div style={{
-                  padding: "7px 14px", borderRadius: "6px", fontSize: "12px", display: "flex", alignItems: "center", gap: "10px",
-                  background: theme.dangerDim, border: `1px solid ${theme.danger}44`, color: theme.danger,
-                }}>
-                  <span>⚠ <strong>{conflito.pessoa.toUpperCase()}</strong> já está em <strong>{conflito.ministerio}</strong> como <strong>{conflito.funcao}</strong> em {conflito.data}</span>
-                  <button onClick={() => setConflito(null)} style={{ background: "none", border: "none", cursor: "pointer", color: theme.danger, fontSize: "16px", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
                 </div>
               )}
             </div>
@@ -1334,7 +1356,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
           ) : (
             <>
-              <div ref={gridRef}>
+              <div ref={gridRef} style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
                 {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
                 {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
                 {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
@@ -1371,6 +1393,76 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         perigoso={confirmModal.perigoso}
         theme={theme}
       />
+
+      {conflito && createPortal(
+        <div
+          role="presentation"
+          onClick={() => setConflito(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100000,
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))",
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="conflito-escala-msg"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "440px",
+              background: "rgba(14,14,27,0.98)",
+              border: `1px solid rgba(248,113,113,0.45)`,
+              borderRadius: "12px",
+              padding: "24px",
+              boxShadow: "0 20px 56px rgba(0,0,0,0.55)",
+              fontFamily: "'Outfit', sans-serif",
+            }}
+          >
+            <p
+              id="conflito-escala-msg"
+              style={{
+                fontSize: "15px",
+                fontWeight: 600,
+                color: theme.text,
+                lineHeight: 1.5,
+                margin: 0,
+                marginBottom: "20px",
+              }}
+            >
+              ⚠ <strong>{conflito.pessoa.toUpperCase()}</strong> já está em{" "}
+              <strong>{conflito.ministerio}</strong> como <strong>{conflito.funcao}</strong> em {conflito.data}
+            </p>
+            <button
+              type="button"
+              onClick={() => setConflito(null)}
+              style={{
+                width: "100%",
+                padding: "11px 16px",
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "14px",
+                fontFamily: "'Outfit', sans-serif",
+                background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`,
+                color: theme.accentOnAccent,
+              }}
+            >
+              Entendi
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

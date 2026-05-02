@@ -136,6 +136,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))",
           gap: "10px",
+          alignItems: "start",
           paddingTop: "4px", /* evita corte da borda/sombra no topo pelo overflow:hidden pai */
         }}>
           {pessoas.map(nome => {
@@ -164,6 +165,9 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
+                  alignSelf: "start",
+                  width: "100%",
+                  minHeight: 0,
                   transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
                   transform: isHovered ? "translateY(-2px)" : "translateY(0)",
                   boxShadow: isHovered
@@ -198,11 +202,11 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   </span>
                 </div>
 
-                {/* Ministry groups */}
+                {/* Ministry groups — altura só pelo conteúdo (sem flex-grow) */}
                 <div style={{
                   padding: "10px 14px",
                   display: "flex", flexDirection: "column", gap: "12px",
-                  flex: 1,
+                  flexShrink: 0,
                 }}>
                   {ministeriosIds.map(mid => {
                     const cfg = MINISTERIOS[mid] || {

@@ -49,12 +49,28 @@ export default function Login() {
 
   const emailRef = useRef(null);
 
+  const fecharFormularioLogin = () => {
+    if (carregando) return;
+    setPerfilSelecionado(null);
+    setErro("");
+    setSenha("");
+  };
+
   // Auto-foco no email quando o formulário abre
   useEffect(() => {
     if (perfilSelecionado) {
-      const t = setTimeout(() => emailRef.current?.focus(), 320);
+      const t = setTimeout(() => emailRef.current?.focus(), 200);
       return () => clearTimeout(t);
     }
+  }, [perfilSelecionado]);
+
+  useEffect(() => {
+    if (!perfilSelecionado) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [perfilSelecionado]);
 
   const handleLogin = async () => {
@@ -85,9 +101,6 @@ export default function Login() {
     }
   };
 
-  // Caret horizontal position: col 0/2 = left (~25%), col 1/3 = right (~75%)
-  const perfilIdx  = perfis.findIndex(p => p.id === perfilSelecionado?.id);
-  const caretLeft  = perfilIdx % 2 === 0 ? "25%" : "75%";
   const formAtiva  = !!perfilSelecionado;
 
   return (
@@ -157,9 +170,28 @@ export default function Login() {
           letter-spacing: 0.1px;
         }
 
+        .login-btn-voltar {
+          flex-shrink: 0;
+          padding: 5px 12px;
+          border-radius: 6px;
+          border: 1px solid ${accentAlpha(0.35)};
+          background: ${accentAlpha(0.08)};
+          color: ${theme.accentBright};
+          font-size: 11px;
+          font-weight: 600;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .login-btn-voltar:hover:not(:disabled) {
+          background: ${accentAlpha(0.14)};
+          border-color: ${accentAlpha(0.5)};
+        }
+        .login-btn-voltar:disabled { opacity: 0.45; cursor: not-allowed; }
+
         @media (max-width: 480px) {
           .login-card { max-width: 100% !important; }
-          .login-grid { grid-template-columns: 1fr 1fr !important; }
+          .login-grid { grid-template-columns: 1fr 1fr !important; margin-bottom: 0 !important; }
           .logo-title { font-size: 20px !important; letter-spacing: -0.45px !important; padding: 0 4px; }
           .logo-sub { font-size: 12px !important; padding: 0 4px; }
           .perfil-img { height: 100px !important; }
@@ -240,14 +272,12 @@ export default function Login() {
         {/* Grid de perfis */}
         <div
           className="login-grid"
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "0" }}
         >
           {perfis.map((p, idx) => {
             const sel      = perfilSelecionado?.id === p.id;
             const hovered  = hoveredId === p.id;
             const pressed  = pressedId === p.id;
-            const outro    = formAtiva && !sel; // non-selected while form is active
-
             // Scale: pressed > selected > hover > others
             let scale = "scale(1)";
             if (pressed)                      scale = "scale(0.97)";
@@ -289,10 +319,8 @@ export default function Login() {
                   borderRadius: "10px",
                   transform: scale,
                   boxShadow: cardShadow,
-                  // Blur + dim non-selected cards when form is active (unless hovered)
-                  filter: (outro && !hovered) ? "blur(1.5px) saturate(0.5)" : "none",
-                  opacity: (outro && !hovered) ? 0.45 : carregando ? 0.6 : 1,
-                  transition: "transform 0.18s ease, background 0.22s ease, opacity 0.25s ease, filter 0.25s ease, box-shadow 0.22s ease, border-color 0.22s ease",
+                  opacity: carregando ? 0.6 : 1,
+                  transition: "transform 0.18s ease, background 0.22s ease, opacity 0.25s ease, box-shadow 0.22s ease, border-color 0.22s ease",
                 }}
               >
                 <div
@@ -323,54 +351,85 @@ export default function Login() {
           })}
         </div>
 
-        {/* Formulário com caret apontando para o card selecionado */}
-        <div style={{
-          overflow: "hidden",
-          maxHeight: formAtiva ? "380px" : "0px",
-          opacity: formAtiva ? 1 : 0,
-          transition: "max-height 0.3s ease, opacity 0.25s ease",
-        }}>
-          {/* Wrapper com paddingTop para o caret flutuar acima do card */}
-          <div style={{ paddingTop: "10px", position: "relative" }}>
+        {/* Backdrop: escurece a página e fecha ao clicar */}
+        {formAtiva && (
+          <button
+            type="button"
+            aria-label="Fechar formulário de login"
+            disabled={carregando}
+            onClick={fecharFormularioLogin}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 190,
+              margin: 0,
+              border: "none",
+              cursor: carregando ? "default" : "pointer",
+              padding: 0,
+              background: "rgba(5, 5, 5, 0.82)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+          />
+        )}
 
-            {/* Caret — triângulo apontando para o card selecionado */}
-            <div style={{
-              position: "absolute",
-              top: "0px",
-              left: caretLeft,
-              transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "9px solid transparent",
-              borderRight: "9px solid transparent",
-              borderBottom: `9px solid ${theme.accent}`,
-              transition: "left 0.25s ease",
-              zIndex: 1,
-            }}>
-              {/* Inner fill — cobre a borda interna do triângulo com a cor do card */}
-              <div style={{
-                position: "absolute",
-                top: "2px",
-                left: "-7px",
-                width: 0, height: 0,
-                borderLeft: "7px solid transparent",
-                borderRight: "7px solid transparent",
-                borderBottom: `7px solid ${loginCardBg}`,
-              }} />
-            </div>
+        {/* Formulário em overlay centralizado (web + mobile) */}
+        <div
+          style={
+            formAtiva
+              ? {
+                  position: "fixed",
+                  left: "max(16px, env(safe-area-inset-left, 0px))",
+                  right: "max(16px, env(safe-area-inset-right, 0px))",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  zIndex: 200,
+                  width: "auto",
+                  maxWidth: "min(440px, calc(100vw - 32px))",
+                  marginLeft: "auto",
+                  marginRight: "auto",
+                  maxHeight: "min(88vh, 620px)",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }
+              : { display: "none" }
+          }
+        >
+          <div style={{ paddingTop: "0", position: "relative" }}>
 
-            {/* Card do formulário */}
             <div style={{
               background: loginCardBg,
-              border: `1px solid ${theme.border}`,
+              border: `1px solid ${formAtiva ? accentAlpha(0.38) : theme.border}`,
               borderRadius: "10px",
               padding: "18px",
+              boxShadow: formAtiva
+                ? `0 0 0 1px ${accentAlpha(0.12)} inset, 0 20px 56px rgba(0,0,0,0.55)`
+                : undefined,
             }}>
-              <p style={{ fontSize: "11px", color: theme.textMuted, marginBottom: "14px" }}>
-                Entrando como{" "}
-                <span style={{ color: theme.accent, fontWeight: 600 }}>
-                  {perfilSelecionado?.nome}
-                </span>
-              </p>
+              <div style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "14px",
+              }}>
+                <p style={{ flex: 1, margin: 0, fontSize: "11px", color: theme.textMuted, lineHeight: 1.35 }}>
+                  Entrando como{" "}
+                  <span style={{ color: theme.accent, fontWeight: 600 }}>
+                    {perfilSelecionado?.nome}
+                  </span>
+                </p>
+                {formAtiva && (
+                  <button
+                    type="button"
+                    className="login-btn-voltar"
+                    disabled={carregando}
+                    onClick={fecharFormularioLogin}
+                  >
+                    Voltar
+                  </button>
+                )}
+              </div>
 
               {/* Campo email */}
               <div style={{ marginBottom: "10px" }}>

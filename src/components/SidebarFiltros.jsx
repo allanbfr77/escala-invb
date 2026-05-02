@@ -1,5 +1,6 @@
 // ===== src/components/SidebarFiltros.jsx =====
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
@@ -123,6 +124,7 @@ export default function SidebarFiltros({
 
   const [novoExtra, setNovoExtra]             = useState({ data: "", turno: "único", nome: "" });
   const [adicionandoExtra, setAdicionandoExtra] = useState(false);
+  const [modalEscolhaFuncao, setModalEscolhaFuncao] = useState({ aberto: false, opcoes: [] });
 
   const usaFiltro = MINISTERIOS_COM_FILTRO.includes(ministerioSelecionado);
 
@@ -133,6 +135,7 @@ export default function SidebarFiltros({
     setFuncao("");
     setPessoa("");
     setDatasAberta(false);
+    setModalEscolhaFuncao({ aberto: false, opcoes: [] });
   }, [ministerioSelecionado]);
 
   // ─── Abre datas automaticamente quando ambos estão selecionados ─────────
@@ -198,9 +201,9 @@ export default function SidebarFiltros({
           ocupadas.add(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
         }
       } else {
-        // Simples: slot ocupado por qualquer pessoa
+        // Simples: ocupado só com pessoa real ("disponível" permanece escalável na sidebar)
         const p = escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`];
-        if (p) ocupadas.add(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
+        if (p && p !== "disponível") ocupadas.add(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
       }
     });
     return ocupadas;
@@ -341,14 +344,7 @@ export default function SidebarFiltros({
     onConflito?.(null);
   };
 
-  const handleConfirmarEscala = async () => {
-    if (!podeEditar)           { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
-    if (!pessoaSelecionada)    { onMensagem?.("Selecione uma pessoa", "erro"); return; }
-    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") {
-      onMensagem?.("Selecione uma função específica", "erro"); return;
-    }
-    if (datasIds.length === 0) { onMensagem?.("Selecione ao menos uma data", "erro"); return; }
-
+  const confirmarEscalaComFuncao = async (funcaoEfetiva) => {
     setSalvando(true);
     onConflito?.(null);
 
@@ -363,11 +359,9 @@ export default function SidebarFiltros({
     for (const dataObj of datasObj) {
       const turnoSalvo = dataObj.turno === "único" ? "único" : dataObj.turno;
 
-      // ── Determina slot real para funções agrupadas ──────────────────────
-      let funcaoReal = funcaoSelecionada;
-      if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoSelecionada]) {
-        // Recepcao: percorre slots na ordem de preferência da função
-        const prefSlots = RECEPCAO_PREFERENCIA[funcaoSelecionada];
+      let funcaoReal = funcaoEfetiva;
+      if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
+        const prefSlots = RECEPCAO_PREFERENCIA[funcaoEfetiva];
         funcaoReal = null;
         for (const slot of prefSlots) {
           const ocupante = escalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
@@ -376,23 +370,21 @@ export default function SidebarFiltros({
             break;
           }
         }
-        if (!funcaoReal) { erros++; continue; } // Todos os 3 slots ocupados
-      } else if (GRUPO_FUNCOES[funcaoSelecionada]) {
-        const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
+        if (!funcaoReal) { erros++; continue; }
+      } else if (GRUPO_FUNCOES[funcaoEfetiva]) {
+        const subFuncoes = GRUPO_FUNCOES[funcaoEfetiva];
         funcaoReal = null;
         for (const slot of subFuncoes) {
           const ocupante = escalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
-          // Slot vazio ou com "disponível" → pode usar
           if (!ocupante || ocupante === "disponível") {
             funcaoReal = slot;
             break;
           }
         }
-        if (!funcaoReal) { erros++; continue; } // Todos os slots com pessoas reais
+        if (!funcaoReal) { erros++; continue; }
       }
 
       try {
-        // Conflito entre ministérios (ignora para "disponível")
         const pessoaLower = pessoaSelecionada.toLowerCase();
         if (pessoaLower !== "disponível") {
           const qConflito = query(
@@ -419,7 +411,6 @@ export default function SidebarFiltros({
           }
         }
 
-        // Remove doc existente no slot real (inclusive "disponível")
         const qExistente = query(
           collection(db, "escalas"),
           where("ministerioId", "==", ministerioSelecionado),
@@ -428,7 +419,7 @@ export default function SidebarFiltros({
           where("turno", "==", turnoSalvo)
         );
         const existenteSnap = await getDocs(qExistente);
-        for (const doc of existenteSnap.docs) await deleteDoc(doc.ref);
+        for (const docSnap of existenteSnap.docs) await deleteDoc(docSnap.ref);
 
         await addDoc(collection(db, "escalas"), {
           pessoaNome: pessoaSelecionada.toLowerCase(),
@@ -456,25 +447,41 @@ export default function SidebarFiltros({
     if (conflito) onConflito?.(conflito);
 
     if (salvos > 0) {
-      const isGrupo = GRUPO_FUNCOES[funcaoSelecionada] ||
-        (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoSelecionada]);
+      const isGrupo = GRUPO_FUNCOES[funcaoEfetiva] ||
+        (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]);
       if (!isGrupo) {
-        // Simples: esconde imediatamente via datasConfirmadas enquanto onSnapshot atualiza
         setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
       }
       const plural = salvos === 1 ? "data" : "datas";
       onMensagem?.(
-        `${pessoaSelecionada.toUpperCase()} escalado como ${funcaoSelecionada} em ${salvos} ${plural}`,
+        `${pessoaSelecionada.toUpperCase()} escalado como ${funcaoEfetiva} em ${salvos} ${plural}`,
         "sucesso"
       );
       setDatasIds([]);
       if (onRefresh) onRefresh();
       if (!erros) setTimeout(() => { if (onConfirmar) onConfirmar(); }, 1200);
-    } else {
-      onMensagem?.("Nenhuma data foi salva (verifique conflitos)", "erro");
     }
 
     setSalvando(false);
+  };
+
+  const handleConfirmarEscala = async () => {
+    if (!podeEditar)           { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
+    if (!pessoaSelecionada)    { onMensagem?.("Selecione uma pessoa", "erro"); return; }
+    if (!funcaoSelecionada)    { onMensagem?.("Selecione uma função", "erro"); return; }
+    if (datasIds.length === 0) { onMensagem?.("Selecione ao menos uma data", "erro"); return; }
+
+    if (funcaoSelecionada === "TODOS") {
+      const opcoes = [...funcoesDoMinisterio];
+      if (opcoes.length === 0) {
+        onMensagem?.("Nenhuma função configurada para este ministério.", "erro");
+        return;
+      }
+      setModalEscolhaFuncao({ aberto: true, opcoes });
+      return;
+    }
+
+    await confirmarEscalaComFuncao(funcaoSelecionada);
   };
 
   // ─── Cultos extras do mês atual ──────────────────────────────────────────
@@ -1106,6 +1113,125 @@ export default function SidebarFiltros({
             )}
           </div>
         </div>
+      )}
+
+      {/* Modo TODOS: portal em document.body — fixed centralizado na viewport (sidebar usa filter/transform) */}
+      {modalEscolhaFuncao.aberto && createPortal(
+        <div
+          role="presentation"
+          onClick={() => { if (!salvando) setModalEscolhaFuncao({ aberto: false, opcoes: [] }); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(5px)",
+            WebkitBackdropFilter: "blur(5px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))",
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-escolha-funcao"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "400px",
+              maxHeight: "min(90vh, 560px)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              background: "rgba(14,14,27,0.98)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              border: `1px solid ${t.accentBorder}`,
+              borderRadius: "12px",
+              padding: "22px",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.45)",
+            }}
+          >
+            <p
+              id="titulo-escolha-funcao"
+              style={{ fontSize: "15px", fontWeight: 600, color: t.text, marginBottom: "8px", lineHeight: 1.35 }}
+            >
+              Em qual função quer escalar?
+            </p>
+            <p style={{ fontSize: "12px", color: t.textMuted, marginBottom: "16px", lineHeight: 1.45, flexShrink: 0 }}>
+              Você está no modo sem filtro. Escolha a função para aplicar nas datas selecionadas.
+            </p>
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              marginBottom: "14px",
+              overflowY: "auto",
+              flex: "1 1 auto",
+              minHeight: 0,
+              WebkitOverflowScrolling: "touch",
+            }}>
+              {modalEscolhaFuncao.opcoes.map(fn => (
+                <button
+                  key={fn}
+                  type="button"
+                  disabled={salvando}
+                  onClick={async () => {
+                    setModalEscolhaFuncao({ aberto: false, opcoes: [] });
+                    await confirmarEscalaComFuncao(fn);
+                  }}
+                  style={{
+                    width: "100%", textAlign: "left",
+                    padding: "11px 14px", borderRadius: "8px",
+                    border: `1px solid ${t.border}`,
+                    background: t.bg,
+                    color: t.text,
+                    fontSize: "13px", fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: salvando ? "not-allowed" : "pointer",
+                    opacity: salvando ? 0.55 : 1,
+                    transition: "border-color 0.15s, background 0.15s",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={e => {
+                    if (!salvando) {
+                      e.currentTarget.style.borderColor = t.accent;
+                      e.currentTarget.style.background = t.accentDim;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!salvando) {
+                      e.currentTarget.style.borderColor = t.border;
+                      e.currentTarget.style.background = t.bg;
+                    }
+                  }}
+                >
+                  {fn}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={salvando}
+              onClick={() => setModalEscolhaFuncao({ aberto: false, opcoes: [] })}
+              style={{
+                width: "100%", padding: "9px",
+                borderRadius: "8px",
+                border: `1px solid ${t.border}`,
+                background: "transparent",
+                color: t.textMuted,
+                fontSize: "12px", fontWeight: 600, fontFamily: "inherit",
+                cursor: salvando ? "not-allowed" : "pointer",
+                flexShrink: 0,
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

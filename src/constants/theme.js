@@ -29,8 +29,8 @@ export const theme = {
   accentSelectedBg: accentAlpha(0.22),
   accentShadowStrong: accentAlpha(0.4),
   accentFocusRing: accentAlpha(0.22),
-  /** Células “disponível” na grade */
-  slotAvailable: "#e8c766",
+  /** Células “disponível” na grade (roxo suave no tema escuro) */
+  slotAvailable: "#c5b4e8",
   text: "#f2eee6",
   textMuted: "#9e988c",
   textDim: "#4d483e",

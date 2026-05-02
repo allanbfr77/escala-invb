@@ -14,10 +14,31 @@ const FUNCAO_CORES = {
   "MÚSICO 4":    "#f59e0b",
 };
 
+/** Data um pouco mais estreita libera px para BVOCAL/MÚSICO (nomes compostos em uma linha). */
+const DATA_COL_PCT = 11;
+/** MINISTRANTE costuma ter nomes mais longos; o restante divide entre BVOCAL/MÚSICO */
+const MINISTRANTE_COL_PCT = 11;
+const OUTRAS_FUNCOES_COL_PCT = (100 - DATA_COL_PCT - MINISTRANTE_COL_PCT) / 7;
+
+/** Evita quebra no espaço entre nome e sobrenome (ex.: LU | FERNANDES). */
+function nomeLouvorParaExibicao(pessoaNome) {
+  if (!pessoaNome) return "";
+  return pessoaNome.toUpperCase().replace(/\s+/g, "\u00A0");
+}
+
 const thStyle = (t, f) => ({
-  padding: "9px 14px", textAlign: "left", fontWeight: 600,
-  color: FUNCAO_CORES[f] || t.textMuted, fontSize: "10px", textTransform: "uppercase",
-  letterSpacing: "0.8px", whiteSpace: "nowrap", fontFamily: "'Outfit', sans-serif",
+  padding: "7px 5px",
+  textAlign: "left",
+  fontWeight: 600,
+  color: FUNCAO_CORES[f] || t.textMuted,
+  fontSize: "clamp(8px, 1.05vw, 10px)",
+  textTransform: "uppercase",
+  letterSpacing: "0.45px",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  lineHeight: 1.2,
+  fontFamily: "'Outfit', sans-serif",
+  verticalAlign: "bottom",
 });
 
 export default function GridLouvor({ escalas, datas, loading, onRemover, podeEditar, filtroNome = "", theme: t }) {
@@ -32,14 +53,37 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
 
   const filtro = filtroNome.trim().toLowerCase();
 
+  const fsCell = "clamp(10px, 1.15vw, 12px)";
+
   return (
-    <div style={{
-      overflowX: "auto", borderRadius: "10px",
+    <div className="grid-louvor-wrap" style={{
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      overflowX: "hidden",
+      borderRadius: "10px",
       border: `1px solid ${t.accentBorder}`,
       background: t.surfaceTranslucent,
       backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      boxSizing: "border-box",
     }}>
-      <table className="grid-table" style={{ width: "auto", minWidth: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+      <table
+        className="grid-table"
+        style={{
+          width: "100%",
+          maxWidth: "100%",
+          tableLayout: "fixed",
+          borderCollapse: "collapse",
+          fontSize: "clamp(10px, 1.2vw, 13px)",
+        }}
+      >
+        <colgroup>
+          <col style={{ width: `${DATA_COL_PCT}%` }} />
+          <col style={{ width: `${MINISTRANTE_COL_PCT}%` }} />
+          {funcoes.slice(1).map(f => (
+            <col key={f} style={{ width: `${OUTRAS_FUNCOES_COL_PCT}%` }} />
+          ))}
+        </colgroup>
         <thead className="grid-thead">
           <tr style={{ borderBottom: `1px solid ${t.border}` }}>
             <th style={{ ...thStyle(t), borderRight: `1px solid ${t.border}` }}>Data</th>
@@ -49,10 +93,28 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
         <tbody>
           {datas.map((dataObj, idx) => {
             const turnoKey = dataObj.turno ?? "único";
+            const dataStr = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
             return (
-              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s", height: "38px" }}>
-                <td className="grid-date-cell" data-label="Data" style={{ padding: "0 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}`, verticalAlign: "middle" }}>
-                  {formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s" }}>
+                <td
+                  className="grid-date-cell"
+                  title={dataStr}
+                  data-label="Data"
+                  style={{
+                    padding: "6px 5px",
+                    fontWeight: 500,
+                    color: t.textMuted,
+                    fontSize: "clamp(9px, 1vw, 11px)",
+                    fontFamily: "'Outfit', sans-serif",
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                    lineHeight: 1.25,
+                    borderRight: `1px solid ${t.border}`,
+                    verticalAlign: "middle",
+                    maxWidth: 0,
+                  }}
+                >
+                  {dataStr}
                 </td>
                 {funcoes.map(f => {
                   const chipKey = `${dataObj.data}-${turnoKey}-${f}`;
@@ -61,30 +123,56 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                   const dim     = filtro && pessoa && !match;
                   const hovered = hoveredChip === chipKey;
                   const isDisponivel = pessoa === "disponível";
+                  const nomeTitulo = pessoa ? pessoa.toUpperCase() : "";
+                  const nomeExibir = nomeLouvorParaExibicao(pessoa);
                   return (
-                    <td key={f} data-label={f} style={{ padding: "0 14px", whiteSpace: "nowrap", verticalAlign: "middle" }}>
+                    <td
+                      key={f}
+                      data-label={f}
+                      style={{
+                        padding: "4px 5px",
+                        verticalAlign: "middle",
+                        maxWidth: 0,
+                      }}
+                    >
                       {pessoa ? (
                         <div
+                          className="grid-louvor-chip"
                           onMouseEnter={() => setHoveredChip(chipKey)}
                           onMouseLeave={() => setHoveredChip(null)}
+                          title={nomeTitulo}
                           style={{
-                            display: "inline-flex", alignItems: "center", gap: "4px",
-                            borderRadius: "5px", padding: "2px 6px",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "4px",
+                            minWidth: 0,
+                            width: "100%",
+                            maxWidth: "100%",
+                            borderRadius: "5px",
+                            padding: "3px 4px",
                             opacity: dim ? 0.3 : 1,
                             background: match
                               ? t.accentSelectedBg
                               : hovered ? t.accentHoverBg : "transparent",
                             transition: "background 0.15s",
                             cursor: "default",
+                            boxSizing: "border-box",
                           }}
                         >
                           <span style={{
+                            flex: 1,
+                            minWidth: 0,
+                            whiteSpace: "normal",
+                            wordBreak: "normal",
+                            overflowWrap: "normal",
+                            lineHeight: 1.25,
                             color: isDisponivel ? t.slotAvailable : match ? t.accent : t.text,
                             fontWeight: match ? 700 : 500,
-                            fontSize: "12px", fontFamily: "'Outfit', sans-serif",
+                            fontSize: fsCell,
+                            fontFamily: "'Outfit', sans-serif",
                             letterSpacing: "0.2px",
                           }}>
-                            {pessoa.toUpperCase()}
+                            {nomeExibir}
                           </span>
                           {podeEditar && (
                             <button
@@ -93,15 +181,15 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                               title="Remover"
                               style={{
                                 background: "none", border: "none", cursor: "pointer",
-                                color: t.textMuted, fontSize: "9px", padding: "0 1px",
-                                lineHeight: 1, display: "flex", alignItems: "center",
+                                color: t.textMuted, fontSize: "9px", padding: "2px 1px 0 0",
+                                lineHeight: 1, display: "flex", alignItems: "flex-start",
                                 opacity: hovered ? 1 : 0,
                                 pointerEvents: hovered ? "auto" : "none",
                                 transition: "opacity 0.15s, color 0.1s",
                                 width: "12px", flexShrink: 0,
                               }}
-                              onMouseEnter={e => e.currentTarget.style.color = t.danger}
-                              onMouseLeave={e => e.currentTarget.style.color = t.textMuted}
+                              onMouseEnter={e => { e.currentTarget.style.color = t.danger; }}
+                              onMouseLeave={e => { e.currentTarget.style.color = t.textMuted; }}
                             >✕</button>
                           )}
                         </div>

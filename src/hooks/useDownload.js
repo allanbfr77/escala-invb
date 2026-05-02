@@ -20,6 +20,8 @@ const LT = {
   accent:    "#b8942e",
   accentBg:  "rgba(184,148,46,0.08)",
   zebra:     "rgba(184,148,46,0.04)",
+  /** “DISPONÍVEL” na imagem exportada (fundo claro) */
+  slotDisponivel: "#9d8fc9",
 };
 
 export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostrarMensagem }) {
@@ -81,7 +83,7 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
                   font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
                   overflow:hidden;text-overflow:ellipsis;">${f}</span>
                 <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
-                  color:${isDisponivel ? "#c9a227" : pessoa ? LT.text : LT.textDim};
+                  color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                   font-family:'Outfit',sans-serif;white-space:nowrap;">
                   ${pessoa ? pessoa.toUpperCase() : "—"}
                 </span>
@@ -92,8 +94,8 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
           cardsHTML += `
             <div style="background:${LT.surface};border:1px solid ${LT.border};
               border-radius:8px;overflow:hidden;">
-              <div style="background:${LT.accentBg};border-bottom:1px solid ${LT.border};
-                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.accent};
+              <div style="background:#F1F5F9;border-bottom:1px solid ${LT.border};
+                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.textMuted};
                 font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:0.3px;">
                 ${dataLabel}
               </div>
@@ -134,7 +136,7 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
             const isDisponivel = pessoa === "disponível";
             tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
               <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
-                color:${isDisponivel ? "#c9a227" : pessoa ? LT.text : LT.textDim};
+                color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                 font-family:'Outfit',sans-serif;">
                 ${pessoa ? pessoa.toUpperCase() : "—"}
               </span>

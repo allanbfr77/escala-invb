@@ -1,0 +1,3 @@
+# Um email por linha (exemplo — substitua pelos reais)
+# usuario1@invb.com
+# usuario2@invb.com
