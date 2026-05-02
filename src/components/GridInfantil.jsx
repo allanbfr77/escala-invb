@@ -3,9 +3,9 @@ import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
 
 const FUNCAO_CORES = {
-  "BERÇÁRIO": "#60a5fa",  // azul
-  "MATERNAL": "#34d399",  // verde
-  "JUNIORES": "#f59e0b",  // dourado
+  "BERÇÁRIO": "#60a5fa",
+  "MATERNAL": "#34d399",
+  "JUNIORES": "#f59e0b",
 };
 
 const thStyle = (t, f) => ({
@@ -17,6 +17,7 @@ const thStyle = (t, f) => ({
 export default function GridInfantil({ escalas, datas, loading, onRemover, podeEditar, filtroNome = "", theme: t }) {
   const funcoes = ["BERÇÁRIO", "MATERNAL", "JUNIORES"];
   const [hoveredChip, setHoveredChip] = useState(null);
+  const [expandidos, setExpandidos] = useState(new Set());
 
   if (loading && Object.keys(escalas).length === 0 && datas.length === 0)
     return <div style={{ padding: "48px", textAlign: "center", color: t.textMuted, fontSize: "13px", fontFamily: "'Outfit', sans-serif" }}>Carregando escala...</div>;
@@ -25,6 +26,15 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
     return <div style={{ padding: "48px", textAlign: "center", color: t.textMuted, fontSize: "13px", fontFamily: "'Outfit', sans-serif" }}>Nenhuma data disponível</div>;
 
   const filtro = filtroNome.trim().toLowerCase();
+
+  const toggleExpandido = (rowKey) => {
+    setExpandidos(prev => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
+  };
 
   return (
     <div style={{
@@ -43,8 +53,12 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
         <tbody>
           {datas.map((dataObj, idx) => {
             const turnoKey = dataObj.turno ?? "único";
+            const rowKey = `${dataObj.data}-${turnoKey}`;
+            const expandido = expandidos.has(rowKey);
+            const temVazio = funcoes.some(f => !escalas[`${dataObj.data}-${turnoKey}-${f}`]);
+            const temPreenchido = funcoes.some(f => !!escalas[`${dataObj.data}-${turnoKey}-${f}`]);
             return (
-              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s", height: "38px" }}>
+              <tr key={idx} className={`grid-row${expandido ? " expandido" : ""}`} style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s", height: "38px" }}>
                 <td className="grid-date-cell" data-label="Data" style={{ padding: "0 14px", fontWeight: 500, color: t.textMuted, fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: `1px solid ${t.border}`, verticalAlign: "middle" }}>
                   {formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
                 </td>
@@ -56,7 +70,7 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
                   const hovered = hoveredChip === chipKey;
                   const isDisponivel = pessoa === "disponível";
                   return (
-                    <td key={f} data-label={f} style={{ padding: "0 14px", whiteSpace: "nowrap", verticalAlign: "middle" }}>
+                    <td key={f} data-label={f} className={!pessoa ? "slot-vazio" : ""} style={{ padding: "0 14px", whiteSpace: "nowrap", verticalAlign: "middle" }}>
                       {pessoa ? (
                         <div
                           onMouseEnter={() => setHoveredChip(chipKey)}
@@ -105,6 +119,23 @@ export default function GridInfantil({ escalas, datas, loading, onRemover, podeE
                     </td>
                   );
                 })}
+                {!temPreenchido && (
+                  <td className="sem-escala-placeholder" colSpan={funcoes.length + 1}>
+                    <span style={{ fontSize: "11px", color: "#6b7280", fontStyle: "italic", fontFamily: "'Outfit', sans-serif" }}>
+                      Nenhum membro escalado
+                    </span>
+                  </td>
+                )}
+                {temVazio && (
+                  <td className="btn-expandir-td" colSpan={funcoes.length + 1}>
+                    <button
+                      className="btn-expandir-card"
+                      onClick={() => toggleExpandido(rowKey)}
+                    >
+                      {expandido ? "▲ Recolher" : "+ Mostrar mais funções"}
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

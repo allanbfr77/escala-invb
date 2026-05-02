@@ -14,10 +14,10 @@ const FUNCAO_CORES = {
   "MÚSICO 4":    "#f59e0b",
 };
 
-/** Data um pouco mais estreita libera px para BVOCAL/MÚSICO (nomes compostos em uma linha). */
-const DATA_COL_PCT = 11;
-/** MINISTRANTE costuma ter nomes mais longos; o restante divide entre BVOCAL/MÚSICO */
-const MINISTRANTE_COL_PCT = 11;
+/** DATA precisa caber "DOMINGO, 03/05 (MANHÃ)" sem quebrar mesmo em 1280px */
+const DATA_COL_PCT = 17;
+/** MINISTRANTE tem nomes médios */
+const MINISTRANTE_COL_PCT = 13;
 const OUTRAS_FUNCOES_COL_PCT = (100 - DATA_COL_PCT - MINISTRANTE_COL_PCT) / 7;
 
 /** Evita quebra no espaço entre nome e sobrenome (ex.: LU | FERNANDES). */
@@ -34,7 +34,7 @@ const thStyle = (t, f) => ({
   fontSize: "clamp(8px, 1.05vw, 10px)",
   textTransform: "uppercase",
   letterSpacing: "0.45px",
-  whiteSpace: "normal",
+  whiteSpace: f === "MINISTRANTE" ? "nowrap" : "normal",
   wordBreak: "break-word",
   lineHeight: 1.2,
   fontFamily: "'Outfit', sans-serif",
@@ -44,6 +44,16 @@ const thStyle = (t, f) => ({
 export default function GridLouvor({ escalas, datas, loading, onRemover, podeEditar, filtroNome = "", theme: t }) {
   const funcoes = ["MINISTRANTE", "BVOCAL 1", "BVOCAL 2", "BVOCAL 3", "BVOCAL 4", "MÚSICO 1", "MÚSICO 2", "MÚSICO 3", "MÚSICO 4"];
   const [hoveredChip, setHoveredChip] = useState(null);
+  const [expandidos, setExpandidos] = useState(new Set());
+
+  const toggleExpandido = (rowKey) => {
+    setExpandidos(prev => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
+  };
 
   if (loading && Object.keys(escalas).length === 0 && datas.length === 0)
     return <div style={{ padding: "48px", textAlign: "center", color: t.textMuted, fontSize: "13px", fontFamily: "'Outfit', sans-serif" }}>Carregando escala...</div>;
@@ -93,9 +103,13 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
         <tbody>
           {datas.map((dataObj, idx) => {
             const turnoKey = dataObj.turno ?? "único";
+            const rowKey = `${dataObj.data}-${turnoKey}`;
+            const expandido = expandidos.has(rowKey);
+            const temVazio = funcoes.some(f => !escalas[`${dataObj.data}-${turnoKey}-${f}`]);
+            const temPreenchido = funcoes.some(f => !!escalas[`${dataObj.data}-${turnoKey}-${f}`]);
             const dataStr = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
             return (
-              <tr key={idx} className="grid-row" style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s" }}>
+              <tr key={idx} className={`grid-row${expandido ? " expandido" : ""}`} style={{ background: idx % 2 === 0 ? "transparent" : t.accentZebra, transition: "background 0.15s" }}>
                 <td
                   className="grid-date-cell"
                   title={dataStr}
@@ -106,8 +120,8 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                     color: t.textMuted,
                     fontSize: "clamp(9px, 1vw, 11px)",
                     fontFamily: "'Outfit', sans-serif",
-                    whiteSpace: "normal",
-                    wordBreak: "break-word",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
                     lineHeight: 1.25,
                     borderRight: `1px solid ${t.border}`,
                     verticalAlign: "middle",
@@ -128,9 +142,11 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                     <td
                       key={f}
                       data-label={f}
+                      className={!pessoa ? "slot-vazio" : ""}
                       style={{
                         padding: "4px 5px",
                         verticalAlign: "middle",
+                        overflow: "hidden",
                       }}
                     >
                       {pessoa ? (
@@ -157,12 +173,12 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                             boxSizing: "border-box",
                           }}
                         >
-                          <span style={{
+                          <span title={nomeTitulo} style={{
                             flex: 1,
                             minWidth: 0,
-                            whiteSpace: "normal",
-                            wordBreak: "normal",
-                            overflowWrap: "normal",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                             lineHeight: 1.25,
                             color: isDisponivel ? t.slotAvailable : match ? t.accent : t.text,
                             fontWeight: match ? 700 : 500,
@@ -197,6 +213,23 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                     </td>
                   );
                 })}
+                {!temPreenchido && (
+                  <td className="sem-escala-placeholder" colSpan={funcoes.length + 1}>
+                    <span style={{ fontSize: "11px", color: "#6b7280", fontStyle: "italic", fontFamily: "'Outfit', sans-serif" }}>
+                      Nenhum membro escalado
+                    </span>
+                  </td>
+                )}
+                {temVazio && (
+                  <td className="btn-expandir-td" colSpan={funcoes.length + 1}>
+                    <button
+                      className="btn-expandir-card"
+                      onClick={() => toggleExpandido(rowKey)}
+                    >
+                      {expandido ? "▲ Recolher" : "+ Mostrar mais funções"}
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

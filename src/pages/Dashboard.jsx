@@ -746,6 +746,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         /* Hover nas linhas da grid */
         .grid-row:hover { background: rgba(255,255,255,0.08) !important; cursor: default; }
 
+        /* Botão expandir/recolher slots vazios — apenas mobile */
+        .btn-expandir-td { display: none !important; }
+        /* Placeholder "Nenhum membro escalado" — apenas mobile */
+        .sem-escala-placeholder { display: none !important; }
+
         /* Sticky header da grid */
         .grid-thead th {
           position: sticky;
@@ -756,8 +761,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           -webkit-backdrop-filter: blur(12px);
         }
 
-        /* Mobile: cards em vez de tabela */
-        @media (max-width: 768px) {
+        /* 1366px landscape: título do ministério não sobrepõe a barra de ações */
+        @media (max-width: 1024px) {
+          .page-header { flex-wrap: wrap; align-items: flex-start !important; row-gap: 10px !important; }
+          .page-header-actions { flex-wrap: wrap; }
+        }
+
+        /* Tablet + mobile: cards em vez de tabela */
+        @media (max-width: 900px) {
           .desktop-sidebar { display: none !important; }
           .header-title { display: none !important; }
           .header-sep { display: none !important; }
@@ -781,14 +792,51 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             overflow: hidden;
             background: ${theme.surface} !important;
           }
+          /* Todas as células: mesma altura base (42px) → vazia = preenchida */
           .grid-row td {
             display: flex !important;
             align-items: center;
             justify-content: space-between;
-            padding: 8px 12px !important;
+            padding: 0 12px !important;
+            height: 42px !important;
+            min-height: 42px !important;
+            max-height: 42px !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
             border-bottom: 1px solid ${theme.border};
             white-space: normal !important;
           }
+          .grid-date-cell {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            padding: 8px 12px !important;
+            overflow: visible !important;
+          }
+          /* Linhas de função vazias: ocultas por padrão */
+          .grid-row td.slot-vazio { display: none !important; }
+          /* Visíveis quando o card está expandido */
+          .grid-row.expandido td.slot-vazio { display: flex !important; }
+          /* Botão expandir/recolher */
+          .btn-expandir-card {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            width: 100%;
+            padding: 7px 12px;
+            background: none;
+            border: none;
+            border-top: 1px solid ${theme.border};
+            color: ${theme.textMuted};
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+          }
+          .btn-expandir-card:hover { color: ${theme.accent}; background: ${accentAlpha(0.05)}; }
           .grid-row td:last-child { border-bottom: none; }
           .grid-row td::before {
             content: attr(data-label);
@@ -803,6 +851,34 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           }
           .grid-date-cell { border-right: none !important; background: ${accentAlpha(0.04)}; }
           .grid-row { height: auto !important; }
+
+          /* Placeholder para datas sem nenhum membro escalado */
+          .grid-row td.sem-escala-placeholder {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            height: 36px !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            padding: 0 12px !important;
+            border-bottom: none !important;
+            overflow: visible !important;
+          }
+          .grid-row td.sem-escala-placeholder::before { display: none !important; }
+          /* Ocultar placeholder quando o card está expandido */
+          .grid-row.expandido td.sem-escala-placeholder { display: none !important; }
+
+          /* Célula do botão expandir: especificidade (0,2,1) supera .grid-row td (0,1,1) */
+          .grid-row td.btn-expandir-td {
+            display: block !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border-bottom: none !important;
+          }
+          .grid-row td.btn-expandir-td::before { display: none !important; }
 
           /* Cores das funções nos labels mobile (data-label) */
           .grid-row td[data-label="PROJEÇÃO"]::before,
@@ -933,6 +1009,29 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             align-self: center !important;
           }
 
+          /* Slots vazios: ocultos por padrão no Louvor (especificidade >= regra de altura) */
+          .grid-louvor-wrap .grid-row td.slot-vazio { display: none !important; }
+          .grid-louvor-wrap .grid-row.expandido td.slot-vazio { display: flex !important; }
+          /* Placeholder "Nenhum membro escalado" no Louvor — depois das regras de altura */
+          .grid-louvor-wrap .grid-row td.sem-escala-placeholder {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            height: 36px !important;
+            min-height: 0 !important;
+            max-height: none !important;
+          }
+          .grid-louvor-wrap .grid-row.expandido td.sem-escala-placeholder { display: none !important; }
+          /* Botão expandir no Louvor: restaura display block (altura/flex do td não interfere) */
+          .grid-louvor-wrap .grid-row td.btn-expandir-td {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+
           /* Data (linha topo): texto à direita, pode quebrar */
           .grid-louvor-wrap .grid-date-cell .grid-louvor-date-text {
             flex: 1 1 auto !important;
@@ -1039,7 +1138,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       </button>
       <style>{`
         .fab-mobile { display: none !important; }
-        @media (max-width: 768px) { .fab-mobile { display: flex !important; } }
+        @media (max-width: 900px) { .fab-mobile { display: flex !important; } }
       `}</style>
 
       {/* Navbar */}
