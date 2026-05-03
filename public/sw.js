@@ -1,4 +1,4 @@
-const CACHE = 'escala-v4';
+const CACHE = 'escala-v5';
 const STATIC = ['.svg', '.png', '.woff2'];
 
 self.addEventListener('install', e => {

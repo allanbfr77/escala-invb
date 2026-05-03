@@ -1,6 +1,6 @@
 {
-  "name": "Escala INVB",
-  "short_name": "Escala",
+  "name": "INVB",
+  "short_name": "INVB",
   "description": "Sistema de escala de ministérios INVB",
   "start_url": "/",
   "display": "standalone",
