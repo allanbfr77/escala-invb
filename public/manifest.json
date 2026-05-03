@@ -1,7 +1,7 @@
 {
   "name": "Escala INVB",
   "short_name": "Escala",
-  "description": "Sistema de escala de ministerios INVB",
+  "description": "Sistema de escala de ministérios INVB",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#070708",
@@ -9,7 +9,13 @@
   "icons": [
     {
       "src": "/ministerios/logo2.png",
-      "sizes": "409x452",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/ministerios/logo2.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     }
