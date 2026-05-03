@@ -1,4 +1,4 @@
-const CACHE = 'escala-v3';
+const CACHE = 'escala-v4';
 const STATIC = ['.svg', '.png', '.woff2'];
 
 self.addEventListener('install', e => {
@@ -32,8 +32,8 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Logo em public/: troca frequente — rede primeiro para não ficar preso à cache antiga
-  if (url.pathname === '/logo.png') {
+  // Ícones em public/: troca frequente — rede primeiro para não ficar preso à cache antiga
+  if (url.pathname === '/logo.png' || url.pathname === '/logo3.png') {
     e.respondWith(
       fetch(e.request)
         .then(res => {
