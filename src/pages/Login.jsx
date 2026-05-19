@@ -13,7 +13,7 @@ const perfis = [
   { id: "comunicacao", nome: "MINISTÉRIO DE COMUNICAÇÕES", img: "/ministerios/comunicacoes2.png", desc: "Líderes: ALAN e JEAN" },
   { id: "louvor",      nome: "MINISTÉRIO DE LOUVOR",       img: "/ministerios/louvor2.png",       desc: "Líderes: ALESSANDRO e RAPHAELA" },
   { id: "recepcao",   nome: "MINISTÉRIO DE INTRODUÇÃO",    img: "/ministerios/recepcao2.png",      desc: "Líder: Dc. ATAYDE" },
-  { id: "infantil",   nome: "MINISTÉRIO DE INFANTIL",     img: "/ministerios/infantil2.png",      desc: "Líder: MARÍLIA" },
+  { id: "infantil",   nome: "MINISTÉRIO INFANTIL",     img: "/ministerios/infantil2.png",      desc: "Líder: MARÍLIA" },
 ];
 
 function mensagemDeErro(codigo) {
