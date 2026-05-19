@@ -151,19 +151,20 @@ export default function Login() {
 
         input:-webkit-autofill {
           -webkit-box-shadow: 0 0 0 100px ${loginCardInset} inset !important;
-          -webkit-text-fill-color: ${theme.text} !important;
-          caret-color: ${theme.text};
+          -webkit-text-fill-color: #f0f0f0 !important;
+          caret-color: #f0f0f0;
         }
 
         .login-input {
           width: 100%; padding: 9px 12px; border-radius: 6px;
-          border: 1px solid ${theme.border}; background: ${loginCardInset};
-          color: ${theme.text}; font-size: 14px; font-family: inherit;
+          border: 1px solid rgba(255,255,255,0.12); background: ${loginCardInset};
+          color: #f0f0f0; font-size: 14px; font-family: inherit;
           outline: none; transition: border-color 0.15s, box-shadow 0.15s;
         }
+        .login-input::placeholder { color: rgba(255,255,255,0.28); }
         .login-input:focus {
-          border-color: ${theme.accent};
-          box-shadow: 0 0 0 3px ${alpha(0.2)};
+          border-color: #d4af37;
+          box-shadow: 0 0 0 3px rgba(212,175,55,0.18);
         }
         .login-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
