@@ -8,9 +8,8 @@ export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
     // Check localStorage first
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    const dark = stored !== null
-      ? stored === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    // Sem preferência salva → dark por padrão
+    const dark = stored !== null ? stored === "dark" : true;
 
     // Aplica imediatamente para evitar flash
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
