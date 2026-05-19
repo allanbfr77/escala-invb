@@ -360,13 +360,13 @@ export default function Login() {
                 <div className="perfil-meta" style={{ padding: "10px 12px" }}>
                   <div
                     className="perfil-nome"
-                    style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : theme.text, letterSpacing: "0.2px", lineHeight: 1.25 }}
+                    style={{ fontSize: "11px", fontWeight: 700, color: sel ? theme.accent : "#f0f0f0", letterSpacing: "0.2px", lineHeight: 1.25 }}
                   >
                     {p.nome}
                   </div>
                   <div
                     className="perfil-desc"
-                    style={{ fontSize: "11.5px", color: theme.textMuted, marginTop: "3px", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                    style={{ fontSize: "11.5px", color: "rgba(255,255,255,0.55)", marginTop: "3px", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   >
                     {p.desc}
                   </div>
