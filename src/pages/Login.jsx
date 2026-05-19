@@ -221,8 +221,8 @@ export default function Login() {
           .logo-sub { font-size: 12px !important; padding: 0 4px; }
           .perfil-img { height: 100px !important; }
           .perfil-meta { padding: 9px 8px !important; }
-          .perfil-nome { font-size: 7.4px !important; letter-spacing: 0 !important; line-height: 1.2 !important; font-weight: 600 !important; }
-          .perfil-desc { font-size: 8px !important; }
+          .perfil-nome { font-size: 9.4px !important; letter-spacing: 0 !important; line-height: 1.2 !important; font-weight: 600 !important; }
+          .perfil-desc { font-size: 9px !important; }
         }
       `}</style>
 
@@ -366,7 +366,7 @@ export default function Login() {
                   </div>
                   <div
                     className="perfil-desc"
-                    style={{ fontSize: "10px", color: theme.textMuted, marginTop: "3px", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                    style={{ fontSize: "11.5px", color: theme.textMuted, marginTop: "3px", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   >
                     {p.desc}
                   </div>

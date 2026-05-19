@@ -287,7 +287,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
             {semEscala.map(({ pessoa }) => (
               <span key={pessoa} style={{
-                fontSize: "12px", color: t.textDim,
+                fontSize: "12px", color: "#9b6060",
                 background: t.bg, border: `1px solid ${t.border}`,
                 borderRadius: "4px", padding: "3px 10px",
               }}>

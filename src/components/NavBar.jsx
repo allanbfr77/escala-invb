@@ -68,16 +68,8 @@ export default function NavBar({ mes, mesMinimo, mesMaximo, user, logout, onMesA
               opacity: podeRetroceder ? 1 : 0.35,
               transition: "all 0.15s",
             }}
-            onMouseEnter={e => {
-              if (podeRetroceder) {
-                e.currentTarget.style.opacity = "0.7";
-              }
-            }}
-            onMouseLeave={e => {
-              if (podeRetroceder) {
-                e.currentTarget.style.opacity = "1";
-              }
-            }}
+            onMouseEnter={e => { if (podeRetroceder) e.currentTarget.style.opacity = "0.7"; }}
+            onMouseLeave={e => { if (podeRetroceder) e.currentTarget.style.opacity = "1"; }}
           >‹</button>
           <span style={{
             color: "var(--text)",
@@ -107,43 +99,14 @@ export default function NavBar({ mes, mesMinimo, mesMaximo, user, logout, onMesA
               opacity: podeAvancar ? 1 : 0.35,
               transition: "all 0.15s",
             }}
-            onMouseEnter={e => {
-              if (podeAvancar) {
-                e.currentTarget.style.opacity = "0.7";
-              }
-            }}
-            onMouseLeave={e => {
-              if (podeAvancar) {
-                e.currentTarget.style.opacity = "1";
-              }
-            }}
+            onMouseEnter={e => { if (podeAvancar) e.currentTarget.style.opacity = "0.7"; }}
+            onMouseLeave={e => { if (podeAvancar) e.currentTarget.style.opacity = "1"; }}
           >›</button>
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         {/* Botão toggle tema */}
-        <button
-          onClick={toggleTheme}
-          title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
-          style={{
-            background: "transparent",
-            border: "1px solid var(--border)",
-            borderRadius: "5px",
-            color: "var(--text)",
-            fontSize: "14px",
-            cursor: "pointer",
-            padding: "3px 8px",
-            lineHeight: 1,
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.opacity = "0.7";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.opacity = "1";
-          }}
-        >{isDark ? "☀️" : "🌙"}</button>
 
         <span style={{ fontSize: "12px", color: "var(--text)" }}>Olá, {user?.email}</span>
         <button
@@ -159,12 +122,8 @@ export default function NavBar({ mes, mesMinimo, mesMaximo, user, logout, onMesA
             fontFamily: "inherit",
             transition: "all 0.15s",
           }}
-          onMouseEnter={e => {
-            e.currentTarget.style.opacity = "0.7";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.opacity = "1";
-          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = "0.7"; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
         >Sair</button>
       </div>
     </header>

@@ -21,6 +21,7 @@ import { funcoesPorMinisterio } from "../data/funcoes";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
 import { useTheme } from "../context/ThemeContext";
+import { Sun, Moon } from "lucide-react";
 
 // ─── Helpers de controle de mês ──────────────────────────────────────────────
 
@@ -1195,7 +1196,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "14px", cursor: "pointer", padding: "3px 8px", lineHeight: 1, transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
-          >{isDark ? "☀️" : "🌙"}</button>
+          >
+  {isDark ? (
+    <Sun size={16} color="#F5C542" />
+  ) : (
+    <Moon size={16} color="#1a3a6b" />
+  )}
+</button>
 
           <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>Olá, {user?.email}</span>
           <button onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
