@@ -20,7 +20,7 @@ import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
-import { theme, accentAlpha } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
 
 // ─── Helpers de controle de mês ──────────────────────────────────────────────
 
@@ -61,6 +61,38 @@ function getMesInicial() {
 
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo }) {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const alpha = (opacity) => isDark ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`;
+  const theme = {
+    bg: "var(--bg)",
+    surface: "var(--surface)",
+    surfaceTranslucent: "var(--surface-translucent)",
+    surfaceHover: "var(--surface-hover)",
+    border: "var(--border)",
+    borderLight: "var(--border-light)",
+    accent: "var(--accent)",
+    accentMuted: "var(--accent-muted)",
+    accentBright: "var(--accent-bright)",
+    accentDeep: "var(--accent-deep)",
+    accentGradientEnd: "var(--accent-gradient-end)",
+    accentOnAccent: "var(--accent-on-accent)",
+    accentDim: "var(--accent-dim)",
+    accentGlow: "var(--accent-glow)",
+    accentBorder: "var(--accent-border)",
+    accentZebra: "var(--accent-zebra)",
+    accentHoverBg: "var(--accent-hover-bg)",
+    accentSelectedBg: "var(--accent-selected-bg)",
+    accentShadowStrong: "var(--accent-shadow-strong)",
+    accentFocusRing: "var(--accent-focus-ring)",
+    slotAvailable: "var(--slot-available)",
+    text: "var(--text)",
+    textMuted: "var(--text-muted)",
+    textDim: "var(--text-dim)",
+    danger: "var(--danger)",
+    dangerDim: "var(--danger-dim)",
+    success: "var(--success)",
+    successDim: "var(--success-dim)",
+  };
   const { escalas, datas, loading, error, retry } = useEscalas();
   // ── refreshKey dispara re-fetch no Sidebar quando uma escala é removida
   const [refreshKey, setRefreshKey] = useState(0);
@@ -701,39 +733,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: ${theme.bg}; font-family: 'Outfit', sans-serif; }
 
-        /* Glow de fundo para o glassmorphism ter profundidade */
-        body::before {
-          content: '';
-          position: fixed;
-          top: -30%;
-          right: -20%;
-          width: 700px;
-          height: 700px;
-          background: radial-gradient(circle, ${accentAlpha(0.06)} 0%, transparent 65%);
-          pointer-events: none;
-          z-index: 0;
-        }
-        body::after {
-          content: '';
-          position: fixed;
-          bottom: -20%;
-          left: -10%;
-          width: 500px;
-          height: 500px;
-          background: radial-gradient(circle, ${accentAlpha(0.04)} 0%, transparent 65%);
-          pointer-events: none;
-          z-index: 0;
-        }
-
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${theme.borderLight}; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: ${theme.textDim}; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
         /* Select focus */
         .sidebar-select:focus {
           border-color: ${theme.accent} !important;
-          box-shadow: 0 0 0 3px ${accentAlpha(0.12)};
+          box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
         }
 
         /* Skeleton loading */
@@ -744,7 +752,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .skeleton-pulse { animation: skeleton-pulse 1.6s ease-in-out infinite; }
 
         /* Hover nas linhas da grid */
-        .grid-row:hover { background: rgba(255,255,255,0.08) !important; cursor: default; }
+        .grid-row:hover { background: var(--row-hover) !important; cursor: default; }
 
         /* Botão expandir/recolher slots vazios — apenas mobile */
         .btn-expandir-td { display: none !important; }
@@ -836,7 +844,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             font-family: 'Outfit', sans-serif;
             cursor: pointer;
           }
-          .btn-expandir-card:hover { color: ${theme.accent}; background: ${accentAlpha(0.05)}; }
+          .btn-expandir-card:hover { color: ${theme.accent}; background: rgba(0, 0, 0, 0.05); }
           .grid-row td:last-child { border-bottom: none; }
           .grid-row td::before {
             content: attr(data-label);
@@ -849,7 +857,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             min-width: 90px;
             flex-shrink: 0;
           }
-          .grid-date-cell { border-right: none !important; background: ${accentAlpha(0.04)}; }
+          .grid-date-cell { border-right: none !important; background: var(--date-cell-bg); }
           .grid-row { height: auto !important; }
 
           /* Placeholder para datas sem nenhum membro escalado */
@@ -937,9 +945,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             align-items: center !important;
             justify-content: space-between !important;
             gap: 8px !important;
-            /* Padding vertical 0: a altura fixa garante espaço — nada "escapando" do geral */
             padding: 0 12px !important;
-            /* Altura exata: nem mais, nem menos — vazio = preenchido */
             height: 42px !important;
             min-height: 42px !important;
             max-height: 42px !important;
@@ -1086,9 +1092,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       <div style={{
         position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 201,
         width: "300px",
-        background: "rgba(17,17,19,0.92)",
+        background: "var(--surface-translucent)",
         backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-        borderRight: `1px solid ${accentAlpha(0.12)}`,
+        borderRight: "1px solid var(--border)",
         padding: "20px 16px", overflowY: "auto",
         transform: drawerAberto ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.25s ease",
@@ -1103,7 +1109,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </svg>
           </button>
         </div>
-        {/* ── ALTERADO: refreshKey passado para o Sidebar mobile */}
         <SidebarFiltros
           usuario={user}
           ministerioSelecionado={ministerioSelecionado}
@@ -1127,7 +1132,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           position: "fixed", bottom: "24px", right: "24px", zIndex: 150,
           width: "52px", height: "52px", borderRadius: "50%",
           background: theme.accent, border: "none", cursor: "pointer",
-          boxShadow: `0 4px 20px ${accentAlpha(0.4)}`,
+          boxShadow: `0 4px 20px ${alpha(0.4)}`,
           display: "none", alignItems: "center", justifyContent: "center",
         }}
         className="fab-mobile"
@@ -1183,6 +1188,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {/* Botão toggle tema */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
+            style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "14px", cursor: "pointer", padding: "3px 8px", lineHeight: 1, transition: "all 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
+          >{isDark ? "☀️" : "🌙"}</button>
+
           <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>Olá, {user?.email}</span>
           <button onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; }}
@@ -1197,13 +1211,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         {/* Sidebar desktop */}
         <aside className="desktop-sidebar" style={{
           width: "268px", minWidth: "268px",
-          borderRight: `1px solid ${accentAlpha(0.1)}`,
-          background: "rgba(17,17,19,0.82)",
+          borderRight: "1px solid var(--border)",
+          background: "var(--surface)",
           backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
           padding: "18px 14px", overflowY: "auto",
           position: "sticky", top: "48px", height: "calc(100vh - 48px)",
         }}>
-          {/* ── ALTERADO: refreshKey passado para o Sidebar desktop */}
           <SidebarFiltros
             usuario={user}
             ministerioSelecionado={ministerioSelecionado}
@@ -1450,7 +1463,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
                     transition: "all 0.15s",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = accentAlpha(0.45); e.currentTarget.style.color = theme.accentBright; e.currentTarget.style.background = accentAlpha(0.07); }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(0.45); e.currentTarget.style.color = theme.accentBright; e.currentTarget.style.background = alpha(0.07); }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1473,7 +1486,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
                     transition: "all 0.15s",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = accentAlpha(0.45); e.currentTarget.style.color = theme.accentBright; e.currentTarget.style.background = accentAlpha(0.07); }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(0.45); e.currentTarget.style.color = theme.accentBright; e.currentTarget.style.background = alpha(0.07); }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1552,7 +1565,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             <div style={{
               padding: "48px 24px", textAlign: "center",
               borderRadius: "10px", border: `1px solid ${theme.border}`,
-              background: "rgba(15,17,23,0.6)",
+              background: "var(--surface)",
             }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 12px", display: "block", opacity: 0.3 }}>
                 <rect x="3" y="4" width="18" height="18" rx="2" stroke={theme.textMuted} strokeWidth="1.5"/>
@@ -1632,7 +1645,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               maxHeight: "min(90vh, 520px)",
               overflowY: "auto",
               WebkitOverflowScrolling: "touch",
-              background: "rgba(14,14,27,0.98)",
+              background: "var(--bg)",
               border: `1px solid rgba(248,113,113,0.45)`,
               borderRadius: "12px",
               padding: "clamp(16px, 4vw, 24px)",

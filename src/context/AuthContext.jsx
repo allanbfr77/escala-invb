@@ -19,19 +19,31 @@ export function AuthProvider({ children }) {
     // - sobrevive a F5 / recarregar página ✓
     // - sobrevive a navegar em outra aba e voltar ✓
     // - é apagado quando o usuário fecha a aba/janela ✓
+    let unsubscribe = () => {};
+
     setPersistence(auth, browserSessionPersistence).then(() => {
-      const unsub = onAuthStateChanged(auth, async (u) => {
+      unsubscribe = onAuthStateChanged(auth, async (u) => {
         if (u) {
-          const ref  = doc(db, "users", u.uid);
+          const ref = doc(db, "users", u.uid);
           const snap = await getDoc(ref);
+          if (!snap.exists()) {
+            console.warn("AuthContext: usuário logado sem documento de perfil", u.uid);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
           setUser({ uid: u.uid, ...snap.data() });
         } else {
           setUser(null);
         }
         setLoading(false);
       });
-      return unsub;
+    }).catch((error) => {
+      console.error("AuthContext: falha ao definir persistência de sessão", error);
+      setLoading(false);
     });
+
+    return () => unsubscribe();
   }, []);
 
   const logout = () => signOut(auth);

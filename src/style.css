@@ -1,15 +1,51 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/* ══════════════════════════════════════════════════════════
+   TEMA DARK — padrão no :root (funciona sem JS)
+   ══════════════════════════════════════════════════════════ */
+:root,
+[data-theme="dark"] {
+  --bg: #0f0f0f;
+  --surface: #171717;
+  --surface-translucent: rgba(15,15,15,0.92);
+  --surface-hover: #1f1f1f;
+  --border: #2a2a2a;
+  --border-light: #222222;
+
+  --accent: #d4af37;
+  --accent-muted: #c9a961;
+  --accent-bright: #f0dc82;
+  --accent-deep: #8b6914;
+  --accent-gradient-end: #a67c00;
+  --accent-on-accent: #0f0f0f;
+  --accent-dim: rgba(212,175,55,0.12);
+  --accent-glow: rgba(212,175,55,0.07);
+  --accent-border: rgba(212,175,55,0.22);
+  --accent-zebra: rgba(212,175,55,0.04);
+  --accent-hover-bg: rgba(212,175,55,0.09);
+  --accent-selected-bg: rgba(212,175,55,0.20);
+  --accent-shadow-strong: rgba(212,175,55,0.35);
+  --accent-focus-ring: rgba(212,175,55,0.22);
+
+  --slot-available: #c5b4e8;
+
+  --text: #f0f0f0;
+  --text-h: #f0f0f0;
+  --text-muted: #9ca3af;
+  --text-dim: #374151;
+
+  --danger: #f87171;
+  --danger-dim: rgba(248,113,113,0.12);
+  --success: #4ade80;
+  --success-dim: rgba(74,222,128,0.12);
+
+  --row-zebra: rgba(255,255,255,0.03);
+  --row-hover: rgba(255,255,255,0.05);
+  --date-cell-bg: rgba(255,255,255,0.03);
+
+  --code-bg: #1f1f1f;
+  --accent-bg: rgba(212,175,55,0.12);
+  --accent-border-css: rgba(212,175,55,0.45);
+  --social-bg: rgba(30,30,30,0.50);
+  --shadow: rgba(0,0,0,0.50) 0 4px 12px -2px, rgba(0,0,0,0.25) 0 2px 6px -2px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -17,7 +53,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -30,24 +66,55 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9e988c;
-    --text-h: #f2eee6;
-    --bg: #070708;
-    --border: #2a241c;
-    --code-bg: #141416;
-    --accent: #d4af37;
-    --accent-bg: rgba(212, 175, 55, 0.14);
-    --accent-border: rgba(212, 175, 55, 0.45);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* ══════════════════════════════════════════════════════════
+   TEMA LIGHT — ativo quando data-theme="light"
+   ══════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f9fafb;
+  --surface-translucent: rgba(255,255,255,0.92);
+  --surface-hover: #f3f4f6;
+  --border: #e5e7eb;
+  --border-light: #f0f1f3;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  --accent: #a07206;
+  --accent-muted: #b8860b;
+  --accent-bright: #d4af37;
+  --accent-deep: #7a5c00;
+  --accent-gradient-end: #8f6800;
+  --accent-on-accent: #ffffff;
+  --accent-dim: rgba(160,114,6,0.10);
+  --accent-glow: rgba(160,114,6,0.06);
+  --accent-border: rgba(160,114,6,0.22);
+  --accent-zebra: rgba(160,114,6,0.04);
+  --accent-hover-bg: rgba(160,114,6,0.08);
+  --accent-selected-bg: rgba(160,114,6,0.14);
+  --accent-shadow-strong: rgba(160,114,6,0.22);
+  --accent-focus-ring: rgba(160,114,6,0.20);
+
+  --slot-available: #6d4fc2;
+
+  --text: #111111;
+  --text-h: #111111;
+  --text-muted: #6b7280;
+  --text-dim: #d1d5db;
+
+  --danger: #dc2626;
+  --danger-dim: rgba(220,38,38,0.09);
+  --success: #16a34a;
+  --success-dim: rgba(22,163,74,0.09);
+
+  --row-zebra: rgba(0,0,0,0.025);
+  --row-hover: rgba(0,0,0,0.04);
+  --date-cell-bg: rgba(0,0,0,0.03);
+
+  --code-bg: #f3f4f6;
+  --accent-bg: rgba(160,114,6,0.09);
+  --accent-border-css: rgba(160,114,6,0.35);
+  --social-bg: rgba(243,244,246,0.60);
+  --shadow: rgba(0,0,0,0.07) 0 4px 12px -2px, rgba(0,0,0,0.04) 0 2px 6px -2px;
+
+  color-scheme: light;
 }
 
 body {

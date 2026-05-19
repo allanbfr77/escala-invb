@@ -10,9 +10,18 @@
     <link rel="apple-touch-icon" sizes="152x152" href="/logo3.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
-    <!-- Fundo escuro no Safari/iOS (evita barras amarelas do theme-color dourado) -->
-    <meta name="theme-color" content="#070708" />
-    <meta name="color-scheme" content="dark" />
+    <!-- theme-color dinâmico por preferência do sistema -->
+    <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
+    <!-- Aplica o tema salvo antes do React carregar (evita flash) -->
+    <script>
+      (function() {
+        var stored = localStorage.getItem("theme-preference");
+        var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="INVB" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

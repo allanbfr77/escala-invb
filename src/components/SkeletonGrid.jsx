@@ -1,9 +1,7 @@
 // ===== src/components/SkeletonGrid.jsx =====
-export default function SkeletonGrid({ theme, colunas = 3 }) {
-  const t = theme || {};
-
+export default function SkeletonGrid({ colunas = 3 }) {
   const skeletonBase = {
-    background: t.border,
+    background: "var(--border)",
     borderRadius: "4px",
     display: "inline-block",
   };
@@ -11,8 +9,8 @@ export default function SkeletonGrid({ theme, colunas = 3 }) {
   return (
     <div style={{
       borderRadius: "10px",
-      border: `1px solid ${t.accentBorder}`,
-      background: t.surfaceTranslucent || "rgba(7,7,14,0.6)",
+      border: "1px solid var(--border)",
+      background: "var(--bg)",
       backdropFilter: "blur(12px)",
       WebkitBackdropFilter: "blur(12px)",
       overflow: "hidden",
@@ -24,8 +22,8 @@ export default function SkeletonGrid({ theme, colunas = 3 }) {
             <th style={{
               width: "160px",
               padding: "10px 14px",
-              background: t.borderLight,
-              borderBottom: `1px solid ${t.border}`,
+              background: "var(--border)",
+              borderBottom: "1px solid var(--border)",
               textAlign: "left",
             }}>
               <div className="skeleton-pulse" style={{ ...skeletonBase, height: "12px", width: "60px" }} />
@@ -34,9 +32,9 @@ export default function SkeletonGrid({ theme, colunas = 3 }) {
             {Array.from({ length: colunas }).map((_, colIdx) => (
               <th key={colIdx} style={{
                 padding: "10px 14px",
-                background: t.borderLight,
-                borderBottom: `1px solid ${t.border}`,
-                borderLeft: `1px solid ${t.border}`,
+                background: "var(--border)",
+                borderBottom: "1px solid var(--border)",
+                borderLeft: "1px solid var(--border)",
                 textAlign: "left",
               }}>
                 <div className="skeleton-pulse" style={{ ...skeletonBase, height: "12px", width: `${40 + (colIdx * 17) % 40}px` }} />
@@ -46,13 +44,13 @@ export default function SkeletonGrid({ theme, colunas = 3 }) {
         </thead>
         <tbody>
           {Array.from({ length: 8 }).map((_, rowIdx) => (
-            <tr key={rowIdx} style={{ background: rowIdx % 2 === 0 ? "transparent" : t.surface }}>
+            <tr key={rowIdx} style={{ background: rowIdx % 2 === 0 ? "transparent" : "rgba(255, 255, 255, 0.05)" }}>
               {/* Date cell */}
               <td style={{
                 width: "160px",
                 padding: "10px 14px",
-                borderBottom: `1px solid ${t.border}`,
-                borderRight: `1px solid ${t.border}`,
+                borderBottom: "1px solid var(--border)",
+                borderRight: "1px solid var(--border)",
               }}>
                 <div className="skeleton-pulse" style={{ ...skeletonBase, height: "11px", width: "120px" }} />
               </td>
@@ -60,8 +58,8 @@ export default function SkeletonGrid({ theme, colunas = 3 }) {
               {Array.from({ length: colunas }).map((_, colIdx) => (
                 <td key={colIdx} style={{
                   padding: "10px 14px",
-                  borderBottom: `1px solid ${t.border}`,
-                  borderLeft: `1px solid ${t.border}`,
+                  borderBottom: "1px solid var(--border)",
+                  borderLeft: "1px solid var(--border)",
                 }}>
                   {(rowIdx + colIdx) % 3 === 0 && (
                     <div className="skeleton-pulse" style={{

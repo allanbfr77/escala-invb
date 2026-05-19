@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { theme, accentAlpha } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
 
 /** Fundos dos cards na login — neutros quentes (evita cinza/azulado do surface global) */
 const loginCardBg = "#141414";
@@ -46,6 +46,30 @@ export default function Login() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [hoveredId, setHoveredId]       = useState(null);   // for hover effects
   const [pressedId, setPressedId]       = useState(null);   // for click press
+
+  const { isDark } = useTheme();
+  const alpha = (opacity) => isDark ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`;
+  const theme = {
+    bg: "var(--bg)",
+    surface: "var(--surface)",
+    border: "var(--border)",
+    borderLight: "var(--border-light)",
+    text: "var(--text)",
+    textMuted: "var(--text-muted)",
+    textDim: "var(--text-dim)",
+    accent: "var(--accent)",
+    accentBright: "var(--accent-bright)",
+    accentMuted: "var(--accent-muted)",
+    accentGradientEnd: "var(--accent-gradient-end)",
+    accentOnAccent: "var(--accent-on-accent)",
+    accentDim: "var(--accent-dim)",
+    accentHoverBg: "var(--accent-hover-bg)",
+    accentSelectedBg: "var(--accent-selected-bg)",
+    danger: "var(--danger)",
+    dangerDim: "var(--danger-dim)",
+    success: "var(--success)",
+    successDim: "var(--success-dim)",
+  };
 
   const emailRef = useRef(null);
 
@@ -139,7 +163,7 @@ export default function Login() {
         }
         .login-input:focus {
           border-color: ${theme.accent};
-          box-shadow: 0 0 0 3px ${accentAlpha(0.2)};
+          box-shadow: 0 0 0 3px ${alpha(0.2)};
         }
         .login-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -155,7 +179,7 @@ export default function Login() {
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner {
           width: 14px; height: 14px; border-radius: 50%;
-          border: 2px solid ${accentAlpha(0.35)};
+          border: 2px solid ${alpha(0.35)};
           border-top-color: ${theme.accentBright};
           animation: spin 0.7s linear infinite;
           flex-shrink: 0;
@@ -174,8 +198,8 @@ export default function Login() {
           flex-shrink: 0;
           padding: 5px 12px;
           border-radius: 6px;
-          border: 1px solid ${accentAlpha(0.35)};
-          background: ${accentAlpha(0.08)};
+          border: 1px solid ${alpha(0.35)};
+          background: ${alpha(0.08)};
           color: ${theme.accentBright};
           font-size: 11px;
           font-weight: 600;
@@ -184,8 +208,8 @@ export default function Login() {
           transition: background 0.15s, border-color 0.15s;
         }
         .login-btn-voltar:hover:not(:disabled) {
-          background: ${accentAlpha(0.14)};
-          border-color: ${accentAlpha(0.5)};
+          background: ${alpha(0.14)};
+          border-color: ${alpha(0.5)};
         }
         .login-btn-voltar:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -203,7 +227,7 @@ export default function Login() {
 
       <div style={{
         position: "absolute", inset: 0,
-        background: `radial-gradient(ellipse 80% 50% at 50% -20%, ${accentAlpha(0.12)}, transparent 55%)`,
+        background: `radial-gradient(ellipse 80% 50% at 50% -20%, ${alpha(0.12)}, transparent 55%)`,
         pointerEvents: "none",
       }} />
 
@@ -216,15 +240,15 @@ export default function Login() {
           style={{
             height: "auto", maxHeight: "88px", width: "auto", maxWidth: "min(280px, 86vw)",
             minHeight: "48px", objectFit: "contain", display: "block", margin: "0 auto 20px",
-            filter: `drop-shadow(0 6px 28px ${accentAlpha(0.35)})`,
+            filter: `drop-shadow(0 6px 28px ${alpha(0.35)})`,
           }}
         />
 
         {/* Badge de sistema */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "6px",
-          background: accentAlpha(0.1),
-          border: `1px solid ${accentAlpha(0.35)}`,
+          background: alpha(0.1),
+          border: `1px solid ${alpha(0.35)}`,
           borderRadius: "20px", padding: "3px 10px",
           marginBottom: "12px",
         }}>
@@ -285,9 +309,9 @@ export default function Login() {
             else if (hovered && !formAtiva)   scale = "scale(1.05)";
 
             const cardBackground = sel
-              ? `linear-gradient(160deg, ${accentAlpha(0.24)} 0%, ${accentAlpha(0.14)} 100%)`
+              ? `linear-gradient(160deg, ${alpha(0.24)} 0%, ${alpha(0.14)} 100%)`
               : hovered && !formAtiva
-                ? `linear-gradient(160deg, ${accentAlpha(0.1)} 0%, ${loginCardBg} 100%)`
+                ? `linear-gradient(160deg, ${alpha(0.1)} 0%, ${loginCardBg} 100%)`
                 : loginCardBg;
 
             const cardBorderColor = sel
@@ -297,9 +321,9 @@ export default function Login() {
                 : theme.border;
 
             const cardShadow = sel
-              ? `0 0 0 1px ${accentAlpha(0.35)} inset, 0 0 0 3px ${accentAlpha(0.26)}, 0 0 28px ${accentAlpha(0.4)}, 0 10px 30px rgba(0,0,0,0.38)`
+              ? `0 0 0 1px ${alpha(0.35)} inset, 0 0 0 3px ${alpha(0.26)}, 0 0 28px ${alpha(0.4)}, 0 10px 30px rgba(0,0,0,0.38)`
               : hovered && !formAtiva
-                ? `0 0 0 1px ${accentAlpha(0.22)} inset, 0 0 18px ${accentAlpha(0.25)}, 0 8px 24px rgba(0,0,0,0.34)`
+                ? `0 0 0 1px ${alpha(0.22)} inset, 0 0 18px ${alpha(0.25)}, 0 8px 24px rgba(0,0,0,0.34)`
                 : "none";
 
             return (
@@ -399,11 +423,11 @@ export default function Login() {
 
             <div style={{
               background: loginCardBg,
-              border: `1px solid ${formAtiva ? accentAlpha(0.38) : theme.border}`,
+              border: `1px solid ${formAtiva ? alpha(0.38) : theme.border}`,
               borderRadius: "10px",
               padding: "18px",
               boxShadow: formAtiva
-                ? `0 0 0 1px ${accentAlpha(0.12)} inset, 0 20px 56px rgba(0,0,0,0.55)`
+                ? `0 0 0 1px ${alpha(0.12)} inset, 0 20px 56px rgba(0,0,0,0.55)`
                 : undefined,
             }}>
               <div style={{

@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { theme } from "../constants/theme";
 
 export default function DownloadButton({ baixando, podeEditar, onDownload }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -26,9 +25,9 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
         style={{
           padding: "5px 10px",
           background: "transparent",
-          border: `1px solid ${theme.border}`,
+          border: "1px solid var(--border)",
           borderRadius: "5px",
-          color: !podeEditar ? theme.textDim : theme.textMuted,
+          color: "var(--text)",
           fontSize: "12px",
           cursor: (baixando || !podeEditar) ? "not-allowed" : "pointer",
           fontFamily: "inherit",
@@ -56,15 +55,15 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
           position: "absolute",
           top: "calc(100% + 4px)",
           right: 0,
-          background: theme.surface,
-          border: `1px solid ${theme.border}`,
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
           borderRadius: "7px",
           boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
           zIndex: 200,
           minWidth: "170px",
           overflow: "hidden",
         }}>
-          <div style={{ padding: "6px 10px 4px", fontSize: "9px", fontWeight: 600, color: theme.textDim, textTransform: "uppercase", letterSpacing: "0.6px" }}>
+          <div style={{ padding: "6px 10px 4px", fontSize: "9px", fontWeight: 600, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
             Formato de download
           </div>
           {[
@@ -78,13 +77,13 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
                 width: "100%", textAlign: "left", background: "none",
                 border: "none", padding: "8px 12px", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: "10px",
-                color: theme.text, fontFamily: "inherit",
+                color: "var(--text)", fontFamily: "inherit",
               }}
             >
-              <span style={{ fontSize: "15px", lineHeight: 1, color: theme.textMuted }}>{opt.icon}</span>
+              <span style={{ fontSize: "15px", lineHeight: 1, color: "var(--text)" }}>{opt.icon}</span>
               <div>
                 <div style={{ fontSize: "12px", fontWeight: 600 }}>{opt.label}</div>
-                <div style={{ fontSize: "10px", color: theme.textMuted }}>{opt.desc}</div>
+                <div style={{ fontSize: "10px", color: "var(--text)" }}>{opt.desc}</div>
               </div>
             </button>
           ))}
