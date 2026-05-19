@@ -40,6 +40,7 @@
   --row-zebra: rgba(255,255,255,0.03);
   --row-hover: rgba(255,255,255,0.05);
   --date-cell-bg: rgba(255,255,255,0.03);
+  --grid-cell-blocked: var(--surface);
 
   --code-bg: #1f1f1f;
   --accent-bg: rgba(212,175,55,0.12);
@@ -70,7 +71,7 @@
    TEMA LIGHT — ativo quando data-theme="light"
    ══════════════════════════════════════════════════════════ */
 [data-theme="light"] {
-  --bg: #ffffff;
+  --bg: #f4f4f5;
   --surface: #f9fafb;
   --surface-translucent: rgba(255,255,255,0.92);
   --surface-hover: #f3f4f6;
@@ -107,6 +108,7 @@
   --row-zebra: rgba(0,0,0,0.025);
   --row-hover: rgba(0,0,0,0.04);
   --date-cell-bg: rgba(0,0,0,0.03);
+  --grid-cell-blocked: #ffffff;
 
   --code-bg: #f3f4f6;
   --accent-bg: rgba(160,114,6,0.09);

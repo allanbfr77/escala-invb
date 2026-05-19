@@ -4,6 +4,10 @@ import { createPortal } from "react-dom";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
+import {
+  estaIndisponivelTodoMes,
+  filtrarPessoasDisponiveisMes,
+} from "../utils/indisponibilidadeHelpers";
 import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil, pessoasPorFuncaoRecepcao } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
@@ -280,13 +284,19 @@ export default function SidebarFiltros({
     return true;
   }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap]);
 
+  /** Oculta quem está indisponível em todas as datas/turnos do mês. */
+  const pessoasSemIndispMes = useMemo(
+    () => filtrarPessoasDisponiveisMes(pessoasFiltradas, datasDisponiveis, indisponiveisMap),
+    [pessoasFiltradas, datasDisponiveis, indisponiveisMap]
+  );
+
   /** Esconde da lista quem não tem nenhuma data livre para a função atual (indisp. + ocupação). */
   const pessoasComSlotNaSidebar = useMemo(() => {
-    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return pessoasFiltradas;
-    return pessoasFiltradas.filter(p =>
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return pessoasSemIndispMes;
+    return pessoasSemIndispMes.filter(p =>
       datasDisponiveis.some(d => dataEscalavelParaPessoa(d, p))
     );
-  }, [funcaoSelecionada, pessoasFiltradas, datasDisponiveis, dataEscalavelParaPessoa]);
+  }, [funcaoSelecionada, pessoasSemIndispMes, datasDisponiveis, dataEscalavelParaPessoa]);
 
   const disponivelTemDatas = useMemo(() => {
     if (ministerioSelecionado !== "louvor") return true;
@@ -335,6 +345,16 @@ export default function SidebarFiltros({
     pessoasComSlotNaSidebar,
     disponivelTemDatas,
   ]);
+
+  useEffect(() => {
+    if (
+      pessoaSelecionada &&
+      pessoaSelecionada !== "Disponível" &&
+      estaIndisponivelTodoMes(pessoaSelecionada, datasDisponiveis, indisponiveisMap)
+    ) {
+      setPessoa("");
+    }
+  }, [pessoaSelecionada, datasDisponiveis, indisponiveisMap]);
 
 
   const toggleData = (id) => {

@@ -17,9 +17,16 @@ import SkeletonGrid from "../components/SkeletonGrid";
 import ConfirmModal from "../components/ConfirmModal";
 import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
+import DashboardGrid from "./DashboardGrid";
 import { funcoesPorMinisterio } from "../data/funcoes";
+import { pessoasPorMinisterio } from "../data/pessoas";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
+import {
+  funcaoParaAbrev,
+  formatarCabecalhoColuna,
+  getCorAbrev,
+} from "../utils/gridAbreviacoes";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
@@ -110,6 +117,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [conflito, setConflito] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", confirmLabel: "Confirmar", perigoso: false, onConfirmar: null });
   const [filtroNome, setFiltroNome] = useState("");
+  const [viewMode, setViewMode] = useState("cards");
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const gridRef = useRef(null);
   const mainRef = useRef(null);
@@ -145,6 +153,21 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setMes(new Date(ano, m, 1).toISOString().slice(0, 7));
   };
 
+  const buildAbrevCellsExport = useCallback((ministerioId) => {
+    const cells = {};
+    const funcoesExp = funcoesPorMinisterio[ministerioId] || [];
+    for (const dataObj of datas) {
+      const turnoKey = dataObj.turno || "único";
+      for (const funcao of funcoesExp) {
+        const pessoaNome = escalas[`${dataObj.data}-${turnoKey}-${funcao}`];
+        if (!pessoaNome || pessoaNome === "disponível") continue;
+        const abrev = funcaoParaAbrev(ministerioId, funcao);
+        if (abrev) cells[`${pessoaNome.toLowerCase()}|${dataObj.id}`] = abrev;
+      }
+    }
+    return cells;
+  }, [escalas, datas]);
+
   const handleDownload = async (layout) => {
     setBaixando(true);
     try {
@@ -154,7 +177,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .toUpperCase();
 
       const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
-      const isMobile = layout ? layout === "mobile" : window.innerWidth <= 768;
+      const isPlanilha = layout === "planilha";
+      const isMobile = layout === "mobile";
 
       // ── Paleta light ──────────────────────────────────────────────────────
       const LT = {
@@ -168,6 +192,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         accentBg:  "rgba(184,148,46,0.08)",
         zebra:     "rgba(184,148,46,0.04)",
         slotDisponivel: "#9d8fc9",
+        cellEmpty: "#F1F5F9",
       };
 
       // ── Header HTML (igual nos dois layouts) ─────────────────────────────
@@ -193,7 +218,50 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       wrapper.style.background = LT.bg;
       wrapper.style.display    = "inline-block";
 
-      if (isMobile) {
+      let downloadSuffix = "";
+
+      if (isPlanilha) {
+        downloadSuffix = "-planilha";
+        const pessoas = pessoasPorMinisterio[ministerioSelecionado] || [];
+        const abrevCells = buildAbrevCellsExport(ministerioSelecionado);
+
+        const thBase = `font-weight:600;color:${LT.textMuted};font-size:9px;text-transform:uppercase;letter-spacing:0.35px;font-family:'Outfit',sans-serif;border-bottom:1px solid ${LT.border};`;
+        let theadHTML = `<tr><th style="${thBase}padding:8px 10px;text-align:left;min-width:120px;border-right:1px solid ${LT.border};">Integrante</th>`;
+        datas.forEach((dataObj) => {
+          theadHTML += `<th style="${thBase}padding:6px 4px;text-align:center;min-width:64px;line-height:1.25;white-space:normal;border-right:1px solid ${LT.border};">${formatarCabecalhoColuna(dataObj)}</th>`;
+        });
+        theadHTML += "</tr>";
+
+        let tbodyHTML = "";
+        pessoas.forEach((pessoa, idx) => {
+          const rowBg = idx % 2 === 0 ? LT.surface : LT.zebra;
+          tbodyHTML += `<tr style="background:${rowBg};">`;
+          tbodyHTML += `<td style="padding:6px 10px;font-size:11px;font-weight:500;color:${LT.text};font-family:'Outfit',sans-serif;text-align:left;white-space:nowrap;border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};">${pessoa}</td>`;
+
+          datas.forEach((dataObj) => {
+            const abrev = abrevCells[`${pessoa.toLowerCase()}|${dataObj.id}`] || "";
+            const cor = abrev ? getCorAbrev(ministerioSelecionado, abrev) : LT.textDim;
+            const bg = abrev ? LT.surface : LT.cellEmpty;
+            tbodyHTML += `<td style="padding:6px 4px;text-align:center;background:${bg};border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};vertical-align:middle;">
+              <span style="font-size:11px;font-weight:${abrev ? 700 : 400};color:${cor};font-family:'JetBrains Mono',monospace;line-height:1;">${abrev}</span>
+            </td>`;
+          });
+          tbodyHTML += "</tr>";
+        });
+
+        const tableHTML = `
+          <div style="border-radius:10px;border:1px solid ${LT.border};background:${LT.surface};overflow:hidden;">
+            <table style="border-collapse:collapse;font-size:13px;">
+              <thead>${theadHTML}</thead>
+              <tbody>${tbodyHTML}</tbody>
+            </table>
+          </div>
+        `;
+
+        wrapper.style.padding = "20px 24px 24px";
+        wrapper.innerHTML = headerHTML + tableHTML;
+
+      } else if (isMobile) {
         // ── MOBILE: cards lado a lado (3 colunas) ─────────────────────────
         const cols = 3;
         wrapper.style.padding = "16px";
@@ -316,7 +384,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       document.body.removeChild(wrapper);
 
       const link = document.createElement("a");
-      link.download = `escala-${ministerioSelecionado}-${mes}.png`;
+      link.download = `escala${downloadSuffix}-${ministerioSelecionado}-${mes}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -1284,8 +1352,45 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
 
+              {!verRelatorio && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: "5px",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                  }}
+                >
+                  {[
+                    { id: "cards", label: "TABELA" },
+                    { id: "grid", label: "PLANILHA" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setViewMode(opt.id)}
+                      style={{
+                        padding: "5px 10px",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        fontFamily: "inherit",
+                        background: viewMode === opt.id ? theme.accentDim : "transparent",
+                        color: viewMode === opt.id ? theme.accent : theme.textMuted,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Filtro por nome — apenas no modo edição e fora do relatório */}
-              {podeEditar && !verRelatorio && <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              {podeEditar && !verRelatorio && viewMode === "cards" && <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                   style={{ position: "absolute", left: "8px", pointerEvents: "none", zIndex: 1 }}>
                   <circle cx="11" cy="11" r="8" stroke={theme.textMuted} strokeWidth="2"/>
@@ -1365,8 +1470,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                       Formato de download
                     </div>
                     {[
-                      { label:"Tabela (Web)",   icon:"▤", layout:"web",    desc:"linhas e colunas" },
-                      { label:"Cards (Mobile)", icon:"⊞", layout:"mobile", desc:"cards por culto"  },
+                      { label:"Tabela (Web)",    icon:"▤", layout:"web",      desc:"linhas e colunas" },
+                      { label:"Planilha (Web)", icon:"▦", layout:"planilha", desc:"integrantes × datas" },
+                      { label:"Cards (Mobile)", icon:"⊞", layout:"mobile",   desc:"cards por culto"  },
                     ].map(opt => (
                       <button
                         key={opt.layout}
@@ -1585,6 +1691,19 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 Nenhuma data disponível para este mês
               </p>
             </div>
+          ) : viewMode === "grid" ? (
+            <DashboardGrid
+              ministerioId={ministerioSelecionado}
+              mes={mes}
+              datas={datas}
+              escalas={escalas}
+              loading={loading}
+              usuario={user}
+              podeEditar={podeEditar}
+              onMensagem={mostrarMensagem}
+              onConflito={setConflito}
+              indispRefreshKey={indispRefreshKey}
+            />
           ) : (
             <>
               <div ref={gridRef} style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
