@@ -22,6 +22,7 @@ import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 // ─── Helpers de controle de mês ──────────────────────────────────────────────
 
@@ -1674,8 +1675,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 overflowWrap: "anywhere",
               }}
             >
-              ⚠ <strong>{conflito.pessoa.toUpperCase()}</strong> já está em{" "}
-              <strong>{conflito.ministerio}</strong> como <strong>{conflito.funcao}</strong> em {conflito.data}
+              <AlertTriangle size={16} color={theme.danger} style={{ display: "inline", marginRight: "6px", verticalAlign: "middle" }} /> <strong>{conflito.pessoa.toUpperCase()}</strong> já está escalado(a) no MINISTÉRIO{" "}
+<strong>{conflito.ministerio}</strong> na função <strong>{conflito.funcao}</strong> no{" "}
+<strong>{conflito.data}</strong>
             </p>
             <button
               type="button"
