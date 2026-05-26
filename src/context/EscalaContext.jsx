@@ -42,29 +42,33 @@ export function EscalaProvider({ children, ministerioId, mes }) {
 
     const q = query(
       collection(db, "cultos_extras"),
-      where("ministerioId", "==", ministerioId),
-      where("mes", "==", mesAlvo)
+      where("ministerioId", "==", ministerioId)
     );
 
     const unsub = onSnapshot(q, (snap) => {
       const turnoOrder = { "manhã": 0, "único": 1, "noite": 2 };
-      const extrasFormatted = snap.docs.map(docSnap => {
-        const e = docSnap.data();
-        return {
+      const extrasFormatted = snap.docs
+        .map((docSnap) => ({ firestoreId: docSnap.id, ...docSnap.data() }))
+        .filter((e) => {
+          if (!e?.data) return false;
+          const mesDoDocumento = e.mes || String(e.data).slice(0, 7);
+          return mesDoDocumento === mesAlvo;
+        })
+        .map((e) => ({
           id: `${e.data}-extra-${e.turno ?? "único"}`,
           data: e.data,
           tipo: "extra",
           turno: e.turno ?? "único",
-          firestoreId: docSnap.id,
+          firestoreId: e.firestoreId,
           descricao: e.nome || e.descricao || "",
-        };
-      });
+        }));
       const todas = [...geradas, ...extrasFormatted].sort((a, b) => {
         if (a.data !== b.data) return a.data.localeCompare(b.data);
         return (turnoOrder[a.turno] ?? 1) - (turnoOrder[b.turno] ?? 1);
       });
       setDatas(todas);
-    }, () => {
+    }, (err) => {
+      console.error("Erro ao carregar cultos extras:", err);
       setDatas(geradas);
     });
 

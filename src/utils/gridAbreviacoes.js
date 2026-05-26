@@ -110,12 +110,10 @@ export function formatarCabecalhoColuna(dataObj) {
   const data = new Date(Number(ano), Number(mes) - 1, Number(dia));
   const diaSem = DIAS_ABREV[data.getDay()];
   const ddmm = `${dia}/${mes}`;
+  const descricao = dataObj.descricao ? ` (${dataObj.descricao.toUpperCase()})` : "";
+  const base = `${diaSem}, ${ddmm}${descricao}`;
 
-  if (dataObj.turno === "manhã") return `${diaSem}, ${ddmm} (M)`;
-  if (dataObj.turno === "noite") return `${diaSem}, ${ddmm} (N)`;
-  if (dataObj.descricao) {
-    const sigla = dataObj.descricao.slice(0, 1).toUpperCase();
-    return `${diaSem}, ${ddmm} (${sigla})`;
-  }
-  return `${diaSem}, ${ddmm}`;
+  if (dataObj.turno === "manhã") return `${base} (M)`;
+  if (dataObj.turno === "noite") return `${base} (N)`;
+  return base;
 }

@@ -40,7 +40,7 @@ export const pessoasPorMinisterio = {
     "ANNA BEATRIZ",
     "BIANCA",
     "CELIANA",
-    "CRIS MEDEIROS",
+    "CRIS",
     "ELIZANGELA",
     "FRANCISCA",
     "LUCIANE MARTINS",
@@ -53,7 +53,7 @@ export const pessoasPorMinisterio = {
     "SEBASTIANA",
     "SUELLEN",
     "VANESSA HONORATO",
-    "VANESSA ROCHA"
+    "VANESSA R."
   ],
 
   louvor: [
