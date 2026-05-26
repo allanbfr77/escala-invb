@@ -1,6 +1,7 @@
 // ===== src/components/GridRecepcao.jsx =====
 import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
+import TurnoLabelInline from "./TurnoLabelInline";
 
 const FUNCAO_CORES = {
   "INTRODUTOR(A) 1": "#60a5fa",
@@ -57,10 +58,12 @@ export default function GridRecepcao({ escalas, datas, loading, onRemover, podeE
             const expandido = expandidos.has(rowKey);
             const temVazio = funcoes.some(f => !escalas[`${dataObj.data}-${turnoKey}-${f}`]);
             const temPreenchido = funcoes.some(f => !!escalas[`${dataObj.data}-${turnoKey}-${f}`]);
+            const dataLabel = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
+            const dataBase = dataLabel.replace(/\s+\((MANHÃ|NOITE)\)$/, "");
             return (
               <tr key={idx} className={`grid-row${expandido ? " expandido" : ""}`} style={{ background: idx % 2 === 0 ? "transparent" : "var(--row-zebra)", transition: "background 0.15s", height: "38px" }}>
                 <td className="grid-date-cell" data-label="Data" style={{ padding: "0 14px", fontWeight: 500, color: "var(--text)", fontSize: "11px", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", borderRight: "1px solid var(--border)", verticalAlign: "middle" }}>
-                  {formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+                  <TurnoLabelInline label={dataBase} turno={dataObj.turno} title={dataLabel} />
                 </td>
                 {funcoes.map(f => {
                   const chipKey = `${dataObj.data}-${turnoKey}-${f}`;

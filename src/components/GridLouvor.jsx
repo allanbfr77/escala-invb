@@ -1,6 +1,7 @@
 // ===== src/components/GridLouvor.jsx =====
 import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
+import TurnoLabelInline from "./TurnoLabelInline";
 
 const FUNCAO_CORES = {
   "MINISTRANTE": "#60a5fa",  // azul
@@ -108,6 +109,7 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
             const temVazio = funcoes.some(f => !escalas[`${dataObj.data}-${turnoKey}-${f}`]);
             const temPreenchido = funcoes.some(f => !!escalas[`${dataObj.data}-${turnoKey}-${f}`]);
             const dataStr = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
+            const dataBase = dataStr.replace(/\s+\((MANHÃ|NOITE)\)$/, "");
             return (
               <tr key={idx} className={`grid-row${expandido ? " expandido" : ""}`} style={{ background: idx % 2 === 0 ? "transparent" : "var(--row-zebra)", transition: "background 0.15s" }}>
                 <td
@@ -127,7 +129,9 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                     verticalAlign: "middle",
                   }}
                 >
-                  <span className="grid-louvor-date-text">{dataStr}</span>
+                  <span className="grid-louvor-date-text">
+                    <TurnoLabelInline label={dataBase} turno={dataObj.turno} title={dataStr} />
+                  </span>
                 </td>
                 {funcoes.map(f => {
                   const chipKey = `${dataObj.data}-${turnoKey}-${f}`;

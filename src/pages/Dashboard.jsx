@@ -27,6 +27,7 @@ import {
   formatarCabecalhoColuna,
   getCorAbrev,
 } from "../utils/gridAbreviacoes";
+import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
@@ -66,6 +67,65 @@ function getMesInicial() {
   if (candidato < min) return min;
   if (candidato > max) return max;
   return candidato;
+}
+
+function getExportTurnoVisual(turno, accentColor) {
+  if (turno === "manhã") {
+    return {
+      label: "M",
+      color: accentColor,
+      dot: accentColor,
+    };
+  }
+
+  if (turno === "noite") {
+    return {
+      label: "N",
+      color: "#3b82f6",
+      dot: "#3b82f6",
+    };
+  }
+
+  return null;
+}
+
+function renderTurnoInlineExportHTML(label, turno, accentColor, options = {}) {
+  const visual = getExportTurnoVisual(turno, accentColor);
+  if (!visual) return label;
+
+  const gap = options.gap ?? "4px";
+  const dotSize = options.dotSize ?? 7;
+  const fontSize = options.fontSize ?? "10px";
+
+  return `
+    <span style="display:inline-flex;align-items:center;gap:${gap};white-space:nowrap;max-width:100%;">
+      <span>${label}</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;color:${visual.color};font-family:'JetBrains Mono',monospace;font-size:${fontSize};font-weight:700;line-height:1;flex-shrink:0;">
+        <span style="width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:${visual.dot};display:inline-block;flex-shrink:0;"></span>
+        ${visual.label}
+      </span>
+    </span>
+  `;
+}
+
+function formatarCabecalhoColunaExport(dataObj, accentColor) {
+  const cabecalho = formatarCabecalhoColuna(dataObj);
+  const cabecalhoBase = cabecalho.replace(/\s+\(([MN])\)$/, "");
+  return renderTurnoInlineExportHTML(cabecalhoBase, dataObj.turno, accentColor, {
+    gap: "4px",
+    dotSize: 7,
+    fontSize: "10px",
+  });
+}
+
+function formatarDataExport(dataObj, accentColor) {
+  const dataLabel = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
+  const dataBase = dataLabel.replace(/\s+\((MANHÃ|NOITE)\)$/, "");
+  return renderTurnoInlineExportHTML(dataBase, dataObj.turno, accentColor, {
+    gap: "4px",
+    dotSize: 7,
+    fontSize: "10px",
+  });
 }
 
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo }) {
@@ -168,7 +228,35 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     return cells;
   }, [escalas, datas]);
 
-  const handleDownload = async (layout) => {
+  const getPessoasVisiveisPlanilhaExport = useCallback(async (ministerioId) => {
+    const pessoas = pessoasPorMinisterio[ministerioId] || [];
+    if (!datas.length) return pessoas;
+
+    try {
+      const snap = await getDocs(query(
+        collection(db, "indisponibilidades"),
+        where("ministerioId", "==", ministerioId)
+      ));
+
+      const indisp = new Set();
+      snap.docs.forEach((docSnap) => {
+        const { pessoaNome, datas: datasIndisp = [] } = docSnap.data();
+        if (!pessoaNome) return;
+        const pessoaLower = pessoaNome.toLowerCase();
+        datasIndisp.forEach((chave) => {
+          const [data, turno = "único"] = chave.split("|");
+          if (data) indisp.add(`${pessoaLower}|${data}|${turno}`);
+        });
+      });
+
+      return pessoas.filter((pessoa) => !estaIndisponivelTodoMesFromSet(pessoa, datas, indisp));
+    } catch (err) {
+      console.error("Erro ao carregar indisponibilidades para exportação:", err);
+      return pessoas;
+    }
+  }, [datas]);
+
+  const handleDownload = useCallback(async (layout) => {
     setBaixando(true);
     try {
       const mesFormatado = new Date(mes + "-15")
@@ -222,13 +310,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
       if (isPlanilha) {
         downloadSuffix = "-planilha";
-        const pessoas = pessoasPorMinisterio[ministerioSelecionado] || [];
+        const pessoas = await getPessoasVisiveisPlanilhaExport(ministerioSelecionado);
         const abrevCells = buildAbrevCellsExport(ministerioSelecionado);
 
         const thBase = `font-weight:600;color:${LT.textMuted};font-size:9px;text-transform:uppercase;letter-spacing:0.35px;font-family:'Outfit',sans-serif;border-bottom:1px solid ${LT.border};`;
         let theadHTML = `<tr><th style="${thBase}padding:8px 10px;text-align:left;min-width:120px;border-right:1px solid ${LT.border};">Integrante</th>`;
         datas.forEach((dataObj) => {
-          theadHTML += `<th style="${thBase}padding:6px 4px;text-align:center;min-width:64px;line-height:1.25;white-space:normal;border-right:1px solid ${LT.border};">${formatarCabecalhoColuna(dataObj)}</th>`;
+          theadHTML += `<th style="${thBase}padding:6px 4px;text-align:center;min-width:64px;line-height:1.25;white-space:normal;border-right:1px solid ${LT.border};">${formatarCabecalhoColunaExport(dataObj, LT.accent)}</th>`;
         });
         theadHTML += "</tr>";
 
@@ -271,7 +359,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
         datas.forEach(dataObj => {
           const turnoKey = dataObj.turno ?? "único";
-          const dataLabel = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
+          const dataLabel = formatarDataExport(dataObj, LT.accent);
 
           let rowsHTML = "";
           funcoes.forEach(f => {
@@ -332,7 +420,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             <td style="padding:9px 14px;font-weight:500;color:${LT.textMuted};
               font-size:11px;font-family:'Outfit',sans-serif;white-space:nowrap;
               border-right:1px solid ${LT.border};">
-              ${formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+              ${formatarDataExport(dataObj, LT.accent)}
             </td>`;
           funcoes.forEach(f => {
             const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
@@ -394,7 +482,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     } finally {
       setBaixando(false);
     }
-  };
+  }, [buildAbrevCellsExport, datas, escalas, getPessoasVisiveisPlanilhaExport, mes, ministerioSelecionado]);
 
   const ministerioConfig = {
     comunicacao: {

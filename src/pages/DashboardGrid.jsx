@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { AlertCircle } from "lucide-react";
 import { IconeMinisterio } from "../utils/ministerioIcons";
+import TurnoLabelInline from "../components/TurnoLabelInline";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
@@ -69,6 +70,18 @@ function getHorarios(dataObj) {
           : "19:00",
     horaFim: dataObj.tipo === "domingo" && dataObj.turno === "manhã" ? "12:00" : "22:00",
   };
+}
+
+function renderCabecalhoColunaColorido(dataObj) {
+  const cabecalho = formatarCabecalhoColuna(dataObj);
+
+  if (dataObj.turno !== "manhã" && dataObj.turno !== "noite") {
+    return cabecalho;
+  }
+
+  const cabecalhoBase = cabecalho.replace(/\s+\(([MN])\)$/, "");
+
+  return <TurnoLabelInline label={cabecalhoBase} turno={dataObj.turno} title={cabecalho} />;
 }
 
 function buildCellsFromEscalas(escalas, datas, ministerioId) {
@@ -419,7 +432,7 @@ export default function DashboardGrid({
                     whiteSpace: "normal",
                   }}
                 >
-                  {formatarCabecalhoColuna(dataObj)}
+                  {renderCabecalhoColunaColorido(dataObj)}
                 </th>
               ))}
             </tr>
