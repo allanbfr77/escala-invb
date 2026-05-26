@@ -16,6 +16,7 @@ import {
   getTooltipAbrev,
 } from "../utils/gridAbreviacoes";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
+import { getAbreviacoesPermitidasPessoa } from "../utils/permissoesMinisterio";
 
 const NOMES_MINISTERIOS = {
   comunicacao: "Comunicações",
@@ -117,6 +118,10 @@ export default function DashboardGrid({
     [pessoas]
   );
   const validas = useMemo(() => abreviacoesValidas(ministerioId), [ministerioId]);
+  const getValidasPessoa = useCallback(
+    (pessoa) => getAbreviacoesPermitidasPessoa(ministerioId, pessoa),
+    [ministerioId]
+  );
 
   const [cells, setCells] = useState({});
   const [indispMap, setIndispMap] = useState(() => new Set());
@@ -219,6 +224,7 @@ export default function DashboardGrid({
       setSalvando(true);
       const turno = turnoSalvo(dataObj);
       const pessoaLower = pessoa.toLowerCase();
+      const validasPessoa = getValidasPessoa(pessoa);
 
       try {
         if (!valor) {
@@ -241,9 +247,12 @@ export default function DashboardGrid({
         }
 
         const funcao = abrevParaFuncao(ministerioId, valor);
-        if (!funcao) {
+        if (!funcao || !validasPessoa.includes(valor)) {
+          const sugestao = validasPessoa.length
+            ? `Use: ${validasPessoa.join(", ")}`
+            : `${pessoa} não possui funções permitidas nesta planilha`;
           onMensagem?.(
-            `Abreviação inválida. Use: ${validas.join(", ")}`,
+            `Abreviação inválida para ${pessoa}. ${sugestao}`,
             "erro"
           );
           return false;
@@ -314,15 +323,17 @@ export default function DashboardGrid({
         setSalvando(false);
       }
     },
-    [cells, ministerioId, podeEditar, usuario, validas, onMensagem, onConflito]
+    [cells, getValidasPessoa, ministerioId, podeEditar, usuario, onMensagem, onConflito]
   );
 
   const iniciarEdicao = (pessoa, dataObj) => {
     if (!podeEditar || salvando) return;
     const key = cellKey(pessoa, dataObj.id);
+    const validasPessoa = getValidasPessoa(pessoa);
     if (!cells[key] && (isIndisponivel(pessoa, dataObj) || getOutroMinisterio(pessoa, dataObj))) {
       return;
     }
+    if (!cells[key] && validasPessoa.length === 0) return;
     setCelulaAtiva({ pessoa, colId: dataObj.id });
     setEditingKey(key);
     setDraft(cells[key] || "");
@@ -469,6 +480,8 @@ export default function DashboardGrid({
                   const isEditing = editingKey === key;
                   const isAtiva = celulaAtiva?.pessoa === pessoa && celulaAtiva?.colId === dataObj.id;
                   const valor = cells[key] || "";
+                  const validasPessoa = getValidasPessoa(pessoa);
+                  const semFuncaoPermitida = validasPessoa.length === 0;
                   const vazio = !valor && !isEditing;
                   const indisponivel = vazio && isIndisponivel(pessoa, dataObj);
                   const outroMinisterioId = vazio ? getOutroMinisterio(pessoa, dataObj) : null;
@@ -480,6 +493,10 @@ export default function DashboardGrid({
                       ? "Indisponível nesta data"
                       : outroMinisterioId
                         ? `Escalado(a) em ${NOMES_MINISTERIOS[outroMinisterioId] || outroMinisterioId}`
+                        : semFuncaoPermitida
+                          ? `${pessoa} não pode ser escalado(a) nas funções deste ministério`
+                          : validasPessoa.length
+                            ? `Abreviações permitidas: ${validasPessoa.join(", ")}`
                         : "";
 
                   const bgCelula = isAtiva
@@ -571,10 +588,14 @@ export default function DashboardGrid({
                         <button
                           type="button"
                           onClick={() => iniciarEdicao(pessoa, dataObj)}
-                          disabled={!podeEditar || salvando}
+                          disabled={!podeEditar || salvando || (!valor && semFuncaoPermitida)}
                           title={
                             tooltip ||
-                            (podeEditar ? `Abreviações: ${validas.join(", ")}` : "Somente leitura")
+                            (podeEditar
+                              ? (validasPessoa.length
+                                ? `Abreviações: ${validasPessoa.join(", ")}`
+                                : `${pessoa} não pode ser escalado(a) nas funções deste ministério`)
+                              : "Somente leitura")
                           }
                           style={{
                             ...estiloConteudoCelula,
@@ -582,8 +603,8 @@ export default function DashboardGrid({
                             background: "transparent",
                             color: cor || "transparent",
                             fontWeight: valor ? 700 : 400,
-                            cursor: podeEditar && !salvando ? "text" : "default",
-                            opacity: !podeEditar ? 0.85 : 1,
+                            cursor: podeEditar && !salvando && !(!valor && semFuncaoPermitida) ? "text" : "default",
+                            opacity: !podeEditar || (!valor && semFuncaoPermitida) ? 0.85 : 1,
                           }}
                         >
                           {valor}
