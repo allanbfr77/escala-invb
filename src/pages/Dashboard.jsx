@@ -314,7 +314,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         const abrevCells = buildAbrevCellsExport(ministerioSelecionado);
 
         const thBase = `font-weight:600;color:${LT.textMuted};font-size:9px;text-transform:uppercase;letter-spacing:0.35px;font-family:'Outfit',sans-serif;border-bottom:1px solid ${LT.border};`;
-        let theadHTML = `<tr><th style="${thBase}padding:8px 10px;text-align:left;min-width:120px;border-right:1px solid ${LT.border};">Integrante</th>`;
+        let theadHTML = `<tr><th style="${thBase}padding:8px 10px;text-align:left;min-width:120px;border-right:1px solid ${LT.border};">OBREIRO(A)</th>`;
         datas.forEach((dataObj) => {
           theadHTML += `<th style="${thBase}padding:6px 4px;text-align:center;min-width:64px;line-height:1.25;white-space:normal;border-right:1px solid ${LT.border};">${formatarCabecalhoColunaExport(dataObj, LT.accent)}</th>`;
         });

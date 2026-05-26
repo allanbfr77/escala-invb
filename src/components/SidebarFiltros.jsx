@@ -729,7 +729,7 @@ export default function SidebarFiltros({
       {/* Pessoa (filtrada pela função se louvor/infantil) */}
       <div style={s.field}>
         <label style={s.label}>
-          Pessoa
+          OBREIRO(A)
           {funcaoSelecionada && funcaoSelecionada !== "TODOS" && (
             <span style={{
               marginLeft: "6px", fontSize: "9px", fontWeight: 600,

@@ -419,7 +419,7 @@ export default function DashboardGrid({
                   borderRight: "1px solid var(--border)",
                 }}
               >
-                OBREIROS
+                OBREIRO(A)
               </th>
               {datas.map((dataObj) => (
                 <th
