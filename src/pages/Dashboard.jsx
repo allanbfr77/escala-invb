@@ -272,7 +272,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       const LT = {
         bg:        "#F8FAFC",
         surface:   "#FFFFFF",
-        border:    "#E2E8F0",
+        border:    "#CBD5E1",
         text:      "#0F172A",
         textMuted: "#64748B",
         textDim:   "#CBD5E1",
@@ -401,14 +401,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
       } else {
         // ── DESKTOP: tabela light ──────────────────────────────────────────
-        const thStyle = `padding:9px 14px;text-align:left;font-weight:600;
+        const thStyle = `padding:10px 20px;text-align:left;font-weight:600;
           color:${LT.textMuted};font-size:10px;text-transform:uppercase;
           letter-spacing:0.8px;white-space:nowrap;font-family:'Outfit',sans-serif;`;
+        const cellDivider = `border-right:1px solid ${LT.border};`;
 
         let theadHTML = `<tr style="border-bottom:1px solid ${LT.border};">
-          <th style="${thStyle}border-right:1px solid ${LT.border};">Data</th>`;
+          <th style="${thStyle}min-width:184px;${cellDivider}">Data</th>`;
         funcoes.forEach(f => {
-          theadHTML += `<th style="${thStyle}">${f}</th>`;
+          theadHTML += `<th style="${thStyle}min-width:156px;${cellDivider}">${f}</th>`;
         });
         theadHTML += "</tr>";
 
@@ -417,15 +418,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           const turnoKey = dataObj.turno ?? "único";
           const rowBg = idx % 2 === 0 ? LT.surface : LT.zebra;
           tbodyHTML += `<tr style="background:${rowBg};">
-            <td style="padding:9px 14px;font-weight:500;color:${LT.textMuted};
+            <td style="padding:10px 20px;font-weight:500;color:${LT.textMuted};
               font-size:11px;font-family:'Outfit',sans-serif;white-space:nowrap;
-              border-right:1px solid ${LT.border};">
+              ${cellDivider}">
               ${formatarDataExport(dataObj, LT.accent)}
             </td>`;
           funcoes.forEach(f => {
             const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
             const isDisponivel = pessoa === "disponível";
-            tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
+            tbodyHTML += `<td style="padding:8px 20px;white-space:nowrap;${cellDivider}">
               <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
                 color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                 font-family:'Outfit',sans-serif;">
