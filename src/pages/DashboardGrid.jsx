@@ -574,7 +574,7 @@ export default function DashboardGrid({
                         >
                           {indisponivel ? (
                             <AlertCircle
-                              size={14}
+                              size={11}
                               color="var(--danger)"
                               strokeWidth={2}
                               style={{ opacity: 0.7, flexShrink: 0 }}

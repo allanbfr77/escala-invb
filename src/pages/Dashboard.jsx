@@ -272,32 +272,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   }, [escalas, datas]);
 
   const getPessoasVisiveisPlanilhaExport = useCallback(async (ministerioId) => {
-    const pessoas = pessoasPorMinisterio[ministerioId] || [];
-    if (!datas.length) return pessoas;
-
-    try {
-      const snap = await getDocs(query(
-        collection(db, "indisponibilidades"),
-        where("ministerioId", "==", ministerioId)
-      ));
-
-      const indisp = new Set();
-      snap.docs.forEach((docSnap) => {
-        const { pessoaNome, datas: datasIndisp = [] } = docSnap.data();
-        if (!pessoaNome) return;
-        const pessoaLower = pessoaNome.toLowerCase();
-        datasIndisp.forEach((chave) => {
-          const [data, turno = "único"] = chave.split("|");
-          if (data) indisp.add(`${pessoaLower}|${data}|${turno}`);
-        });
-      });
-
-      return pessoas.filter((pessoa) => !estaIndisponivelTodoMesFromSet(pessoa, datas, indisp));
-    } catch (err) {
-      console.error("Erro ao carregar indisponibilidades para exportação:", err);
-      return pessoas;
-    }
-  }, [datas]);
+    return pessoasPorMinisterio[ministerioId] || [];
+  }, []);
 
   const buildTextoExport = useCallback(() => {
     const nomeMes = new Date(`${mes}-15`)
@@ -418,7 +394,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         const abrevCells = buildAbrevCellsExport(ministerioSelecionado);
 
         const thBase = `font-weight:600;color:${LT.textMuted};font-size:9px;text-transform:uppercase;letter-spacing:0.35px;font-family:'Outfit',sans-serif;border-bottom:1px solid ${LT.border};`;
-        let theadHTML = `<tr><th style="${thBase}padding:8px 10px;text-align:left;min-width:120px;border-right:1px solid ${LT.border};">OBREIRO(A)</th>`;
+        let theadHTML = `<tr><th style="${thBase}padding:8px 12px;text-align:left;min-width:168px;border-right:1px solid ${LT.border};">OBREIRO(A)</th>`;
         datas.forEach((dataObj) => {
           theadHTML += `<th style="${thBase}padding:6px 4px;text-align:center;min-width:64px;line-height:1.25;white-space:normal;border-right:1px solid ${LT.border};">${formatarCabecalhoColunaExport(dataObj, LT.accent)}</th>`;
         });
@@ -428,14 +404,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         pessoas.forEach((pessoa, idx) => {
           const rowBg = idx % 2 === 0 ? LT.surface : LT.zebra;
           tbodyHTML += `<tr style="background:${rowBg};">`;
-          tbodyHTML += `<td style="padding:6px 10px;font-size:11px;font-weight:500;color:${LT.text};font-family:'Outfit',sans-serif;text-align:left;white-space:nowrap;border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};">${pessoa}</td>`;
+          tbodyHTML += `<td style="padding:6px 12px;font-size:11px;font-weight:500;color:${LT.text};font-family:'Outfit',sans-serif;text-align:left;white-space:nowrap;border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};">${pessoa}</td>`;
 
           datas.forEach((dataObj) => {
             const abrev = abrevCells[`${pessoa.toLowerCase()}|${dataObj.id}`] || "";
             const cor = abrev ? getCorAbrev(ministerioSelecionado, abrev) : LT.textDim;
             const bg = abrev ? LT.surface : LT.cellEmpty;
             tbodyHTML += `<td style="padding:6px 4px;text-align:center;background:${bg};border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};vertical-align:middle;">
-              <span style="font-size:11px;font-weight:${abrev ? 700 : 400};color:${cor};font-family:'JetBrains Mono',monospace;line-height:1;">${abrev}</span>
+              <span style="font-size:14px;font-weight:${abrev ? 700 : 400};color:${cor};font-family:'JetBrains Mono',monospace;line-height:1;">${abrev}</span>
             </td>`;
           });
           tbodyHTML += "</tr>";
