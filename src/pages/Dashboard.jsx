@@ -128,6 +128,39 @@ function formatarDataExport(dataObj, accentColor) {
   });
 }
 
+function formatarNomeTexto(nome) {
+  if (!nome) return "—";
+  if (nome.toLowerCase() === "disponível") return "Disponível";
+
+  return nome
+    .split(" ")
+    .filter(Boolean)
+    .map((parte) => (
+      parte.charAt(0).toLocaleUpperCase("pt-BR") +
+      parte.slice(1).toLocaleLowerCase("pt-BR")
+    ))
+    .join(" ");
+}
+
+function getTituloSecaoTexto(dataObj) {
+  if (dataObj.tipo === "quarta") {
+    return "📅 QUARTAS-FEIRAS";
+  }
+
+  if (dataObj.tipo === "domingo" && dataObj.turno === "manhã") {
+    return "🌞 DOMINGO – MANHÃ";
+  }
+
+  if (dataObj.tipo === "domingo" && dataObj.turno === "noite") {
+    return "🌙 DOMINGO – NOITE";
+  }
+
+  const descricao = (dataObj.descricao || "CULTO EXTRA").toUpperCase();
+  if (dataObj.turno === "manhã") return `🌞 ${descricao} – MANHÃ`;
+  if (dataObj.turno === "noite") return `🌙 ${descricao} – NOITE`;
+  return `📌 ${descricao}`;
+}
+
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -179,6 +212,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [filtroNome, setFiltroNome] = useState("");
   const [viewMode, setViewMode] = useState("cards");
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
+  const [textoExportacao, setTextoExportacao] = useState({ aberto: false, conteudo: "" });
   const gridRef = useRef(null);
   const mainRef = useRef(null);
 
@@ -195,6 +229,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       document.body.style.overflow = prev;
     };
   }, [conflito]);
+
+  useEffect(() => {
+    if (!textoExportacao.aberto) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [textoExportacao.aberto]);
 
   const podeEditar = podeEditarMinisterio(user, ministerioSelecionado);
 
@@ -256,7 +299,68 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     }
   }, [datas]);
 
+  const buildTextoExport = useCallback(() => {
+    const nomeMes = new Date(`${mes}-15`)
+      .toLocaleDateString("pt-BR", { month: "long" })
+      .toUpperCase();
+    const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
+    const nomesPorLower = new Map(
+      (pessoasPorMinisterio[ministerioSelecionado] || []).map((nome) => [
+        nome.toLowerCase(),
+        formatarNomeTexto(nome),
+      ])
+    );
+    nomesPorLower.set("disponível", "Disponível");
+
+    const secoes = [];
+    const secoesMap = new Map();
+
+    datas.forEach((dataObj) => {
+      const titulo = getTituloSecaoTexto(dataObj);
+      if (!secoesMap.has(titulo)) {
+        const secao = { titulo, linhas: [] };
+        secoesMap.set(titulo, secao);
+        secoes.push(secao);
+      }
+
+      const turnoKey = dataObj.turno ?? "único";
+      const nomes = funcoes.map((funcao) => {
+        const pessoa = escalas[`${dataObj.data}-${turnoKey}-${funcao}`];
+        if (!pessoa) return "—";
+        return nomesPorLower.get(pessoa.toLowerCase()) || formatarNomeTexto(pessoa);
+      });
+
+      const ddmm = `${dataObj.data.slice(8, 10)}/${dataObj.data.slice(5, 7)}`;
+      secoesMap.get(titulo).linhas.push(`${ddmm}- ${nomes.join("/ ")}`);
+    });
+
+    return [
+      `ESCALA DE ${nomeMes}`,
+      "",
+      ...secoes.flatMap((secao, idx) => (
+        idx === secoes.length - 1
+          ? [secao.titulo, ...secao.linhas]
+          : [secao.titulo, ...secao.linhas, ""]
+      )),
+    ].join("\n");
+  }, [datas, escalas, mes, ministerioSelecionado]);
+
+  const copiarTextoExportacao = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(textoExportacao.conteudo);
+      mostrarMensagem("Texto copiado", "sucesso");
+    } catch (err) {
+      console.error(err);
+      mostrarMensagem("Não foi possível copiar o texto", "erro");
+    }
+  }, [textoExportacao.conteudo]);
+
   const handleDownload = useCallback(async (layout) => {
+    if (layout === "text") {
+      setTextoExportacao({ aberto: true, conteudo: buildTextoExport() });
+      return;
+    }
+
     setBaixando(true);
     try {
       const mesFormatado = new Date(mes + "-15")
@@ -483,7 +587,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     } finally {
       setBaixando(false);
     }
-  }, [buildAbrevCellsExport, datas, escalas, getPessoasVisiveisPlanilhaExport, mes, ministerioSelecionado]);
+  }, [buildAbrevCellsExport, buildTextoExport, datas, escalas, getPessoasVisiveisPlanilhaExport, mes, ministerioSelecionado]);
 
   const ministerioConfig = {
     comunicacao: {
@@ -1562,6 +1666,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                       { label:"Tabela (Web)",    icon:"▤", layout:"web",      desc:"linhas e colunas" },
                       { label:"Planilha (Web)", icon:"▦", layout:"planilha", desc:"integrantes × datas" },
                       { label:"Cards (Mobile)", icon:"⊞", layout:"mobile",   desc:"cards por culto"  },
+                      { label:"Texto",          icon:"✎", layout:"text",     desc:"modal para copiar" },
                     ].map(opt => (
                       <button
                         key={opt.layout}
@@ -1832,6 +1937,130 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         perigoso={confirmModal.perigoso}
         theme={theme}
       />
+
+      {textoExportacao.aberto && (
+        <div
+          role="presentation"
+          onClick={() => setTextoExportacao({ aberto: false, conteudo: "" })}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100000,
+            background: "rgba(0,0,0,0.68)",
+            backdropFilter: "blur(5px)",
+            WebkitBackdropFilter: "blur(5px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="texto-exportacao-titulo"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "720px",
+              background: theme.bg,
+              color: theme.text,
+              border: `1px solid ${theme.border}`,
+              borderRadius: "12px",
+              padding: "20px",
+              boxShadow: "0 20px 56px rgba(0,0,0,0.4)",
+              fontFamily: "'Outfit', sans-serif",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "14px" }}>
+              <div>
+                <div
+                  id="texto-exportacao-titulo"
+                  style={{ fontSize: "15px", fontWeight: 700, color: theme.text }}
+                >
+                  Exportação em texto
+                </div>
+                <div style={{ fontSize: "12px", color: theme.textMuted, marginTop: "3px" }}>
+                  Copie e compartilhe no formato de mensagem
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTextoExportacao({ aberto: false, conteudo: "" })}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: theme.textMuted,
+                  cursor: "pointer",
+                  fontSize: "20px",
+                  lineHeight: 1,
+                  padding: "0 2px",
+                }}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <textarea
+              readOnly
+              value={textoExportacao.conteudo}
+              style={{
+                width: "100%",
+                minHeight: "360px",
+                resize: "vertical",
+                borderRadius: "10px",
+                border: `1px solid ${theme.border}`,
+                background: theme.surface,
+                color: theme.text,
+                padding: "14px",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                fontFamily: "'JetBrains Mono', monospace",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "14px" }}>
+              <button
+                type="button"
+                onClick={() => setTextoExportacao({ aberto: false, conteudo: "" })}
+                style={{
+                  padding: "9px 16px",
+                  borderRadius: "8px",
+                  border: `1px solid ${theme.border}`,
+                  background: "transparent",
+                  color: theme.text,
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontFamily: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={copiarTextoExportacao}
+                style={{
+                  padding: "9px 16px",
+                  borderRadius: "8px",
+                  border: `1px solid ${theme.border}`,
+                  background: theme.text,
+                  color: theme.bg,
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontFamily: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                Copiar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {conflito && createPortal(
         <div
