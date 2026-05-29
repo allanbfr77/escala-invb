@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { Sun, Moon, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle } from "lucide-react";
+import { Sun, Moon, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
 import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
 import { MINISTERIOS_IDS, MINISTERIOS_INFO } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
@@ -61,7 +61,7 @@ function TaxaBarra({ taxa, color, theme }) {
 function SecaoTitulo({ icon: Icon, titulo, badge, theme }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
-      <Icon size={16} color={theme.accent} />
+      <Icon size={16} color={theme.accent} style={{ flexShrink: 0 }} />
       <h3 style={{
         margin: 0, fontSize: "13px", fontWeight: 700,
         color: theme.text, letterSpacing: "0.2px",
@@ -78,6 +78,56 @@ function SecaoTitulo({ icon: Icon, titulo, badge, theme }) {
         </span>
       )}
     </div>
+  );
+}
+
+function SecaoColapsavel({ icon: Icon, titulo, badge, theme, children, defaultAberto = false }) {
+  const [aberto, setAberto] = useState(defaultAberto);
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        aria-expanded={aberto}
+        style={{
+          width: "100%", background: "transparent", border: "none",
+          padding: 0, marginBottom: aberto ? "14px" : 0,
+          cursor: "pointer", fontFamily: "inherit",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: "10px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+          <Icon size={16} color={theme.accent} style={{ flexShrink: 0 }} />
+          <h3 style={{
+            margin: 0, fontSize: "13px", fontWeight: 700,
+            color: theme.text, letterSpacing: "0.2px", textAlign: "left",
+          }}>
+            {titulo}
+          </h3>
+          {badge != null && (
+            <span style={{
+              fontSize: "10px", fontWeight: 700, color: theme.accent,
+              background: theme.accentDim, borderRadius: "10px",
+              padding: "1px 7px", flexShrink: 0,
+            }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          size={16}
+          color={theme.textMuted}
+          style={{
+            flexShrink: 0,
+            transition: "transform 0.2s",
+            transform: aberto ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+      {aberto && children}
+    </section>
   );
 }
 
@@ -408,6 +458,9 @@ export default function RelatorioUnificado({
           </h1>
           <p style={{ margin: 0, fontSize: "12px", color: theme.textMuted }}>
             Visão consolidada de todos os ministérios
+            {dados?.resumo?.totalCultosMes != null && (
+              <> · {dados.resumo.totalCultosMes} cultos no mês</>
+            )}
           </p>
         </div>
 
@@ -503,13 +556,12 @@ export default function RelatorioUnificado({
 
             {/* Alertas */}
             {totalAlertas > 0 && (
-              <section>
-                <SecaoTitulo icon={AlertTriangle} titulo="Alertas" badge={totalAlertas} theme={theme} />
+              <SecaoColapsavel icon={AlertTriangle} titulo="Alertas" badge={totalAlertas} theme={theme}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {dados.alertas.sobrecarga.map((c) => (
                     <AlertaItem key={c.pessoa} tipo="danger" theme={theme}>
-                      <strong>{c.pessoa.toUpperCase()}</strong> com {c.total} escalas no mês
-                      {c.qtdMinisterios >= 2 && ` em ${c.qtdMinisterios} ministérios`}
+                      <strong>{c.pessoa.toUpperCase()}</strong> em {c.qtdCultos} de {c.totalCultosMes} cultos ({c.percentualCultos}%)
+                      {c.qtdMinisterios >= 2 && ` · ${c.qtdMinisterios} ministérios`}
                     </AlertaItem>
                   ))}
                   {dados.alertas.indisponibilidadesMes.map(({ pessoa, ministerioId }) => (
@@ -526,17 +578,48 @@ export default function RelatorioUnificado({
                     </AlertaItem>
                   )}
                 </div>
-              </section>
+              </SecaoColapsavel>
+            )}
+
+            {/* Escalas por turno/dia */}
+            {dados.alertas.turnoDia.length > 0 && (
+              <SecaoColapsavel
+                icon={CalendarDays}
+                titulo="Escalas por turno/dia"
+                badge={dados.alertas.turnoDia.length}
+                theme={theme}
+              >
+                <p style={{ fontSize: "11px", color: theme.textMuted, margin: "0 0 10px" }}>
+                  Pessoas escaladas no mês, mas ausentes em algum tipo de culto (todos os ministérios)
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {dados.alertas.turnoDia.map(({ pessoa, categoria, label, qtdCultosCategoria }) => (
+                    <div
+                      key={`${pessoa}-${categoria}-detalhe`}
+                      style={{
+                        padding: "8px 12px", borderRadius: "6px",
+                        border: `1px solid ${theme.border}`, background: theme.surface,
+                        fontSize: "12px", color: theme.text,
+                      }}
+                    >
+                      <strong>{pessoa.toUpperCase()}</strong>
+                      <span style={{ color: theme.textMuted }}> — não escalado(a) em {label}</span>
+                      <span style={{ color: theme.textDim, fontSize: "11px" }}>
+                        {" "}({qtdCultosCategoria} culto{qtdCultosCategoria !== 1 ? "s" : ""} no mês)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </SecaoColapsavel>
             )}
 
             {/* Carga cruzada */}
-            <section>
-              <SecaoTitulo
-                icon={Users}
-                titulo="Carga cruzada"
-                badge={dados.cargaCruzada.length}
-                theme={theme}
-              />
+            <SecaoColapsavel
+              icon={Users}
+              titulo="Carga cruzada"
+              badge={dados.cargaCruzada.length}
+              theme={theme}
+            >
               {dados.alertas.multiministerio.length > 0 && (
                 <p style={{ fontSize: "11px", color: theme.textMuted, margin: "0 0 10px" }}>
                   {dados.alertas.multiministerio.length} pessoa{dados.alertas.multiministerio.length !== 1 ? "s" : ""} em múltiplos ministérios
@@ -580,7 +663,7 @@ export default function RelatorioUnificado({
                             fontSize: "12px", fontWeight: 700, color: theme.accent,
                             background: theme.accentDim, borderRadius: "10px", padding: "2px 10px",
                           }}>
-                            {c.total} escalas
+                            {c.qtdCultos}/{c.totalCultosMes} cultos
                           </span>
                           <ChevronDown
                             size={14}
@@ -641,17 +724,16 @@ export default function RelatorioUnificado({
                   );
                 })}
               </div>
-            </section>
+            </SecaoColapsavel>
 
             {/* Sem escala global */}
             {dados.semEscalaGlobal.length > 0 && (
-              <section>
-                <SecaoTitulo
-                  icon={AlertCircle}
-                  titulo="Sem escala em nenhum ministério"
-                  badge={dados.semEscalaGlobal.length}
-                  theme={theme}
-                />
+              <SecaoColapsavel
+                icon={AlertCircle}
+                titulo="Sem escala em nenhum ministério"
+                badge={dados.semEscalaGlobal.length}
+                theme={theme}
+              >
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                   {dados.semEscalaGlobal.map((p) => (
                     <span key={p} style={{
@@ -663,12 +745,11 @@ export default function RelatorioUnificado({
                     </span>
                   ))}
                 </div>
-              </section>
+              </SecaoColapsavel>
             )}
 
             {/* Detalhamento por ministério */}
-            <section>
-              <SecaoTitulo icon={BarChart3} titulo="Detalhamento por ministério" theme={theme} />
+            <SecaoColapsavel icon={BarChart3} titulo="Detalhamento por ministério" theme={theme}>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {MINISTERIOS_IDS.map((mid) => (
                   <MinisterioDetalhe
@@ -678,7 +759,7 @@ export default function RelatorioUnificado({
                   />
                 ))}
               </div>
-            </section>
+            </SecaoColapsavel>
           </div>
         )}
       </main>

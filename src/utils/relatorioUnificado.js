@@ -13,7 +13,44 @@ export const MINISTERIOS_INFO = {
 };
 
 const TURNO_ORDER = { manhã: 0, único: 1, noite: 2 };
-const SOBRECARGA_LIMITE = 6;
+/** Alerta de sobrecarga quando a pessoa está em mais de 50% dos cultos do mês */
+const SOBRECARGA_PERCENTUAL = 0.5;
+
+/** Pastores excluídos do relatório geral (não aparecem em nenhuma seção) */
+const PESSOAS_EXCLUIDAS_RELATORIO_GERAL = new Set([
+  "pr. marcio",
+  "pr. humberto",
+]);
+
+function isExcluidaRelatorioGeral(pessoaNome) {
+  if (!pessoaNome || pessoaNome === "disponível") return false;
+  return PESSOAS_EXCLUIDAS_RELATORIO_GERAL.has(String(pessoaNome).toLowerCase());
+}
+
+const CATEGORIAS_TURNO_DIA = [
+  {
+    id: "quarta",
+    label: "nenhuma quarta-feira",
+    test: (d) => d.tipo === "quarta" || getDiaSemana(d.data) === 3,
+  },
+  {
+    id: "domingo-manha",
+    label: "nenhum domingo (manhã)",
+    test: (d) =>
+      (d.tipo === "domingo" || getDiaSemana(d.data) === 0) && d.turno === "manhã",
+  },
+  {
+    id: "domingo-noite",
+    label: "nenhum domingo (noite)",
+    test: (d) =>
+      (d.tipo === "domingo" || getDiaSemana(d.data) === 0) && d.turno === "noite",
+  },
+];
+
+function getDiaSemana(dataStr) {
+  const [ano, mes, dia] = dataStr.split("-").map(Number);
+  return new Date(ano, mes - 1, dia).getDay();
+}
 
 export function getIntervaloMes(mes) {
   const [ano, mesNum] = mes.split("-");
@@ -88,7 +125,9 @@ function montarIndisponibilidadesMap(indispDocs, mes) {
 
 function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
   const funcoes = funcoesPorMinisterio[ministerioId] || [];
-  const todasPessoas = pessoasPorMinisterio[ministerioId] || [];
+  const todasPessoas = (pessoasPorMinisterio[ministerioId] || []).filter(
+    (p) => !isExcluidaRelatorioGeral(p)
+  );
   const porPessoa = {};
 
   todasPessoas.forEach((p) => {
@@ -111,6 +150,7 @@ function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
       const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
       if (pessoa && pessoa !== "disponível") {
         preenchidos++;
+        if (isExcluidaRelatorioGeral(pessoa)) return;
         const pl = pessoa.toLowerCase();
         if (!porPessoa[pl]) porPessoa[pl] = [];
         porPessoa[pl].push({ ...dataObj, funcao: f });
@@ -192,7 +232,7 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
       const turnoKey = dataObj.turno ?? "único";
       funcoes.forEach((f) => {
         const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
-        if (!pessoa || pessoa === "disponível") return;
+        if (!pessoa || pessoa === "disponível" || isExcluidaRelatorioGeral(pessoa)) return;
 
         const pl = pessoa.toLowerCase();
         if (!carga[pl]) {
@@ -212,6 +252,7 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
   }
 
   const timeline = buildTimelineGlobal(datasPorMinisterio);
+  const totalCultosMes = timeline.length;
   const posicaoGlobal = {};
   timeline.forEach((item, i) => {
     posicaoGlobal[item.key] = i;
@@ -222,6 +263,9 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
     const cultosKeys = new Set(
       item.slots.map((s) => `${s.data}|${s.turno}`)
     );
+    const qtdCultos = cultosKeys.size;
+    const percentualCultos =
+      totalCultosMes > 0 ? Math.round((qtdCultos / totalCultosMes) * 1000) / 10 : 0;
 
     const consecutivasGlobais = [];
     for (let i = 0; i < timeline.length - 1; i++) {
@@ -234,15 +278,18 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
 
     return {
       ...item,
+      qtdCultos,
+      totalCultosMes,
+      percentualCultos,
       ministeriosAtivos,
       qtdMinisterios: ministeriosAtivos.length,
       consecutivasGlobais,
-      sobrecarga: item.total >= SOBRECARGA_LIMITE,
+      sobrecarga: totalCultosMes > 0 && qtdCultos / totalCultosMes > SOBRECARGA_PERCENTUAL,
     };
   });
 
-  lista.sort((a, b) => b.total - a.total || a.pessoa.localeCompare(b.pessoa));
-  return lista;
+  lista.sort((a, b) => b.qtdCultos - a.qtdCultos || a.pessoa.localeCompare(b.pessoa));
+  return { lista, totalCultosMes, timeline };
 }
 
 function calcularSemEscalaGlobal(cargaCruzada) {
@@ -251,6 +298,7 @@ function calcularSemEscalaGlobal(cargaCruzada) {
 
   for (const mid of MINISTERIOS_IDS) {
     for (const p of pessoasPorMinisterio[mid] || []) {
+      if (isExcluidaRelatorioGeral(p)) continue;
       todas.add(p.toLowerCase());
     }
   }
@@ -269,6 +317,7 @@ function calcularIndisponibilidades(indispMap, datasPorMinisterio) {
     const pessoas = pessoasPorMinisterio[mid] || [];
 
     for (const pessoa of pessoas) {
+      if (isExcluidaRelatorioGeral(pessoa)) continue;
       const pl = pessoa.toLowerCase();
       const setDatas = mapMid[pl];
       if (!setDatas?.size) continue;
@@ -280,6 +329,38 @@ function calcularIndisponibilidades(indispMap, datasPorMinisterio) {
     }
   }
 
+  return alertas;
+}
+
+function calcularAlertasTurnoDia(timeline, cargaCruzada) {
+  const cultosPorCategoria = {};
+  for (const cat of CATEGORIAS_TURNO_DIA) {
+    cultosPorCategoria[cat.id] = timeline.filter((t) => cat.test(t.dataObj));
+  }
+
+  const alertas = [];
+
+  for (const pessoa of cargaCruzada) {
+    const pessoaCultosKeys = new Set(pessoa.slots.map((s) => `${s.data}|${s.turno}`));
+
+    for (const cat of CATEGORIAS_TURNO_DIA) {
+      if (cultosPorCategoria[cat.id].length === 0) continue;
+
+      const participou = cultosPorCategoria[cat.id].some((c) => pessoaCultosKeys.has(c.key));
+      if (!participou) {
+        alertas.push({
+          pessoa: pessoa.pessoa,
+          categoria: cat.id,
+          label: cat.label,
+          qtdCultosCategoria: cultosPorCategoria[cat.id].length,
+        });
+      }
+    }
+  }
+
+  alertas.sort(
+    (a, b) => a.pessoa.localeCompare(b.pessoa) || a.categoria.localeCompare(b.categoria)
+  );
   return alertas;
 }
 
@@ -303,10 +384,14 @@ export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, i
     );
   }
 
-  const cargaCruzada = calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio);
+  const { lista: cargaCruzada, totalCultosMes, timeline } = calcularCargaCruzada(
+    escalasPorMinisterio,
+    datasPorMinisterio
+  );
   const semEscalaGlobal = calcularSemEscalaGlobal(cargaCruzada);
   const indispMap = montarIndisponibilidadesMap(indispDocs, mes);
   const indisponibilidadesMes = calcularIndisponibilidades(indispMap, datasPorMinisterio);
+  const turnoDia = calcularAlertasTurnoDia(timeline, cargaCruzada);
 
   const totalSlots = MINISTERIOS_IDS.reduce((acc, mid) => acc + porMinisterio[mid].totalSlots, 0);
   const preenchidos = MINISTERIOS_IDS.reduce((acc, mid) => acc + porMinisterio[mid].preenchidos, 0);
@@ -330,6 +415,7 @@ export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, i
       taxaPreenchimento: totalSlots > 0 ? Math.round((preenchidos / totalSlots) * 100) : 0,
       pessoasEscaladas,
       pessoasSemEscala: semEscalaGlobal.length,
+      totalCultosMes,
     },
     porMinisterio,
     cargaCruzada,
@@ -339,6 +425,7 @@ export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, i
       sobrecarga,
       multiministerio,
       indisponibilidadesMes,
+      turnoDia,
     },
   };
 }
