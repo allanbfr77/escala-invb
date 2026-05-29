@@ -161,6 +161,19 @@ function getTituloSecaoTexto(dataObj) {
   return `📌 ${descricao}`;
 }
 
+const EXTERNAL_DETECTION_STORAGE_KEY = "external-detection-by-ministerio";
+
+function loadExternalDetectionFromStorage() {
+  try {
+    const stored = localStorage.getItem(EXTERNAL_DETECTION_STORAGE_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -201,8 +214,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   // ── indispRefreshKey dispara re-fetch das indisponibilidades quando o modal fecha
   const [indispRefreshKey, setIndispRefreshKey] = useState(0);
   // ── detecção externa ativa por ministério (independente entre ministérios)
-  const [externalDetectionByMinisterio, setExternalDetectionByMinisterio] = useState({});
+  const [externalDetectionByMinisterio, setExternalDetectionByMinisterio] = useState(loadExternalDetectionFromStorage);
   const isExternalDetectionEnabled = !!externalDetectionByMinisterio[ministerioSelecionado];
+
+  useEffect(() => {
+    localStorage.setItem(EXTERNAL_DETECTION_STORAGE_KEY, JSON.stringify(externalDetectionByMinisterio));
+  }, [externalDetectionByMinisterio]);
   const [verRelatorio, setVerRelatorio] = useState(false);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
