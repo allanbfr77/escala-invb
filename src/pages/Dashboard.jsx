@@ -25,7 +25,7 @@ import { formatarData } from "../utils/dateHelper";
 import {
   funcaoParaAbrev,
   formatarCabecalhoColuna,
-  getCorAbrev,
+  estiloBadgeAbrevExport,
 } from "../utils/gridAbreviacoes";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { useTheme } from "../context/ThemeContext";
@@ -200,6 +200,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [refreshKey, setRefreshKey] = useState(0);
   // ── indispRefreshKey dispara re-fetch das indisponibilidades quando o modal fecha
   const [indispRefreshKey, setIndispRefreshKey] = useState(0);
+  // ── detecção externa ativa por ministério (independente entre ministérios)
+  const [externalDetectionByMinisterio, setExternalDetectionByMinisterio] = useState({});
+  const isExternalDetectionEnabled = !!externalDetectionByMinisterio[ministerioSelecionado];
   const [verRelatorio, setVerRelatorio] = useState(false);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
@@ -408,10 +411,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
           datas.forEach((dataObj) => {
             const abrev = abrevCells[`${pessoa.toLowerCase()}|${dataObj.id}`] || "";
-            const cor = abrev ? getCorAbrev(ministerioSelecionado, abrev) : LT.textDim;
             const bg = abrev ? LT.surface : LT.cellEmpty;
+            const badgeStyle = abrev ? estiloBadgeAbrevExport(ministerioSelecionado, abrev) : "";
+            const conteudo = abrev
+              ? `<span style="${badgeStyle}">${abrev}</span>`
+              : "";
             tbodyHTML += `<td style="padding:6px 4px;text-align:center;background:${bg};border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};vertical-align:middle;">
-              <span style="font-size:14px;font-weight:${abrev ? 700 : 400};color:${cor};font-family:'JetBrains Mono',monospace;line-height:1;">${abrev}</span>
+              ${conteudo}
             </td>`;
           });
           tbodyHTML += "</tr>";
@@ -1873,6 +1879,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               onMensagem={mostrarMensagem}
               onConflito={setConflito}
               indispRefreshKey={indispRefreshKey}
+              isExternalDetectionEnabled={isExternalDetectionEnabled}
             />
           ) : (
             <>
@@ -1897,6 +1904,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       <IndisponibilidadeModal
         aberto={verIndisponibilidade}
         onFechar={() => { setVerIndisponibilidade(false); setIndispRefreshKey(k => k + 1); }}
+        onDetectarOutrosMinisterios={() => {
+          setExternalDetectionByMinisterio((prev) => ({
+            ...prev,
+            [ministerioSelecionado]: true,
+          }));
+        }}
         ministerioId={ministerioSelecionado}
         datasDisponiveis={datas}
         mes={mes}

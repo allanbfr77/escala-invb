@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { AlertCircle } from "lucide-react";
 import { IconeMinisterio } from "../utils/ministerioIcons";
 import TurnoLabelInline from "../components/TurnoLabelInline";
 import { db } from "../firebase";
@@ -15,6 +14,7 @@ import {
   getCorAbrev,
   getTooltipAbrev,
 } from "../utils/gridAbreviacoes";
+import AbrevBadge from "../components/AbrevBadge";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { getAbreviacoesPermitidasPessoa } from "../utils/permissoesMinisterio";
 
@@ -28,6 +28,7 @@ const NOMES_MINISTERIOS = {
 const CELULA_VAZIA_BG = "var(--date-cell-bg)";
 const CELULA_ATIVA_BG = "var(--row-hover)";
 const CELULA_BLOQUEADA_BG = "var(--grid-cell-blocked)";
+const CELULA_INDISPONIVEL_BG = "var(--grid-cell-indisponivel)";
 const CELULA_ALTURA = 32;
 const CELULA_PADDING = "6px 4px";
 
@@ -111,6 +112,7 @@ export default function DashboardGrid({
   onMensagem,
   onConflito,
   indispRefreshKey = 0,
+  isExternalDetectionEnabled = false,
 }) {
   const pessoas = pessoasPorMinisterio[ministerioId] || [];
   const pessoasLowerSet = useMemo(
@@ -132,25 +134,26 @@ export default function DashboardGrid({
   const [salvando, setSalvando] = useState(false);
   const editingRef = useRef(null);
   const skipBlurRef = useRef(false);
+  const externalDetectionRef = useRef(isExternalDetectionEnabled);
+  const externalFetchGenRef = useRef(0);
 
   useEffect(() => {
-    if (!ministerioId || !mes) return;
+    externalDetectionRef.current = isExternalDetectionEnabled;
+    if (!isExternalDetectionEnabled) {
+      externalFetchGenRef.current += 1;
+      setOutroMinisterioMap(new Map());
+    }
+  }, [isExternalDetectionEnabled]);
+
+  useEffect(() => {
+    if (!ministerioId) return;
     let cancelled = false;
 
-    const { inicio, fim } = getIntervaloMes(mes);
-
-    Promise.all([
-      getDocs(query(
-        collection(db, "indisponibilidades"),
-        where("ministerioId", "==", ministerioId)
-      )),
-      getDocs(query(
-        collection(db, "escalas"),
-        where("data", ">=", inicio),
-        where("data", "<=", fim)
-      )),
-    ])
-      .then(([indispSnap, escalasSnap]) => {
+    getDocs(query(
+      collection(db, "indisponibilidades"),
+      where("ministerioId", "==", ministerioId)
+    ))
+      .then((indispSnap) => {
         if (cancelled) return;
 
         const indisp = new Set();
@@ -164,6 +167,33 @@ export default function DashboardGrid({
           });
         });
 
+        setIndispMap(indisp);
+      })
+      .catch((err) => console.error("Erro ao carregar indisponibilidades da planilha:", err));
+
+    return () => { cancelled = true; };
+  }, [ministerioId, indispRefreshKey]);
+
+  useEffect(() => {
+    if (!isExternalDetectionEnabled) return;
+    if (!ministerioId || !mes) return;
+
+    let cancelled = false;
+    const fetchGen = ++externalFetchGenRef.current;
+    const { inicio, fim } = getIntervaloMes(mes);
+
+    getDocs(query(
+      collection(db, "escalas"),
+      where("data", ">=", inicio),
+      where("data", "<=", fim)
+    ))
+      .then((escalasSnap) => {
+        if (
+          cancelled
+          || !externalDetectionRef.current
+          || fetchGen !== externalFetchGenRef.current
+        ) return;
+
         const outro = new Map();
         escalasSnap.docs.forEach((docSnap) => {
           const d = docSnap.data();
@@ -173,13 +203,18 @@ export default function DashboardGrid({
           outro.set(`${d.pessoaNome}|${d.data}|${turno}`, d.ministerioId);
         });
 
-        setIndispMap(indisp);
+        if (
+          cancelled
+          || !externalDetectionRef.current
+          || fetchGen !== externalFetchGenRef.current
+        ) return;
+
         setOutroMinisterioMap(outro);
       })
-      .catch((err) => console.error("Erro ao carregar indicadores da planilha:", err));
+      .catch((err) => console.error("Erro ao carregar escalas externas da planilha:", err));
 
     return () => { cancelled = true; };
-  }, [ministerioId, mes, pessoasLowerSet, indispRefreshKey]);
+  }, [isExternalDetectionEnabled, ministerioId, mes, pessoasLowerSet, indispRefreshKey]);
 
   const isIndisponivel = useCallback(
     (pessoa, dataObj) => indispMap.has(lookupCelula(pessoa, dataObj)),
@@ -187,8 +222,11 @@ export default function DashboardGrid({
   );
 
   const getOutroMinisterio = useCallback(
-    (pessoa, dataObj) => outroMinisterioMap.get(lookupCelula(pessoa, dataObj)),
-    [outroMinisterioMap]
+    (pessoa, dataObj) => {
+      if (!isExternalDetectionEnabled) return null;
+      return outroMinisterioMap.get(lookupCelula(pessoa, dataObj)) ?? null;
+    },
+    [isExternalDetectionEnabled, outroMinisterioMap]
   );
 
   const pessoasVisiveis = useMemo(
@@ -330,7 +368,7 @@ export default function DashboardGrid({
     if (!podeEditar || salvando) return;
     const key = cellKey(pessoa, dataObj.id);
     const validasPessoa = getValidasPessoa(pessoa);
-    if (!cells[key] && (isIndisponivel(pessoa, dataObj) || getOutroMinisterio(pessoa, dataObj))) {
+    if (!cells[key] && (isIndisponivel(pessoa, dataObj) || (isExternalDetectionEnabled && getOutroMinisterio(pessoa, dataObj)))) {
       return;
     }
     if (!cells[key] && validasPessoa.length === 0) return;
@@ -484,9 +522,11 @@ export default function DashboardGrid({
                   const semFuncaoPermitida = validasPessoa.length === 0;
                   const vazio = !valor && !isEditing;
                   const indisponivel = vazio && isIndisponivel(pessoa, dataObj);
-                  const outroMinisterioId = vazio ? getOutroMinisterio(pessoa, dataObj) : null;
+                  const outroMinisterioId =
+                    isExternalDetectionEnabled && vazio
+                      ? getOutroMinisterio(pessoa, dataObj)
+                      : null;
                   const celulaBloqueada = indisponivel || !!outroMinisterioId;
-                  const cor = corCelula(isEditing ? draft : valor);
                   const tooltip = valor
                     ? getTooltipAbrev(ministerioId, valor)
                     : indisponivel
@@ -503,9 +543,11 @@ export default function DashboardGrid({
                     ? CELULA_ATIVA_BG
                     : colunaAtiva(dataObj.id) || linhaAtiva(pessoa)
                       ? CELULA_ATIVA_BG
-                      : celulaBloqueada
-                        ? CELULA_BLOQUEADA_BG
-                        : CELULA_VAZIA_BG;
+                      : indisponivel
+                        ? CELULA_INDISPONIVEL_BG
+                        : celulaBloqueada
+                          ? CELULA_BLOQUEADA_BG
+                          : CELULA_VAZIA_BG;
 
                   return (
                     <td
@@ -570,21 +612,14 @@ export default function DashboardGrid({
                             cursor: "default",
                           }}
                         >
-                          {indisponivel ? (
-                            <AlertCircle
-                              size={11}
-                              color="var(--danger)"
-                              strokeWidth={2}
-                              style={{ opacity: 0.7, flexShrink: 0 }}
-                              aria-hidden
-                            />
-                          ) : (
+                          {outroMinisterioId && (
                             <IconeMinisterio ministerioId={outroMinisterioId} size={14} />
                           )}
                         </div>
                       ) : (
                         <button
                           type="button"
+                          className="dashboard-grid-cell-btn"
                           onClick={() => iniciarEdicao(pessoa, dataObj)}
                           disabled={!podeEditar || salvando || (!valor && semFuncaoPermitida)}
                           title={
@@ -599,13 +634,15 @@ export default function DashboardGrid({
                             ...estiloConteudoCelula,
                             border: "none",
                             background: "transparent",
-                            color: cor || "transparent",
+                            color: "transparent",
                             fontWeight: valor ? 700 : 400,
                             cursor: podeEditar && !salvando && !(!valor && semFuncaoPermitida) ? "text" : "default",
                             opacity: !podeEditar || (!valor && semFuncaoPermitida) ? 0.85 : 1,
                           }}
                         >
-                          {valor}
+                          {valor ? (
+                            <AbrevBadge ministerioId={ministerioId} abrev={valor} variant="cell" />
+                          ) : null}
                         </button>
                       )}
                     </td>
@@ -632,25 +669,13 @@ export default function DashboardGrid({
         >
           <span style={{ marginRight: "4px" }}>Abreviações:</span>
           {validas.map((abrev) => {
-            const cor = getCorAbrev(ministerioId, abrev);
             const nome = getTooltipAbrev(ministerioId, abrev);
             return (
               <span
                 key={abrev}
                 style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
               >
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "2px",
-                    flexShrink: 0,
-                    background: cor,
-                  }}
-                />
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: cor }}>
-                  {abrev}
-                </span>
+                <AbrevBadge ministerioId={ministerioId} abrev={abrev} variant="legend" />
                 <span style={{ color: "var(--text-dim)" }}>=</span>
                 <span>{nome}</span>
               </span>

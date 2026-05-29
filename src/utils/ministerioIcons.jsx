@@ -1,10 +1,10 @@
 import { Baby, Handshake, Music, MonitorPlay } from "lucide-react";
 
 export const ICONES_MINISTERIO = {
-  infantil: { Icon: Baby, cor: "#d4af37" },
-  recepcao: { Icon: Handshake, cor: "#d4af37" },
-  louvor: { Icon: Music, cor: "#4ade80" },
-  comunicacao: { Icon: MonitorPlay, cor: "#60a5fa" },
+  infantil: { Icon: Baby, cor: "#FFFFFF" },
+  recepcao: { Icon: Handshake, cor: "#FFFFFF" },
+  louvor: { Icon: Music, cor: "#FFFFFF" },
+  comunicacao: { Icon: MonitorPlay, cor: "#FFFFFF" },
 };
 
 export function IconeMinisterio({ ministerioId, size = 28, strokeWidth = 2, style, ...rest }) {

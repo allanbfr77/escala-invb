@@ -6,7 +6,7 @@ import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { accentAlpha } from "../constants/theme";
 
-export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId, datasDisponiveis, mes, theme: t }) {
+export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOutrosMinisterios, ministerioId, datasDisponiveis, mes, theme: t }) {
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [salvando, setSalvando] = useState({});
   const [expandida, setExpandida] = useState(null);
@@ -106,6 +106,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
   // ── Importa datas de outros ministérios automaticamente ─────────────────
   const importarEscalasCruzadas = async () => {
     if (!mes || importando) return;
+    onDetectarOutrosMinisterios?.();
     setImportando(true);
     setImportResult(null);
 

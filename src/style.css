@@ -41,8 +41,17 @@
   --row-hover: rgba(255,255,255,0.05);
   --date-cell-bg: rgba(255,255,255,0.03);
   --grid-cell-blocked: var(--surface);
+  --grid-cell-indisponivel: #2A1F1F;
 
   --code-bg: #1f1f1f;
+
+  --abrev-badge-azul-fg: #60a5fa;
+  --abrev-badge-azul-bg: rgba(96, 165, 250, 0.22);
+  --abrev-badge-verde-fg: #34d399;
+  --abrev-badge-verde-bg: rgba(52, 211, 153, 0.22);
+  --abrev-badge-amarelo-fg: #fbbf24;
+  --abrev-badge-amarelo-bg: rgba(251, 191, 36, 0.22);
+
   --accent-bg: rgba(212,175,55,0.12);
   --accent-border-css: rgba(212,175,55,0.45);
   --social-bg: rgba(30,30,30,0.50);
@@ -109,8 +118,17 @@
   --row-hover: rgba(0,0,0,0.04);
   --date-cell-bg: rgba(0,0,0,0.03);
   --grid-cell-blocked: #ffffff;
+  --grid-cell-indisponivel: #FFE0E0;
 
   --code-bg: #f3f4f6;
+
+  --abrev-badge-azul-fg: #1d4ed8;
+  --abrev-badge-azul-bg: rgba(29, 78, 216, 0.14);
+  --abrev-badge-verde-fg: #047857;
+  --abrev-badge-verde-bg: rgba(4, 120, 87, 0.14);
+  --abrev-badge-amarelo-fg: #b45309;
+  --abrev-badge-amarelo-bg: rgba(180, 83, 9, 0.14);
+
   --accent-bg: rgba(160,114,6,0.09);
   --accent-border-css: rgba(160,114,6,0.35);
   --social-bg: rgba(243,244,246,0.60);
@@ -450,4 +468,55 @@ code {
 
 .grid-chip-x:hover {
   color: #fb7185 !important;
+}
+
+/* ── Badges de designação (planilha) ─────────────────────── */
+.abrev-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 2px 8px;
+  min-width: 1.25em;
+  font-family: "JetBrains Mono", var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.abrev-badge--cell {
+  font-size: 12px;
+}
+
+.abrev-badge--legend {
+  font-size: 11px;
+  padding: 1px 7px;
+}
+
+.abrev-badge--azul {
+  color: var(--abrev-badge-azul-fg);
+  background: var(--abrev-badge-azul-bg);
+}
+
+.abrev-badge--verde {
+  color: var(--abrev-badge-verde-fg);
+  background: var(--abrev-badge-verde-bg);
+}
+
+.abrev-badge--amarelo {
+  color: var(--abrev-badge-amarelo-fg);
+  background: var(--abrev-badge-amarelo-bg);
+}
+
+.abrev-badge--neutral {
+  color: var(--text);
+  background: var(--code-bg);
+}
+
+.dashboard-grid-cell-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }

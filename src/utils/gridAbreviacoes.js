@@ -76,10 +76,40 @@ const TOOLTIP_POR_ABREV = {
   },
 };
 
-export function getCorAbrev(ministerioId, abrev) {
+export function getTomAbrev(ministerioId, abrev) {
   if (!abrev || !ministerioId) return null;
-  const tom = COR_POR_ABREV[ministerioId]?.[abrev.trim().toUpperCase()];
+  return COR_POR_ABREV[ministerioId]?.[abrev.trim().toUpperCase()] ?? null;
+}
+
+export function getCorAbrev(ministerioId, abrev) {
+  const tom = getTomAbrev(ministerioId, abrev);
   return tom ? CORES_FUNCAO[tom] : null;
+}
+
+const BADGE_EXPORT_LIGHT = {
+  azul: { color: "#1d4ed8", background: "rgba(29, 78, 216, 0.12)" },
+  verde: { color: "#047857", background: "rgba(4, 120, 87, 0.12)" },
+  amarelo: { color: "#b45309", background: "rgba(180, 83, 9, 0.12)" },
+};
+
+/** Estilos inline para badge em exportação (paleta light fixa) */
+export function estiloBadgeAbrevExport(ministerioId, abrev) {
+  const tom = getTomAbrev(ministerioId, abrev);
+  if (!tom) return "";
+  const { color, background } = BADGE_EXPORT_LIGHT[tom];
+  return [
+    "display:inline-flex",
+    "align-items:center",
+    "justify-content:center",
+    "border-radius:6px",
+    "padding:2px 8px",
+    "font-size:12px",
+    "font-weight:700",
+    "font-family:'JetBrains Mono',monospace",
+    "line-height:1.2",
+    `color:${color}`,
+    `background:${background}`,
+  ].join(";");
 }
 
 export function getTooltipAbrev(ministerioId, abrev) {
