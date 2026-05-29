@@ -1,0 +1,344 @@
+import { gerarDatasEscala } from "./dateHelper";
+import { funcoesPorMinisterio } from "../data/funcoes";
+import { pessoasPorMinisterio } from "../data/pessoas";
+import { chaveIndisponibilidadeColuna, estaIndisponivelTodoMes } from "./indisponibilidadeHelpers";
+
+export const MINISTERIOS_IDS = ["comunicacao", "louvor", "recepcao", "infantil"];
+
+export const MINISTERIOS_INFO = {
+  comunicacao: { nome: "Comunicações", color: "#60a5fa" },
+  louvor: { nome: "Louvor", color: "#e8c766" },
+  recepcao: { nome: "Introdução", color: "#34d399" },
+  infantil: { nome: "Infantil", color: "#f472b6" },
+};
+
+const TURNO_ORDER = { manhã: 0, único: 1, noite: 2 };
+const SOBRECARGA_LIMITE = 6;
+
+export function getIntervaloMes(mes) {
+  const [ano, mesNum] = mes.split("-");
+  const inicio = `${ano}-${mesNum}-01`;
+  const fim = `${ano}-${mesNum}-${new Date(Number(ano), Number(mesNum), 0).getDate()}`;
+  return { inicio, fim };
+}
+
+export function montarDatasMinisterio(mes, cultosExtrasDocs) {
+  const geradas = gerarDatasEscala(mes);
+  const extrasFormatted = (cultosExtrasDocs || [])
+    .filter((e) => {
+      if (!e?.data) return false;
+      const mesDoDocumento = e.mes || String(e.data).slice(0, 7);
+      return mesDoDocumento === mes;
+    })
+    .map((e) => ({
+      id: `${e.data}-extra-${e.turno ?? "único"}`,
+      data: e.data,
+      tipo: "extra",
+      turno: e.turno ?? "único",
+      descricao: e.nome || e.descricao || "",
+    }));
+
+  return [...geradas, ...extrasFormatted].sort((a, b) => {
+    if (a.data !== b.data) return a.data.localeCompare(b.data);
+    return (TURNO_ORDER[a.turno] ?? 1) - (TURNO_ORDER[b.turno] ?? 1);
+  });
+}
+
+function montarEscalasPorMinisterio(escalasDocs) {
+  const porMinisterio = {};
+  for (const mid of MINISTERIOS_IDS) {
+    porMinisterio[mid] = {};
+  }
+
+  for (const d of escalasDocs) {
+    const mid = d.ministerioId;
+    if (!porMinisterio[mid]) continue;
+    const turnoKey = d.turno || "único";
+    porMinisterio[mid][`${d.data}-${turnoKey}-${d.funcao}`] = d.pessoaNome;
+  }
+
+  return porMinisterio;
+}
+
+function montarIndisponibilidadesMap(indispDocs, mes) {
+  const { inicio, fim } = getIntervaloMes(mes);
+  const map = {};
+
+  for (const d of indispDocs) {
+    const mid = d.ministerioId;
+    if (!mid) continue;
+    if (!map[mid]) map[mid] = {};
+
+    const datasNoMes = (d.datas || []).filter((chave) => {
+      const data = chave.split("|")[0];
+      return data >= inicio && data <= fim;
+    });
+
+    if (datasNoMes.length === 0) continue;
+
+    const key = d.pessoaNome.toLowerCase();
+    if (!map[mid][key]) map[mid][key] = new Set();
+    for (const chave of datasNoMes) {
+      map[mid][key].add(chave);
+    }
+  }
+
+  return map;
+}
+
+function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
+  const funcoes = funcoesPorMinisterio[ministerioId] || [];
+  const todasPessoas = pessoasPorMinisterio[ministerioId] || [];
+  const porPessoa = {};
+
+  todasPessoas.forEach((p) => {
+    porPessoa[p.toLowerCase()] = [];
+  });
+
+  let totalSlots = 0;
+  let preenchidos = 0;
+  const slotsVazios = [];
+
+  const posicao = {};
+  datas.forEach((d, i) => {
+    posicao[d.id] = i;
+  });
+
+  datas.forEach((dataObj) => {
+    const turnoKey = dataObj.turno ?? "único";
+    funcoes.forEach((f) => {
+      totalSlots++;
+      const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
+      if (pessoa && pessoa !== "disponível") {
+        preenchidos++;
+        const pl = pessoa.toLowerCase();
+        if (!porPessoa[pl]) porPessoa[pl] = [];
+        porPessoa[pl].push({ ...dataObj, funcao: f });
+      } else {
+        slotsVazios.push({ dataObj, funcao: f });
+      }
+    });
+  });
+
+  const relatorioPessoas = Object.entries(porPessoa).map(([pessoa, slots]) => {
+    const porFuncao = {};
+    funcoes.forEach((f) => {
+      porFuncao[f] = 0;
+    });
+    slots.forEach((s) => {
+      porFuncao[s.funcao] = (porFuncao[s.funcao] || 0) + 1;
+    });
+
+    const slotsSorted = [...slots].sort((a, b) => posicao[a.id] - posicao[b.id]);
+    const consecutivas = [];
+    for (let i = 0; i < slotsSorted.length - 1; i++) {
+      const posA = posicao[slotsSorted[i].id];
+      const posB = posicao[slotsSorted[i + 1].id];
+      if (posB - posA === 1) {
+        consecutivas.push([slotsSorted[i], slotsSorted[i + 1]]);
+      }
+    }
+
+    return { pessoa, total: slots.length, porFuncao, consecutivas };
+  });
+
+  relatorioPessoas.sort((a, b) => b.total - a.total || a.pessoa.localeCompare(b.pessoa));
+
+  const taxaPreenchimento = totalSlots > 0 ? Math.round((preenchidos / totalSlots) * 100) : 0;
+
+  return {
+    ministerioId,
+    nome: MINISTERIOS_INFO[ministerioId]?.nome || ministerioId,
+    totalSlots,
+    preenchidos,
+    vazios: totalSlots - preenchidos,
+    taxaPreenchimento,
+    slotsVazios,
+    datas,
+    relatorioPessoas,
+    escalados: relatorioPessoas.filter((r) => r.total > 0),
+    semEscala: relatorioPessoas.filter((r) => r.total === 0),
+    funcoes,
+  };
+}
+
+function buildTimelineGlobal(datasPorMinisterio) {
+  const map = new Map();
+
+  for (const datas of Object.values(datasPorMinisterio)) {
+    for (const d of datas) {
+      const key = `${d.data}|${d.turno ?? "único"}`;
+      if (!map.has(key)) {
+        map.set(key, { key, data: d.data, turno: d.turno ?? "único", dataObj: d });
+      }
+    }
+  }
+
+  return [...map.values()].sort((a, b) => {
+    if (a.data !== b.data) return a.data.localeCompare(b.data);
+    return (TURNO_ORDER[a.turno] ?? 1) - (TURNO_ORDER[b.turno] ?? 1);
+  });
+}
+
+function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
+  const carga = {};
+
+  for (const mid of MINISTERIOS_IDS) {
+    const escalasMap = escalasPorMinisterio[mid] || {};
+    const datas = datasPorMinisterio[mid] || [];
+    const funcoes = funcoesPorMinisterio[mid] || [];
+
+    datas.forEach((dataObj) => {
+      const turnoKey = dataObj.turno ?? "único";
+      funcoes.forEach((f) => {
+        const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
+        if (!pessoa || pessoa === "disponível") return;
+
+        const pl = pessoa.toLowerCase();
+        if (!carga[pl]) {
+          carga[pl] = { pessoa: pl, total: 0, porMinisterio: {}, slots: [] };
+        }
+        carga[pl].total++;
+        carga[pl].porMinisterio[mid] = (carga[pl].porMinisterio[mid] || 0) + 1;
+        carga[pl].slots.push({
+          ministerioId: mid,
+          data: dataObj.data,
+          turno: dataObj.turno ?? "único",
+          funcao: f,
+          dataObj,
+        });
+      });
+    });
+  }
+
+  const timeline = buildTimelineGlobal(datasPorMinisterio);
+  const posicaoGlobal = {};
+  timeline.forEach((item, i) => {
+    posicaoGlobal[item.key] = i;
+  });
+
+  const lista = Object.values(carga).map((item) => {
+    const ministeriosAtivos = Object.keys(item.porMinisterio);
+    const cultosKeys = new Set(
+      item.slots.map((s) => `${s.data}|${s.turno}`)
+    );
+
+    const consecutivasGlobais = [];
+    for (let i = 0; i < timeline.length - 1; i++) {
+      const atual = timeline[i];
+      const proximo = timeline[i + 1];
+      if (cultosKeys.has(atual.key) && cultosKeys.has(proximo.key)) {
+        consecutivasGlobais.push([atual, proximo]);
+      }
+    }
+
+    return {
+      ...item,
+      ministeriosAtivos,
+      qtdMinisterios: ministeriosAtivos.length,
+      consecutivasGlobais,
+      sobrecarga: item.total >= SOBRECARGA_LIMITE,
+    };
+  });
+
+  lista.sort((a, b) => b.total - a.total || a.pessoa.localeCompare(b.pessoa));
+  return lista;
+}
+
+function calcularSemEscalaGlobal(cargaCruzada) {
+  const escalados = new Set(cargaCruzada.map((c) => c.pessoa));
+  const todas = new Set();
+
+  for (const mid of MINISTERIOS_IDS) {
+    for (const p of pessoasPorMinisterio[mid] || []) {
+      todas.add(p.toLowerCase());
+    }
+  }
+
+  return [...todas]
+    .filter((p) => !escalados.has(p))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function calcularIndisponibilidades(indispMap, datasPorMinisterio) {
+  const alertas = [];
+
+  for (const mid of MINISTERIOS_IDS) {
+    const mapMid = indispMap[mid] || {};
+    const datas = datasPorMinisterio[mid] || [];
+    const pessoas = pessoasPorMinisterio[mid] || [];
+
+    for (const pessoa of pessoas) {
+      const pl = pessoa.toLowerCase();
+      const setDatas = mapMid[pl];
+      if (!setDatas?.size) continue;
+
+      const indispMapPessoa = { [pl]: setDatas };
+      if (estaIndisponivelTodoMes(pessoa, datas, indispMapPessoa)) {
+        alertas.push({ pessoa: pl, ministerioId: mid });
+      }
+    }
+  }
+
+  return alertas;
+}
+
+export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, indispDocs) {
+  const escalasPorMinisterio = montarEscalasPorMinisterio(escalasDocs);
+
+  const extrasPorMinisterio = {};
+  for (const mid of MINISTERIOS_IDS) {
+    extrasPorMinisterio[mid] = (cultosExtrasDocs || []).filter((e) => e.ministerioId === mid);
+  }
+
+  const datasPorMinisterio = {};
+  const porMinisterio = {};
+
+  for (const mid of MINISTERIOS_IDS) {
+    datasPorMinisterio[mid] = montarDatasMinisterio(mes, extrasPorMinisterio[mid]);
+    porMinisterio[mid] = calcularRelatorioMinisterio(
+      mid,
+      datasPorMinisterio[mid],
+      escalasPorMinisterio[mid] || {}
+    );
+  }
+
+  const cargaCruzada = calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio);
+  const semEscalaGlobal = calcularSemEscalaGlobal(cargaCruzada);
+  const indispMap = montarIndisponibilidadesMap(indispDocs, mes);
+  const indisponibilidadesMes = calcularIndisponibilidades(indispMap, datasPorMinisterio);
+
+  const totalSlots = MINISTERIOS_IDS.reduce((acc, mid) => acc + porMinisterio[mid].totalSlots, 0);
+  const preenchidos = MINISTERIOS_IDS.reduce((acc, mid) => acc + porMinisterio[mid].preenchidos, 0);
+  const pessoasEscaladas = cargaCruzada.length;
+  const slotsVaziosCriticos = MINISTERIOS_IDS.flatMap((mid) =>
+    porMinisterio[mid].slotsVazios.map((s) => ({
+      ...s,
+      ministerioId: mid,
+      ministerioNome: MINISTERIOS_INFO[mid]?.nome,
+    }))
+  );
+  const sobrecarga = cargaCruzada.filter((c) => c.sobrecarga);
+  const multiministerio = cargaCruzada.filter((c) => c.qtdMinisterios >= 2);
+
+  return {
+    mes,
+    resumo: {
+      totalSlots,
+      preenchidos,
+      vazios: totalSlots - preenchidos,
+      taxaPreenchimento: totalSlots > 0 ? Math.round((preenchidos / totalSlots) * 100) : 0,
+      pessoasEscaladas,
+      pessoasSemEscala: semEscalaGlobal.length,
+    },
+    porMinisterio,
+    cargaCruzada,
+    semEscalaGlobal,
+    alertas: {
+      slotsVazios: slotsVaziosCriticos,
+      sobrecarga,
+      multiministerio,
+      indisponibilidadesMes,
+    },
+  };
+}

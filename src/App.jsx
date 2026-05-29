@@ -1,7 +1,11 @@
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
-import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import RelatorioUnificado from "./pages/RelatorioUnificado";
+import { isMaster } from "./utils/permissions";
+import { getMesInicial, getMesMinimo, getMesMaximo } from "./utils/mesHelpers";
 
 function LoadingScreen() {
   return (
@@ -33,10 +37,42 @@ function LoadingScreen() {
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const [view, setView] = useState(null);
+  const [mes, setMes] = useState(getMesInicial);
+  const mesMinimo = useMemo(() => getMesMinimo(), []);
+  const mesMaximo = useMemo(() => getMesMaximo(), []);
+  const master = isMaster(user);
+
+  useEffect(() => {
+    if (!user) setView(null);
+  }, [user?.uid]);
 
   if (loading) return <LoadingScreen />;
+  if (!user) return <Login />;
 
-  return user ? <Dashboard /> : <Login />;
+  const activeView = view ?? (master ? "relatorio" : "escala");
+
+  if (activeView === "relatorio" && master) {
+    return (
+      <RelatorioUnificado
+        mes={mes}
+        setMes={setMes}
+        mesMinimo={mesMinimo}
+        mesMaximo={mesMaximo}
+        onVoltar={() => setView("escala")}
+      />
+    );
+  }
+
+  return (
+    <Dashboard
+      mes={mes}
+      setMes={setMes}
+      mesMinimo={mesMinimo}
+      mesMaximo={mesMaximo}
+      onOpenRelatorio={master ? () => setView("relatorio") : undefined}
+    />
+  );
 }
 
 export default function App() {

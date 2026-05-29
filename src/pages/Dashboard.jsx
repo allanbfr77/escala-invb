@@ -174,7 +174,7 @@ function loadExternalDetectionFromStorage() {
   }
 }
 
-function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo }) {
+function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo, onOpenRelatorio }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const alpha = (opacity) => isDark ? `rgba(255,255,255,${opacity})` : `rgba(0,0,0,${opacity})`;
@@ -1450,6 +1450,23 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {onOpenRelatorio && (
+            <button
+              type="button"
+              onClick={onOpenRelatorio}
+              title="Relatório geral de todos os ministérios"
+              style={{
+                padding: "4px 12px", background: theme.accentDim,
+                border: `1px solid var(--accent-border)`, borderRadius: "5px",
+                color: theme.accent, fontSize: "12px", fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = theme.accentOnAccent; }}
+              onMouseLeave={e => { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; }}
+            >
+              Relatório Geral
+            </button>
+          )}
           {/* Botão toggle tema */}
           <button
             onClick={toggleTheme}
@@ -2148,13 +2165,23 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({
+  mes: mesProp,
+  setMes: setMesProp,
+  mesMinimo: mesMinimoProp,
+  mesMaximo: mesMaximoProp,
+  onOpenRelatorio,
+}) {
   const { user } = useAuth();
-  const [mes, setMes] = useState(getMesInicial);
+  const [mesInternal, setMesInternal] = useState(getMesInicial);
   const [ministerioSelecionado, setMinisterioSelecionado] = useState(user?.ministerioId || "comunicacao");
 
-  const mesMinimo = useMemo(() => getMesMinimo(), []);
-  const mesMaximo = useMemo(() => getMesMaximo(), []);
+  const mes = mesProp ?? mesInternal;
+  const setMes = setMesProp ?? setMesInternal;
+  const mesMinimoComputed = useMemo(() => getMesMinimo(), []);
+  const mesMaximoComputed = useMemo(() => getMesMaximo(), []);
+  const mesMinimo = mesMinimoProp ?? mesMinimoComputed;
+  const mesMaximo = mesMaximoProp ?? mesMaximoComputed;
 
   return (
     <EscalaProvider ministerioId={ministerioSelecionado} mes={mes}>
@@ -2165,6 +2192,7 @@ export default function Dashboard() {
         setMes={setMes}
         mesMinimo={mesMinimo}
         mesMaximo={mesMaximo}
+        onOpenRelatorio={onOpenRelatorio}
       />
     </EscalaProvider>
   );
