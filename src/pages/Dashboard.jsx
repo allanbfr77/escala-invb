@@ -23,9 +23,10 @@ import { pessoasPorMinisterio } from "../data/pessoas";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
 import {
-  funcaoParaAbrev,
   formatarCabecalhoColuna,
   estiloBadgeAbrevExport,
+  buildCellsFromEscalas,
+  parseAbreviacoesCombinadas,
 } from "../utils/gridAbreviacoes";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { useTheme } from "../context/ThemeContext";
@@ -276,20 +277,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setMes(new Date(ano, m, 1).toISOString().slice(0, 7));
   };
 
-  const buildAbrevCellsExport = useCallback((ministerioId) => {
-    const cells = {};
-    const funcoesExp = funcoesPorMinisterio[ministerioId] || [];
-    for (const dataObj of datas) {
-      const turnoKey = dataObj.turno || "único";
-      for (const funcao of funcoesExp) {
-        const pessoaNome = escalas[`${dataObj.data}-${turnoKey}-${funcao}`];
-        if (!pessoaNome || pessoaNome === "disponível") continue;
-        const abrev = funcaoParaAbrev(ministerioId, funcao);
-        if (abrev) cells[`${pessoaNome.toLowerCase()}|${dataObj.id}`] = abrev;
-      }
-    }
-    return cells;
-  }, [escalas, datas]);
+  const buildAbrevCellsExport = useCallback(
+    (ministerioId) => buildCellsFromEscalas(escalas, datas, ministerioId),
+    [escalas, datas]
+  );
 
   const getPessoasVisiveisPlanilhaExport = useCallback(async (ministerioId) => {
     return pessoasPorMinisterio[ministerioId] || [];
@@ -429,9 +420,16 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           datas.forEach((dataObj) => {
             const abrev = abrevCells[`${pessoa.toLowerCase()}|${dataObj.id}`] || "";
             const bg = abrev ? LT.surface : LT.cellEmpty;
-            const badgeStyle = abrev ? estiloBadgeAbrevExport(ministerioSelecionado, abrev) : "";
-            const conteudo = abrev
-              ? `<span style="${badgeStyle}">${abrev}</span>`
+            const abrevsLista = abrev
+              ? parseAbreviacoesCombinadas(ministerioSelecionado, abrev)
+              : [];
+            const conteudo = abrevsLista.length
+              ? abrevsLista
+                  .map((a) => {
+                    const badgeStyle = estiloBadgeAbrevExport(ministerioSelecionado, a);
+                    return `<span style="${badgeStyle}margin:0 1px;">${a}</span>`;
+                  })
+                  .join("")
               : "";
             tbodyHTML += `<td style="padding:6px 4px;text-align:center;background:${bg};border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};vertical-align:middle;">
               ${conteudo}

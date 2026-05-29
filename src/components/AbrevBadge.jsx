@@ -5,9 +5,10 @@ import { getTomAbrev } from "../utils/gridAbreviacoes";
  * Cores via CSS (--abrev-badge-*) para suporte a tema claro e escuro.
  */
 export default function AbrevBadge({ ministerioId, abrev, variant = "cell" }) {
-  if (!abrev) return null;
+  const sigla = abrev != null ? String(abrev).trim().toUpperCase() : "";
+  if (!sigla || !ministerioId) return null;
 
-  const tom = getTomAbrev(ministerioId, abrev);
+  const tom = getTomAbrev(ministerioId, sigla);
   const className = [
     "abrev-badge",
     tom ? `abrev-badge--${tom}` : "abrev-badge--neutral",
@@ -16,5 +17,5 @@ export default function AbrevBadge({ ministerioId, abrev, variant = "cell" }) {
     .filter(Boolean)
     .join(" ");
 
-  return <span className={className}>{abrev}</span>;
+  return <span className={className}>{sigla}</span>;
 }

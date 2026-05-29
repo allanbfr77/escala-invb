@@ -4,19 +4,22 @@ import TurnoLabelInline from "../components/TurnoLabelInline";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
-import { funcoesPorMinisterio } from "../data/funcoes";
 import { formatarData } from "../utils/dateHelper";
 import {
   abrevParaFuncao,
-  funcaoParaAbrev,
   abreviacoesValidas,
   formatarCabecalhoColuna,
   getCorAbrev,
   getTooltipAbrev,
+  getTooltipAbrevCombinadas,
+  parseAbreviacoesCombinadas,
+  formatarAbreviacoesCombinadas,
+  buildCellsFromEscalas,
 } from "../utils/gridAbreviacoes";
 import AbrevBadge from "../components/AbrevBadge";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { getAbreviacoesPermitidasPessoa } from "../utils/permissoesMinisterio";
+import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 
 const NOMES_MINISTERIOS = {
   comunicacao: "Comunicações",
@@ -74,6 +77,59 @@ function getHorarios(dataObj) {
   };
 }
 
+/**
+ * Siglas para exibir na célula (somente visual).
+ * Comunicação: separa "PS"/"PST" em letras; demais: uma sigla.
+ */
+function abrevsParaExibicaoCelula(ministerioId, valor) {
+  if (valor == null || valor === "") return [];
+
+  const texto = String(valor).trim().toUpperCase();
+  if (!texto) return [];
+
+  if (!ministerioPermiteEscalaFlexivel(ministerioId)) {
+    return parseAbreviacoesCombinadas(ministerioId, texto);
+  }
+
+  const validasSet = new Set(abreviacoesValidas(ministerioId));
+  const visto = new Set();
+
+  for (const ch of texto.split("")) {
+    if (!ch || !validasSet.has(ch) || visto.has(ch)) continue;
+    visto.add(ch);
+  }
+
+  return abreviacoesValidas(ministerioId).filter((a) => visto.has(a));
+}
+
+function CelulaAbrevBadges({ ministerioId, valor }) {
+  const abrevs = abrevsParaExibicaoCelula(ministerioId, valor);
+  if (!abrevs?.length) return null;
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "3px",
+        flexWrap: "wrap",
+      }}
+    >
+      {abrevs.map((abrev) =>
+        abrev ? (
+          <AbrevBadge
+            key={abrev}
+            ministerioId={ministerioId}
+            abrev={abrev}
+            variant="cell"
+          />
+        ) : null
+      )}
+    </span>
+  );
+}
+
 function renderCabecalhoColunaColorido(dataObj) {
   const cabecalho = formatarCabecalhoColuna(dataObj);
 
@@ -84,21 +140,6 @@ function renderCabecalhoColunaColorido(dataObj) {
   const cabecalhoBase = cabecalho.replace(/\s+\(([MN])\)$/, "");
 
   return <TurnoLabelInline label={cabecalhoBase} turno={dataObj.turno} title={cabecalho} />;
-}
-
-function buildCellsFromEscalas(escalas, datas, ministerioId) {
-  const cells = {};
-  const funcoes = funcoesPorMinisterio[ministerioId] || [];
-  for (const dataObj of datas) {
-    const turnoKey = dataObj.turno || "único";
-    for (const funcao of funcoes) {
-      const pessoaNome = escalas[`${dataObj.data}-${turnoKey}-${funcao}`];
-      if (!pessoaNome || pessoaNome === "disponível") continue;
-      const abrev = funcaoParaAbrev(ministerioId, funcao);
-      if (abrev) cells[cellKey(pessoaNome, dataObj.id)] = abrev;
-    }
-  }
-  return cells;
 }
 
 export default function DashboardGrid({
@@ -120,6 +161,7 @@ export default function DashboardGrid({
     [pessoas]
   );
   const validas = useMemo(() => abreviacoesValidas(ministerioId), [ministerioId]);
+  const escalaFlexivel = ministerioPermiteEscalaFlexivel(ministerioId);
   const getValidasPessoa = useCallback(
     (pessoa) => getAbreviacoesPermitidasPessoa(ministerioId, pessoa),
     [ministerioId]
@@ -284,10 +326,15 @@ export default function DashboardGrid({
           return true;
         }
 
-        const funcao = abrevParaFuncao(ministerioId, valor);
-        if (!funcao || !validasPessoa.includes(valor)) {
+        const abrevs = parseAbreviacoesCombinadas(ministerioId, valor);
+        if (
+          !abrevs.length ||
+          !abrevs.every((a) => validasPessoa.includes(a))
+        ) {
           const sugestao = validasPessoa.length
-            ? `Use: ${validasPessoa.join(", ")}`
+            ? escalaFlexivel
+              ? `Combine: ${validasPessoa.join("")} (ex.: PS, PT, PST)`
+              : `Use: ${validasPessoa.join(", ")}`
             : `${pessoa} não possui funções permitidas nesta planilha`;
           onMensagem?.(
             `Abreviação inválida para ${pessoa}. ${sugestao}`,
@@ -295,6 +342,10 @@ export default function DashboardGrid({
           );
           return false;
         }
+
+        const funcoesAlvo = abrevs
+          .map((a) => abrevParaFuncao(ministerioId, a))
+          .filter(Boolean);
 
         const qPessoa = query(
           collection(db, "escalas"),
@@ -304,54 +355,100 @@ export default function DashboardGrid({
         );
         const snapPessoa = await getDocs(qPessoa);
 
-        const conflitoOutro = snapPessoa.docs.find(
-          (d) => d.data().ministerioId !== ministerioId
-        );
-        if (conflitoOutro) {
-          const dd = conflitoOutro.data();
-          onConflito?.({
-            pessoa,
-            data: formatarData(dataObj.data, dataObj.turno, dataObj.descricao),
-            ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
-            funcao: dd.funcao,
+        if (!escalaFlexivel) {
+          const conflitoOutro = snapPessoa.docs.find(
+            (d) => d.data().ministerioId !== ministerioId
+          );
+          if (conflitoOutro) {
+            const dd = conflitoOutro.data();
+            onConflito?.({
+              pessoa,
+              data: formatarData(dataObj.data, dataObj.turno, dataObj.descricao),
+              ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
+              funcao: dd.funcao,
+            });
+            return false;
+          }
+
+          const funcao = funcoesAlvo[0];
+          const mesmaPessoaOutraFuncao = snapPessoa.docs.filter(
+            (d) =>
+              d.data().ministerioId === ministerioId && d.data().funcao !== funcao
+          );
+          for (const docSnap of mesmaPessoaOutraFuncao) {
+            await deleteDoc(docSnap.ref);
+          }
+
+          const qFuncao = query(
+            collection(db, "escalas"),
+            where("ministerioId", "==", ministerioId),
+            where("data", "==", dataObj.data),
+            where("funcao", "==", funcao),
+            where("turno", "==", turno)
+          );
+          const snapFuncao = await getDocs(qFuncao);
+          for (const docSnap of snapFuncao.docs) await deleteDoc(docSnap.ref);
+
+          const { horaInicio, horaFim } = getHorarios(dataObj);
+          await addDoc(collection(db, "escalas"), {
+            pessoaNome: pessoaLower,
+            funcao,
+            ministerioId,
+            data: dataObj.data,
+            turno,
+            horaInicio,
+            horaFim,
+            criadoPor: usuario.uid,
+            criadoPorEmail: usuario.email,
+            criadoEm: new Date().toISOString(),
           });
-          return false;
+
+          setCells((prev) => ({ ...prev, [key]: abrevs[0] }));
+          onMensagem?.(`${pessoa} — ${funcao}`, "sucesso");
+          return true;
         }
 
-        const mesmaPessoaOutraFuncao = snapPessoa.docs.filter(
-          (d) =>
-            d.data().ministerioId === ministerioId && d.data().funcao !== funcao
+        const docsMesmoMinisterio = snapPessoa.docs.filter(
+          (d) => d.data().ministerioId === ministerioId
         );
-        for (const docSnap of mesmaPessoaOutraFuncao) {
-          await deleteDoc(docSnap.ref);
+        for (const docSnap of docsMesmoMinisterio) {
+          if (!funcoesAlvo.includes(docSnap.data().funcao)) {
+            await deleteDoc(docSnap.ref);
+          }
         }
-
-        const qFuncao = query(
-          collection(db, "escalas"),
-          where("ministerioId", "==", ministerioId),
-          where("data", "==", dataObj.data),
-          where("funcao", "==", funcao),
-          where("turno", "==", turno)
-        );
-        const snapFuncao = await getDocs(qFuncao);
-        for (const docSnap of snapFuncao.docs) await deleteDoc(docSnap.ref);
 
         const { horaInicio, horaFim } = getHorarios(dataObj);
-        await addDoc(collection(db, "escalas"), {
-          pessoaNome: pessoaLower,
-          funcao,
-          ministerioId,
-          data: dataObj.data,
-          turno,
-          horaInicio,
-          horaFim,
-          criadoPor: usuario.uid,
-          criadoPorEmail: usuario.email,
-          criadoEm: new Date().toISOString(),
-        });
+        for (const funcao of funcoesAlvo) {
+          const qFuncao = query(
+            collection(db, "escalas"),
+            where("ministerioId", "==", ministerioId),
+            where("data", "==", dataObj.data),
+            where("funcao", "==", funcao),
+            where("turno", "==", turno)
+          );
+          const snapFuncao = await getDocs(qFuncao);
+          for (const docSnap of snapFuncao.docs) await deleteDoc(docSnap.ref);
 
-        setCells((prev) => ({ ...prev, [key]: valor }));
-        onMensagem?.(`${pessoa} — ${funcao}`, "sucesso");
+          await addDoc(collection(db, "escalas"), {
+            pessoaNome: pessoaLower,
+            funcao,
+            ministerioId,
+            data: dataObj.data,
+            turno,
+            horaInicio,
+            horaFim,
+            criadoPor: usuario.uid,
+            criadoPorEmail: usuario.email,
+            criadoEm: new Date().toISOString(),
+          });
+        }
+
+        const valorCelula = formatarAbreviacoesCombinadas(ministerioId, abrevs);
+        setCells((prev) => ({ ...prev, [key]: valorCelula }));
+        onMensagem?.(
+          `${pessoa} — ${funcoesAlvo.join(", ")}`,
+          "sucesso"
+        );
         return true;
       } catch (err) {
         console.error(err);
@@ -361,14 +458,20 @@ export default function DashboardGrid({
         setSalvando(false);
       }
     },
-    [cells, getValidasPessoa, ministerioId, podeEditar, usuario, onMensagem, onConflito]
+    [cells, escalaFlexivel, getValidasPessoa, ministerioId, podeEditar, usuario, onMensagem, onConflito]
   );
 
   const iniciarEdicao = (pessoa, dataObj) => {
     if (!podeEditar || salvando) return;
     const key = cellKey(pessoa, dataObj.id);
     const validasPessoa = getValidasPessoa(pessoa);
-    if (!cells[key] && (isIndisponivel(pessoa, dataObj) || (isExternalDetectionEnabled && getOutroMinisterio(pessoa, dataObj)))) {
+    if (!cells[key] && isIndisponivel(pessoa, dataObj)) return;
+    if (
+      !cells[key] &&
+      !escalaFlexivel &&
+      isExternalDetectionEnabled &&
+      getOutroMinisterio(pessoa, dataObj)
+    ) {
       return;
     }
     if (!cells[key] && validasPessoa.length === 0) return;
@@ -517,8 +620,12 @@ export default function DashboardGrid({
                   const key = cellKey(pessoa, dataObj.id);
                   const isEditing = editingKey === key;
                   const isAtiva = celulaAtiva?.pessoa === pessoa && celulaAtiva?.colId === dataObj.id;
-                  const valor = cells[key] || "";
-                  const validasPessoa = getValidasPessoa(pessoa);
+                  const valorBruto = cells[key];
+                  const valor =
+                    valorBruto != null && valorBruto !== ""
+                      ? String(valorBruto).trim()
+                      : "";
+                  const validasPessoa = getValidasPessoa(pessoa) ?? [];
                   const semFuncaoPermitida = validasPessoa.length === 0;
                   const vazio = !valor && !isEditing;
                   const indisponivel = vazio && isIndisponivel(pessoa, dataObj);
@@ -526,9 +633,14 @@ export default function DashboardGrid({
                     isExternalDetectionEnabled && vazio
                       ? getOutroMinisterio(pessoa, dataObj)
                       : null;
-                  const celulaBloqueada = indisponivel || !!outroMinisterioId;
+                  const celulaBloqueada =
+                    indisponivel || (!escalaFlexivel && !!outroMinisterioId);
                   const tooltip = valor
-                    ? getTooltipAbrev(ministerioId, valor)
+                    ? getTooltipAbrevCombinadas(ministerioId, valor) ||
+                      abrevsParaExibicaoCelula(ministerioId, valor)
+                        .map((a) => getTooltipAbrev(ministerioId, a))
+                        .filter(Boolean)
+                        .join(" · ")
                     : indisponivel
                       ? "Indisponível nesta data"
                       : outroMinisterioId
@@ -597,7 +709,10 @@ export default function DashboardGrid({
                             outline: "none",
                             margin: 0,
                             background: "transparent",
-                            color: corCelula(draft) || "var(--text)",
+                            color:
+                              corCelula(
+                                abrevsParaExibicaoCelula(ministerioId, draft)[0] || draft
+                              ) || "var(--text)",
                             fontWeight: 700,
                           }}
                         />
@@ -640,9 +755,7 @@ export default function DashboardGrid({
                             opacity: !podeEditar || (!valor && semFuncaoPermitida) ? 0.85 : 1,
                           }}
                         >
-                          {valor ? (
-                            <AbrevBadge ministerioId={ministerioId} abrev={valor} variant="cell" />
-                          ) : null}
+                          <CelulaAbrevBadges ministerioId={ministerioId} valor={valor} />
                         </button>
                       )}
                     </td>
@@ -681,6 +794,11 @@ export default function DashboardGrid({
               </span>
             );
           })}
+          {escalaFlexivel && (
+            <span style={{ color: "var(--text-dim)" }}>
+              Combine siglas na mesma célula (ex.: PS, PT, PST)
+            </span>
+          )}
           <span style={{ color: "var(--text-dim)", marginLeft: "4px" }}>
             — Enter ou sair da célula para salvar
           </span>

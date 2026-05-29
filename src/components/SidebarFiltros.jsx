@@ -11,6 +11,7 @@ import {
 import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil, pessoasPorFuncaoRecepcao } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
+import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 
 const ministerios = [
   {
@@ -265,7 +266,12 @@ export default function SidebarFiltros({
 
   /** Mesma regra de `datasVisiveis` para uma pessoa concreta (sidebar + limpeza de seleção). */
   const dataEscalavelParaPessoa = useCallback((d, nomePessoa) => {
-    if (datasConfirmadas.includes(d.id)) return false;
+    if (
+      !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
+      datasConfirmadas.includes(d.id)
+    ) {
+      return false;
+    }
     const turnoKey = d.turno ?? "único";
     if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
 
@@ -282,7 +288,7 @@ export default function SidebarFiltros({
     const chave = `${d.data}|${turnoKey}`;
     if (indisponiveisMap[pl]?.has(chave)) return false;
     return true;
-  }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap]);
+  }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap, ministerioSelecionado]);
 
   /** Oculta quem está indisponível em todas as datas/turnos do mês. */
   const pessoasSemIndispMes = useMemo(
@@ -318,7 +324,12 @@ export default function SidebarFiltros({
   // Datas visíveis — exclui ocupadas e indisponíveis da pessoa selecionada
   const datasVisiveis = datasDisponiveis.filter(d => {
     if (!pessoaSelecionada) {
-      if (datasConfirmadas.includes(d.id)) return false;
+      if (
+        !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
+        datasConfirmadas.includes(d.id)
+      ) {
+        return false;
+      }
       const turnoKey = d.turno ?? "único";
       if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
       return true;
@@ -406,7 +417,10 @@ export default function SidebarFiltros({
 
       try {
         const pessoaLower = pessoaSelecionada.toLowerCase();
-        if (pessoaLower !== "disponível") {
+        if (
+          pessoaLower !== "disponível" &&
+          !ministerioPermiteEscalaFlexivel(ministerioSelecionado)
+        ) {
           const qConflito = query(
             collection(db, "escalas"),
             where("pessoaNome", "==", pessoaLower),
@@ -469,7 +483,7 @@ export default function SidebarFiltros({
     if (salvos > 0) {
       const isGrupo = GRUPO_FUNCOES[funcaoEfetiva] ||
         (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]);
-      if (!isGrupo) {
+      if (!isGrupo && !ministerioPermiteEscalaFlexivel(ministerioSelecionado)) {
         setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
       }
       const plural = salvos === 1 ? "data" : "datas";

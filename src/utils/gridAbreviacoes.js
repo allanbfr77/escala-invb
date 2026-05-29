@@ -1,5 +1,8 @@
 // Mapeamento abreviação ↔ função por ministério (grid planilha)
 
+import { funcoesPorMinisterio } from "../data/funcoes";
+import { ministerioPermiteEscalaFlexivel } from "./regrasMinisterio";
+
 const MAPA = {
   infantil: {
     B: "BERÇÁRIO",
@@ -133,6 +136,70 @@ export function funcaoParaAbrev(ministerioId, funcao) {
 
 export function abreviacoesValidas(ministerioId) {
   return Object.keys(MAPA[ministerioId] || {});
+}
+
+/** Comunicação: "PST" → ["P","S","T"]; demais ministérios: uma sigla ou vazio */
+export function parseAbreviacoesCombinadas(ministerioId, valor) {
+  const normalizado = (valor || "").trim().toUpperCase();
+  if (!normalizado) return [];
+
+  if (!ministerioPermiteEscalaFlexivel(ministerioId)) {
+    return abrevParaFuncao(ministerioId, normalizado) ? [normalizado] : [];
+  }
+
+  const validas = abreviacoesValidas(ministerioId);
+  const validasSet = new Set(validas);
+  const seen = new Set();
+
+  for (const ch of normalizado) {
+    if (!validasSet.has(ch)) return [];
+    seen.add(ch);
+  }
+
+  return validas.filter((a) => seen.has(a));
+}
+
+/** Ordem canônica das siglas na célula (ex.: PST, não TSP) */
+export function formatarAbreviacoesCombinadas(ministerioId, abrevs) {
+  if (!abrevs?.length) return "";
+  if (!ministerioPermiteEscalaFlexivel(ministerioId)) {
+    return abrevs[0] || "";
+  }
+  const validas = abreviacoesValidas(ministerioId);
+  return validas.filter((a) => abrevs.includes(a)).join("");
+}
+
+function cellKeyPlanilha(pessoa, colId) {
+  return `${pessoa.toLowerCase()}|${colId}`;
+}
+
+/** Monta mapa célula → sigla(s) a partir do estado das escalas */
+export function buildCellsFromEscalas(escalas, datas, ministerioId) {
+  const cells = {};
+  const funcoes = funcoesPorMinisterio[ministerioId] || [];
+  for (const dataObj of datas) {
+    const turnoKey = dataObj.turno || "único";
+    for (const funcao of funcoes) {
+      const pessoaNome = escalas[`${dataObj.data}-${turnoKey}-${funcao}`];
+      if (!pessoaNome || pessoaNome === "disponível") continue;
+      const abrev = funcaoParaAbrev(ministerioId, funcao);
+      if (!abrev) continue;
+      const key = cellKeyPlanilha(pessoaNome, dataObj.id);
+      if (ministerioPermiteEscalaFlexivel(ministerioId)) {
+        const prev = cells[key] ? parseAbreviacoesCombinadas(ministerioId, cells[key]) : [];
+        cells[key] = formatarAbreviacoesCombinadas(ministerioId, [...prev, abrev]);
+      } else {
+        cells[key] = abrev;
+      }
+    }
+  }
+  return cells;
+}
+
+export function getTooltipAbrevCombinadas(ministerioId, valor) {
+  const abrevs = parseAbreviacoesCombinadas(ministerioId, valor);
+  if (!abrevs.length) return "";
+  return abrevs.map((a) => getTooltipAbrev(ministerioId, a)).filter(Boolean).join(" · ");
 }
 
 export function formatarCabecalhoColuna(dataObj) {
