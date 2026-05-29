@@ -505,9 +505,7 @@ export default function DashboardGrid({
                       ? CELULA_ATIVA_BG
                       : celulaBloqueada
                         ? CELULA_BLOQUEADA_BG
-                        : vazio
-                          ? CELULA_VAZIA_BG
-                          : "var(--bg)";
+                        : CELULA_VAZIA_BG;
 
                   return (
                     <td
