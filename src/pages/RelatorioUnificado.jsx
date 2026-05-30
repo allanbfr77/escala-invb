@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
@@ -158,14 +158,21 @@ function SecaoTitulo({ icon: Icon, titulo, badge, theme }) {
   );
 }
 
-function SecaoColapsavel({ icon: Icon, titulo, badge, theme, children, defaultAberto = false }) {
-  const [aberto, setAberto] = useState(defaultAberto);
-
+function SecaoColapsavel({
+  id,
+  icon: Icon,
+  titulo,
+  badge,
+  theme,
+  children,
+  aberto,
+  onToggle,
+}) {
   return (
     <section>
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={() => onToggle(id)}
         aria-expanded={aberto}
         style={{
           width: "100%", background: "transparent", border: "none",
@@ -390,6 +397,15 @@ export default function RelatorioUnificado({
   const { isDark, toggleTheme, theme } = useThemeTokens();
   const { loading, error, dados } = useRelatorioUnificado(mes);
   const [expandidosCarga, setExpandidosCarga] = useState(new Set());
+  const [secaoAberta, setSecaoAberta] = useState(null);
+
+  useEffect(() => {
+    setSecaoAberta(null);
+  }, [mes]);
+
+  const toggleSecao = (id) => {
+    setSecaoAberta((prev) => (prev === id ? null : id));
+  };
 
   const podeRetroceder = mes > mesMinimo;
   const podeAvancar = mes < mesMaximo;
@@ -629,7 +645,15 @@ export default function RelatorioUnificado({
 
             {/* Alertas */}
             {totalAlertas > 0 && (
-              <SecaoColapsavel icon={AlertTriangle} titulo="Alertas" badge={totalAlertas} theme={theme}>
+              <SecaoColapsavel
+                id="alertas"
+                icon={AlertTriangle}
+                titulo="Alertas"
+                badge={totalAlertas}
+                theme={theme}
+                aberto={secaoAberta === "alertas"}
+                onToggle={toggleSecao}
+              >
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {dados.alertas.sobrecarga.map((c) => (
                     <AlertaItem key={c.pessoa} tipo="danger" theme={theme}>
@@ -639,8 +663,10 @@ export default function RelatorioUnificado({
                   ))}
                   {dados.alertas.indisponibilidadesMes.map(({ pessoa, ministerioId }) => (
                     <AlertaItem key={`${pessoa}-${ministerioId}`} theme={theme}>
-                      <strong>{pessoa.toUpperCase()}</strong> indisponível o mês inteiro em{" "}
-                      <strong>{MINISTERIOS_INFO[ministerioId]?.nome}</strong>
+                      <strong>{pessoa.toUpperCase()}</strong> indisponível o mês inteiro em Ministério{" "}
+                      <strong style={{ color: MINISTERIOS_INFO[ministerioId]?.color }}>
+                        {MINISTERIOS_INFO[ministerioId]?.nome}
+                      </strong>
                     </AlertaItem>
                   ))}
                   {dados.alertas.slotsVazios.length > 0 && (
@@ -657,10 +683,13 @@ export default function RelatorioUnificado({
             {/* Escalas por turno/dia */}
             {dados.alertas.turnoDia.length > 0 && (
               <SecaoColapsavel
+                id="turno-dia"
                 icon={CalendarDays}
                 titulo="Escalas por turno/dia"
                 badge={dados.alertas.turnoDia.length}
                 theme={theme}
+                aberto={secaoAberta === "turno-dia"}
+                onToggle={toggleSecao}
               >
                 <p style={{ fontSize: "11px", color: theme.textMuted, margin: "0 0 10px" }}>
                   Pessoas escaladas no mês, mas ausentes em algum tipo de culto (todos os ministérios)
@@ -693,10 +722,13 @@ export default function RelatorioUnificado({
 
             {/* Carga cruzada */}
             <SecaoColapsavel
+              id="carga-cruzada"
               icon={Users}
               titulo="Carga cruzada"
               badge={dados.cargaCruzada.length}
               theme={theme}
+              aberto={secaoAberta === "carga-cruzada"}
+              onToggle={toggleSecao}
             >
               {dados.alertas.multiministerio.length > 0 && (
                 <p style={{ fontSize: "11px", color: theme.textMuted, margin: "0 0 10px" }}>
@@ -794,10 +826,13 @@ export default function RelatorioUnificado({
             {/* Sem escala global */}
             {dados.semEscalaGlobal.length > 0 && (
               <SecaoColapsavel
+                id="sem-escala"
                 icon={AlertCircle}
                 titulo="Sem escala em nenhum ministério"
                 badge={dados.semEscalaGlobal.length}
                 theme={theme}
+                aberto={secaoAberta === "sem-escala"}
+                onToggle={toggleSecao}
               >
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                   {dados.semEscalaGlobal.map((p) => (
@@ -814,7 +849,14 @@ export default function RelatorioUnificado({
             )}
 
             {/* Detalhamento por ministério */}
-            <SecaoColapsavel icon={BarChart3} titulo="Detalhamento por ministério" theme={theme}>
+            <SecaoColapsavel
+              id="detalhamento"
+              icon={BarChart3}
+              titulo="Detalhamento por ministério"
+              theme={theme}
+              aberto={secaoAberta === "detalhamento"}
+              onToggle={toggleSecao}
+            >
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {MINISTERIOS_IDS.map((mid) => (
                   <MinisterioDetalhe
