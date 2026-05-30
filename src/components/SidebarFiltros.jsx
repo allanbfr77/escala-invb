@@ -4,10 +4,6 @@ import { createPortal } from "react-dom";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { funcoesPorMinisterio } from "../data/funcoes";
-import {
-  estaIndisponivelTodoMes,
-  filtrarPessoasDisponiveisMes,
-} from "../utils/indisponibilidadeHelpers";
 import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil, pessoasPorFuncaoRecepcao } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
@@ -99,12 +95,11 @@ export default function SidebarFiltros({
 }) {
   const t = theme || {};
   const [salvando, setSalvando]               = useState(false);
-  const [pessoaSelecionada, setPessoa]        = useState("");
+  const [pessoasMarcadas, setPessoasMarcadas] = useState([]);
   const [funcaoSelecionada, setFuncao]        = useState("");
-  const [datasIds, setDatasIds]               = useState([]);
+  const [dataSelecionadaId, setDataSelecionadaId] = useState("");
   const [datasConfirmadas, setDatasConfirmadas] = useState([]);
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
-  const [datasAberta, setDatasAberta]         = useState(false);
   const [extrasAberta, setExtrasAberta]       = useState(false);
   const [minDropAberto, setMinDropAberto]     = useState(false);
   const minDropRef                            = useRef(null);
@@ -136,22 +131,16 @@ export default function SidebarFiltros({
   // ─── Limpa estado ao trocar ministério ───────────────────────────────────
   useEffect(() => {
     setDatasConfirmadas([]);
-    setDatasIds([]);
+    setDataSelecionadaId("");
     setFuncao("");
-    setPessoa("");
-    setDatasAberta(false);
+    setPessoasMarcadas([]);
     setModalEscolhaFuncao({ aberto: false, opcoes: [] });
   }, [ministerioSelecionado]);
 
-  // ─── Abre datas automaticamente quando ambos estão selecionados ─────────
   useEffect(() => {
-    setDatasIds([]);
-    if (funcaoSelecionada && pessoaSelecionada) {
-      setDatasAberta(true);
-    } else {
-      setDatasAberta(false);
-    }
-  }, [funcaoSelecionada, pessoaSelecionada]);
+    setDataSelecionadaId("");
+    setPessoasMarcadas([]);
+  }, [funcaoSelecionada]);
 
   // ─── Limpa datasConfirmadas ao remover da grid ────────────────────────────
   useEffect(() => {
@@ -231,8 +220,8 @@ export default function SidebarFiltros({
     } else {
       permitidos = pessoasPorFuncaoInfantil[funcaoSelecionada] || [];
     }
-    if (pessoaSelecionada && !permitidos.includes(pessoaSelecionada)) {
-      setPessoa("");
+    if (pessoasMarcadas.some(p => p !== "Disponível" && !permitidos.includes(p))) {
+      setPessoasMarcadas(prev => prev.filter(p => p === "Disponível" || permitidos.includes(p)));
     }
   }, [funcaoSelecionada]);
 
@@ -264,7 +253,7 @@ export default function SidebarFiltros({
     return pessoasPorFuncaoInfantil[funcaoSelecionada] || pessoasDoMinisterio;
   })();
 
-  /** Mesma regra de `datasVisiveis` para uma pessoa concreta (sidebar + limpeza de seleção). */
+  /** Disponibilidade de uma pessoa em uma data/função (indisp., ocupação, slot "disponível"). */
   const dataEscalavelParaPessoa = useCallback((d, nomePessoa) => {
     if (
       !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
@@ -290,25 +279,38 @@ export default function SidebarFiltros({
     return true;
   }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap, ministerioSelecionado]);
 
-  /** Oculta quem está indisponível em todas as datas/turnos do mês. */
-  const pessoasSemIndispMes = useMemo(
-    () => filtrarPessoasDisponiveisMes(pessoasFiltradas, datasDisponiveis, indisponiveisMap),
-    [pessoasFiltradas, datasDisponiveis, indisponiveisMap]
+  /** Datas escaláveis na função (sem filtro por obreiro). */
+  const datasParaSelect = useMemo(() => {
+    if (!funcaoSelecionada) return [];
+    return datasDisponiveis.filter(d => {
+      if (
+        !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
+        datasConfirmadas.includes(d.id)
+      ) {
+        return false;
+      }
+      if (funcaoSelecionada === "TODOS") return true;
+      const turnoKey = d.turno ?? "único";
+      return !datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
+    });
+  }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas, ministerioSelecionado]);
+
+  const dataSelecionadaObj = useMemo(
+    () => datasDisponiveis.find(d => d.id === dataSelecionadaId) ?? null,
+    [datasDisponiveis, dataSelecionadaId]
   );
 
-  /** Esconde da lista quem não tem nenhuma data livre para a função atual (indisp. + ocupação). */
-  const pessoasComSlotNaSidebar = useMemo(() => {
-    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return pessoasSemIndispMes;
-    return pessoasSemIndispMes.filter(p =>
-      datasDisponiveis.some(d => dataEscalavelParaPessoa(d, p))
-    );
-  }, [funcaoSelecionada, pessoasSemIndispMes, datasDisponiveis, dataEscalavelParaPessoa]);
+  /** Obreiros disponíveis na data e função escolhidas (filtro reverso). */
+  const pessoasDisponiveisNaData = useMemo(() => {
+    if (!funcaoSelecionada || !dataSelecionadaObj) return [];
+    return pessoasFiltradas.filter(p => dataEscalavelParaPessoa(dataSelecionadaObj, p));
+  }, [funcaoSelecionada, dataSelecionadaObj, pessoasFiltradas, dataEscalavelParaPessoa]);
 
-  const disponivelTemDatas = useMemo(() => {
-    if (ministerioSelecionado !== "louvor") return true;
-    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return true;
-    return datasDisponiveis.some(d => dataEscalavelParaPessoa(d, "Disponível"));
-  }, [ministerioSelecionado, funcaoSelecionada, datasDisponiveis, dataEscalavelParaPessoa]);
+  const disponivelNaDataSelecionada = useMemo(() => {
+    if (ministerioSelecionado !== "louvor" || !dataSelecionadaObj) return false;
+    if (!funcaoSelecionada) return false;
+    return dataEscalavelParaPessoa(dataSelecionadaObj, "Disponível");
+  }, [ministerioSelecionado, funcaoSelecionada, dataSelecionadaObj, dataEscalavelParaPessoa]);
 
   /** Só quando todos os cultos do mês estão ocupados na função (não confundir com indisponibilidade pessoal). */
   const todasDatasOcupadasNaFuncao = useMemo(() => {
@@ -321,177 +323,161 @@ export default function SidebarFiltros({
     });
   }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas]);
 
-  // Datas visíveis — exclui ocupadas e indisponíveis da pessoa selecionada
-  const datasVisiveis = datasDisponiveis.filter(d => {
-    if (!pessoaSelecionada) {
-      if (
-        !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
-        datasConfirmadas.includes(d.id)
-      ) {
-        return false;
-      }
-      const turnoKey = d.turno ?? "único";
-      if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
-      return true;
+  useEffect(() => {
+    if (!dataSelecionadaId) return;
+    if (!datasParaSelect.some(d => d.id === dataSelecionadaId)) {
+      setDataSelecionadaId("");
+      setPessoasMarcadas([]);
     }
-    return dataEscalavelParaPessoa(d, pessoaSelecionada);
-  });
+  }, [dataSelecionadaId, datasParaSelect]);
 
   useEffect(() => {
-    const visiveisIds = new Set(datasVisiveis.map(d => d.id));
-    setDatasIds(prev => prev.filter(id => visiveisIds.has(id)));
-  }, [datasOcupadas, datasConfirmadas, pessoaSelecionada, indisponiveisMap]);
+    setPessoasMarcadas(prev => prev.filter(p => {
+      if (p === "Disponível") return disponivelNaDataSelecionada;
+      return pessoasDisponiveisNaData.includes(p);
+    }));
+  }, [pessoasDisponiveisNaData, disponivelNaDataSelecionada]);
 
   useEffect(() => {
-    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return;
-    if (!pessoaSelecionada) return;
-    if (pessoaSelecionada === "Disponível") {
-      if (!disponivelTemDatas) setPessoa("");
-      return;
-    }
-    if (!pessoasComSlotNaSidebar.includes(pessoaSelecionada)) setPessoa("");
-  }, [
-    funcaoSelecionada,
-    pessoaSelecionada,
-    pessoasComSlotNaSidebar,
-    disponivelTemDatas,
-  ]);
+    setPessoasMarcadas([]);
+  }, [dataSelecionadaId]);
 
-  useEffect(() => {
-    if (
-      pessoaSelecionada &&
-      pessoaSelecionada !== "Disponível" &&
-      estaIndisponivelTodoMes(pessoaSelecionada, datasDisponiveis, indisponiveisMap)
-    ) {
-      setPessoa("");
-    }
-  }, [pessoaSelecionada, datasDisponiveis, indisponiveisMap]);
+  const obreirosLista = useMemo(() => {
+    const nomes = [...pessoasDisponiveisNaData].sort((a, b) => a.localeCompare(b, "pt"));
+    if (disponivelNaDataSelecionada) nomes.unshift("Disponível");
+    return nomes;
+  }, [pessoasDisponiveisNaData, disponivelNaDataSelecionada]);
 
+  const qtdDisponiveisObreiros = obreirosLista.length;
 
-  const toggleData = (id) => {
-    setDatasIds(prev =>
-      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
-    );
+  const toggleObreiro = (nome) => {
+    if (!podeEditar || !dataSelecionadaId) return;
+    setPessoasMarcadas(prev => {
+      if (prev.includes(nome)) return [];
+      return [nome];
+    });
     onConflito?.(null);
+  };
+
+  const resolverFuncaoReal = (funcaoEfetiva, dataObj, turnoSalvo, mapaEscalas) => {
+    if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
+      for (const slot of RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
+        const ocupante = mapaEscalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
+        if (!ocupante || ocupante === "disponível") return slot;
+      }
+      return null;
+    }
+    if (GRUPO_FUNCOES[funcaoEfetiva]) {
+      for (const slot of GRUPO_FUNCOES[funcaoEfetiva]) {
+        const ocupante = mapaEscalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
+        if (!ocupante || ocupante === "disponível") return slot;
+      }
+      return null;
+    }
+    return funcaoEfetiva;
   };
 
   const confirmarEscalaComFuncao = async (funcaoEfetiva) => {
     setSalvando(true);
     onConflito?.(null);
 
-    const datasObj = datasIds
-      .map(id => datasDisponiveis.find(d => d.id === id))
-      .filter(Boolean);
+    const dataObj = datasDisponiveis.find(d => d.id === dataSelecionadaId);
+    const datasObj = dataObj ? [dataObj] : [];
+    const pessoasParaSalvar = [...pessoasMarcadas];
 
     let erros = 0;
     let conflito = null;
     const idsSalvos = [];
+    let salvos = 0;
+    const escalasLocal = { ...escalas };
 
-    for (const dataObj of datasObj) {
-      const turnoSalvo = dataObj.turno === "único" ? "único" : dataObj.turno;
-
-      let funcaoReal = funcaoEfetiva;
-      if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
-        const prefSlots = RECEPCAO_PREFERENCIA[funcaoEfetiva];
-        funcaoReal = null;
-        for (const slot of prefSlots) {
-          const ocupante = escalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
-          if (!ocupante || ocupante === "disponível") {
-            funcaoReal = slot;
-            break;
-          }
-        }
+    for (const nomePessoa of pessoasParaSalvar) {
+      for (const dataItem of datasObj) {
+        const turnoSalvo = dataItem.turno === "único" ? "único" : dataItem.turno;
+        const funcaoReal = resolverFuncaoReal(funcaoEfetiva, dataItem, turnoSalvo, escalasLocal);
         if (!funcaoReal) { erros++; continue; }
-      } else if (GRUPO_FUNCOES[funcaoEfetiva]) {
-        const subFuncoes = GRUPO_FUNCOES[funcaoEfetiva];
-        funcaoReal = null;
-        for (const slot of subFuncoes) {
-          const ocupante = escalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
-          if (!ocupante || ocupante === "disponível") {
-            funcaoReal = slot;
-            break;
-          }
-        }
-        if (!funcaoReal) { erros++; continue; }
-      }
 
-      try {
-        const pessoaLower = pessoaSelecionada.toLowerCase();
-        if (
-          pessoaLower !== "disponível" &&
-          !ministerioPermiteEscalaFlexivel(ministerioSelecionado)
-        ) {
-          const qConflito = query(
+        try {
+          const pessoaLower = nomePessoa.toLowerCase();
+          if (
+            pessoaLower !== "disponível" &&
+            !ministerioPermiteEscalaFlexivel(ministerioSelecionado)
+          ) {
+            const qConflito = query(
+              collection(db, "escalas"),
+              where("pessoaNome", "==", pessoaLower),
+              where("data", "==", dataItem.data),
+              where("turno", "==", turnoSalvo)
+            );
+            const conflitoSnap = await getDocs(qConflito);
+            const conflitoOutro = conflitoSnap.docs.find(d => d.data().ministerioId !== ministerioSelecionado);
+
+            if (conflitoOutro) {
+              const dd = conflitoOutro.data();
+              if (!conflito) {
+                conflito = {
+                  pessoa: nomePessoa,
+                  data: formatarData(dataItem.data, dataItem.turno, dataItem.descricao),
+                  ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
+                  funcao: dd.funcao,
+                };
+              }
+              erros++;
+              continue;
+            }
+          }
+
+          const qExistente = query(
             collection(db, "escalas"),
-            where("pessoaNome", "==", pessoaLower),
-            where("data", "==", dataObj.data),
+            where("ministerioId", "==", ministerioSelecionado),
+            where("data", "==", dataItem.data),
+            where("funcao", "==", funcaoReal),
             where("turno", "==", turnoSalvo)
           );
-          const conflitoSnap = await getDocs(qConflito);
-          const conflitoOutro = conflitoSnap.docs.find(d => d.data().ministerioId !== ministerioSelecionado);
+          const existenteSnap = await getDocs(qExistente);
+          for (const docSnap of existenteSnap.docs) await deleteDoc(docSnap.ref);
 
-          if (conflitoOutro) {
-            const dd = conflitoOutro.data();
-            if (!conflito) {
-              conflito = {
-                pessoa: pessoaSelecionada,
-                data: formatarData(dataObj.data, dataObj.turno, dataObj.descricao),
-                ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
-                funcao: dd.funcao,
-              };
-            }
-            erros++;
-            continue;
-          }
+          await addDoc(collection(db, "escalas"), {
+            pessoaNome: pessoaLower,
+            funcao: funcaoReal,
+            ministerioId: ministerioSelecionado,
+            data: dataItem.data,
+            turno: turnoSalvo,
+            horaInicio: dataItem.tipo === "domingo" && dataItem.turno === "manhã" ? "08:00" :
+                        dataItem.tipo === "domingo" && dataItem.turno === "noite" ? "18:00" : "19:00",
+            horaFim: dataItem.tipo === "domingo" && dataItem.turno === "manhã" ? "12:00" : "22:00",
+            criadoPor: usuario.uid,
+            criadoPorEmail: usuario.email,
+            criadoEm: new Date().toISOString()
+          });
+
+          escalasLocal[`${dataItem.data}-${turnoSalvo}-${funcaoReal}`] = pessoaLower;
+          idsSalvos.push(dataItem.id);
+          salvos++;
+
+        } catch (error) {
+          console.error(error);
+          erros++;
         }
-
-        const qExistente = query(
-          collection(db, "escalas"),
-          where("ministerioId", "==", ministerioSelecionado),
-          where("data", "==", dataObj.data),
-          where("funcao", "==", funcaoReal),
-          where("turno", "==", turnoSalvo)
-        );
-        const existenteSnap = await getDocs(qExistente);
-        for (const docSnap of existenteSnap.docs) await deleteDoc(docSnap.ref);
-
-        await addDoc(collection(db, "escalas"), {
-          pessoaNome: pessoaSelecionada.toLowerCase(),
-          funcao: funcaoReal,
-          ministerioId: ministerioSelecionado,
-          data: dataObj.data,
-          turno: turnoSalvo,
-          horaInicio: dataObj.tipo === "domingo" && dataObj.turno === "manhã" ? "08:00" :
-                      dataObj.tipo === "domingo" && dataObj.turno === "noite" ? "18:00" : "19:00",
-          horaFim: dataObj.tipo === "domingo" && dataObj.turno === "manhã" ? "12:00" : "22:00",
-          criadoPor: usuario.uid,
-          criadoPorEmail: usuario.email,
-          criadoEm: new Date().toISOString()
-        });
-
-        idsSalvos.push(dataObj.id);
-
-      } catch (error) {
-        console.error(error);
-        erros++;
       }
     }
 
-    const salvos = datasObj.length - erros;
     if (conflito) onConflito?.(conflito);
 
     if (salvos > 0) {
       const isGrupo = GRUPO_FUNCOES[funcaoEfetiva] ||
         (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]);
       if (!isGrupo && !ministerioPermiteEscalaFlexivel(ministerioSelecionado)) {
-        setDatasConfirmadas(prev => [...prev, ...idsSalvos]);
+        setDatasConfirmadas(prev => [...new Set([...prev, ...idsSalvos])]);
       }
-      const plural = salvos === 1 ? "data" : "datas";
+      const nomes = pessoasParaSalvar.map(p => p.toUpperCase()).join(", ");
+      const pluralPessoa = pessoasParaSalvar.length === 1 ? "Obreiro" : "Obreiros";
       onMensagem?.(
-        `${pessoaSelecionada.toUpperCase()} escalado como ${funcaoEfetiva} em ${salvos} ${plural}`,
+        `${pluralPessoa} ${nomes} escalado(s) como ${funcaoEfetiva}`,
         "sucesso"
       );
-      setDatasIds([]);
+      setPessoasMarcadas([]);
+      setDataSelecionadaId("");
       if (onRefresh) onRefresh();
       if (!erros) setTimeout(() => { if (onConfirmar) onConfirmar(); }, 1200);
     }
@@ -501,9 +487,9 @@ export default function SidebarFiltros({
 
   const handleConfirmarEscala = async () => {
     if (!podeEditar)           { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
-    if (!pessoaSelecionada)    { onMensagem?.("Selecione uma pessoa", "erro"); return; }
+    if (pessoasMarcadas.length === 0) { onMensagem?.("Selecione ao menos um obreiro", "erro"); return; }
     if (!funcaoSelecionada)    { onMensagem?.("Selecione uma função", "erro"); return; }
-    if (datasIds.length === 0) { onMensagem?.("Selecione ao menos uma data", "erro"); return; }
+    if (!dataSelecionadaId) { onMensagem?.("Selecione uma data", "erro"); return; }
 
     if (funcaoSelecionada === "TODOS") {
       const opcoes = [...funcoesDoMinisterio];
@@ -589,7 +575,7 @@ export default function SidebarFiltros({
 
   const datasHint = (() => {
     if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return null;
-    if (datasVisiveis.length === 0 && datasDisponiveis.length > 0 && todasDatasOcupadasNaFuncao) {
+    if (datasParaSelect.length === 0 && datasDisponiveis.length > 0 && todasDatasOcupadasNaFuncao) {
       return { text: "Todas as datas já estão preenchidas para esta função", color: "#d2993a" };
     }
     return null;
@@ -740,93 +726,9 @@ export default function SidebarFiltros({
         </select>
       </div>
 
-      {/* Pessoa (filtrada pela função se louvor/infantil) */}
+      {/* Data — select único (depende da função) */}
       <div style={s.field}>
-        <label style={s.label}>
-          OBREIRO(A)
-          {funcaoSelecionada && funcaoSelecionada !== "TODOS" && (
-            <span style={{
-              marginLeft: "6px", fontSize: "9px", fontWeight: 600,
-              color: t.accent, background: t.accentDim,
-              borderRadius: "8px", padding: "1px 6px",
-              textTransform: "uppercase", letterSpacing: "0.3px",
-            }}>
-              {pessoasComSlotNaSidebar.length} disponíveis
-            </span>
-          )}
-        </label>
-        <select
-          className="sidebar-select"
-          value={pessoaSelecionada}
-          onChange={e => { setPessoa(e.target.value); onConflito?.(null); }}
-          style={{ ...s.select, opacity: !podeEditar ? 0.5 : 1 }}
-          disabled={!podeEditar}
-        >
-          <option value="">Selecione...</option>
-          {ministerioSelecionado === "louvor" && disponivelTemDatas && (
-            <option value="Disponível">✦ DISPONÍVEL</option>
-          )}
-          {[...pessoasComSlotNaSidebar].sort((a, b) => a.localeCompare(b, "pt")).map(p => (
-            <option key={p} value={p}>{p.toUpperCase()}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Datas — acordeão, desabilitado quando TODOS está selecionado */}
-      <div style={s.field}>
-        {/* Header clicável */}
-        <button
-          onClick={() => {
-            if (funcaoSelecionada && pessoaSelecionada) setDatasAberta(v => !v);
-          }}
-          disabled={!funcaoSelecionada || !pessoaSelecionada}
-          style={{
-            width: "100%", display: "flex", alignItems: "center",
-            justifyContent: "space-between", marginBottom: datasAberta ? "6px" : "0",
-            background: "none", border: "none", padding: "0",
-            cursor: funcaoSelecionada ? "pointer" : "default",
-            fontFamily: "inherit",
-          }}
-        >
-          <span style={{ ...s.label, marginBottom: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-            Datas
-            {datasIds.length > 0 && (
-              <span style={{
-                background: t.accent, color: "white",
-                borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: 700,
-              }}>
-                {datasIds.length}
-              </span>
-            )}
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {datasAberta && podeEditar && datasVisiveis.length > 0 && (
-              <div style={{ display: "flex", gap: "8px" }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => { setDatasIds(datasVisiveis.map(d => d.id)); onConflito?.(null); }}
-                  style={{ background: "transparent", border: "none", padding: 0, fontSize: "11px", fontWeight: 600, color: t.accent, cursor: "pointer", fontFamily: "inherit" }}>
-                  Todas
-                </button>
-                <span style={{ color: t.border }}>·</span>
-                <button onClick={() => { setDatasIds([]); onConflito?.(null); }}
-                  style={{ background: "transparent", border: "none", padding: 0, fontSize: "11px", fontWeight: 600, color: t.textMuted, cursor: "pointer", fontFamily: "inherit" }}>
-                  Nenhuma
-                </button>
-              </div>
-            )}
-            <svg
-              width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke={funcaoSelecionada && pessoaSelecionada ? t.textMuted : t.textDim}
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transition: "transform 0.2s", transform: datasAberta ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
-            >
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </div>
-        </button>
-
-        {/* Conteúdo colapsável */}
-        <div style={{ display: datasAberta ? "block" : "none" }}>
-
+        <label style={s.label}>Data</label>
         {datasHint && (
           <div style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -838,34 +740,69 @@ export default function SidebarFiltros({
             </span>
           </div>
         )}
+        <select
+          className="sidebar-select"
+          value={dataSelecionadaId}
+          onChange={e => { setDataSelecionadaId(e.target.value); onConflito?.(null); }}
+          style={{ ...s.select, opacity: !podeEditar || !funcaoSelecionada ? 0.5 : 1 }}
+          disabled={!podeEditar || !funcaoSelecionada}
+        >
+          <option value="">
+            {!funcaoSelecionada
+              ? "Selecione a função primeiro..."
+              : datasParaSelect.length === 0
+                ? "Nenhuma data disponível"
+                : "Selecione..."}
+          </option>
+          {datasParaSelect.map(d => (
+            <option key={d.id} value={d.id}>
+              {formatarData(d.data, d.turno, d.descricao)}
+            </option>
+          ))}
+        </select>
+      </div>
 
+      {/* Obreiro — checkboxes filtrados pela data e função */}
+      <div style={s.field}>
+        <label style={s.label}>
+          OBREIRO(A)
+          {funcaoSelecionada && dataSelecionadaId && (
+            <span style={{
+              marginLeft: "6px", fontSize: "9px", fontWeight: 600,
+              color: t.accent, background: t.accentDim,
+              borderRadius: "8px", padding: "1px 6px",
+              textTransform: "uppercase", letterSpacing: "0.3px",
+            }}>
+              {qtdDisponiveisObreiros} disponíveis
+            </span>
+          )}
+        </label>
         <div style={{
           borderRadius: "6px", border: `1px solid ${t.border}`,
           overflow: "hidden",
-          opacity: !podeEditar ? 0.5 : 1,
+          opacity: !podeEditar || !dataSelecionadaId ? 0.5 : 1,
         }}>
-          {!funcaoSelecionada || !pessoaSelecionada ? (
+          {!dataSelecionadaId ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              Selecione função e pessoa primeiro
+              Selecione a data primeiro
             </div>
-          ) : datasVisiveis.length === 0 ? (
+          ) : obreirosLista.length === 0 ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              {pessoaSelecionada
-                ? "Nenhuma data disponível para esta pessoa e função"
-                : "Todas as datas já estão preenchidas"}
+              Nenhum obreiro disponível para esta data e função
             </div>
           ) : (
-            datasVisiveis.map((d, i) => {
-              const checked = datasIds.includes(d.id);
+            obreirosLista.map((nome, i) => {
+              const checked = pessoasMarcadas.includes(nome);
+              const rotulo = nome === "Disponível" ? "✦ DISPONÍVEL" : nome.toUpperCase();
               return (
                 <div
-                  key={d.id}
-                  onClick={() => { if (podeEditar) toggleData(d.id); }}
+                  key={nome}
+                  onClick={() => toggleObreiro(nome)}
                   style={{
                     display: "flex", alignItems: "center", gap: "10px",
                     padding: "7px 10px", cursor: podeEditar ? "pointer" : "default",
                     background: checked ? t.accentDim : "transparent",
-                    borderBottom: i < datasVisiveis.length - 1 ? `1px solid ${t.border}` : "none",
+                    borderBottom: i < obreirosLista.length - 1 ? `1px solid ${t.border}` : "none",
                     transition: "background 0.1s",
                   }}
                 >
@@ -887,14 +824,13 @@ export default function SidebarFiltros({
                     color: checked ? t.text : t.textMuted,
                     fontWeight: checked ? 500 : 400,
                   }}>
-                    {formatarData(d.data, d.turno, d.descricao)}
+                    {rotulo}
                   </span>
                 </div>
               );
             })
           )}
         </div>
-        </div>{/* fim conteúdo colapsável */}
       </div>
 
       {/* Botão confirmar */}
@@ -927,17 +863,17 @@ export default function SidebarFiltros({
       >
         {salvando
           ? "Salvando..."
-          : datasIds.length > 1
-            ? `Confirmar ${datasIds.length} escalas`
+          : pessoasMarcadas.length > 1
+            ? `Confirmar ${pessoasMarcadas.length} escalas`
             : "Confirmar escala"}
       </button>
 
       {/* Botão limpar */}
       <button
         onClick={() => {
-          setPessoa("");
+          setPessoasMarcadas([]);
           setFuncao("");
-          setDatasIds([]);
+          setDataSelecionadaId("");
           setDatasConfirmadas([]);
           onConflito?.(null);
         }}
@@ -1195,7 +1131,7 @@ export default function SidebarFiltros({
               Em qual função quer escalar?
             </p>
             <p style={{ fontSize: "12px", color: t.textMuted, marginBottom: "16px", lineHeight: 1.45, flexShrink: 0 }}>
-              Você está no modo sem filtro. Escolha a função para aplicar nas datas selecionadas.
+              Você está no modo sem filtro. Escolha a função para aplicar na data selecionada.
             </p>
             <div style={{
               display: "flex",
