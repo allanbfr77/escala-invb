@@ -6,7 +6,7 @@ import {
   setPersistence,
   browserSessionPersistence,
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 
 const AuthContext = createContext();
 
@@ -21,29 +21,44 @@ export function AuthProvider({ children }) {
     // - é apagado quando o usuário fecha a aba/janela ✓
     let unsubscribe = () => {};
 
+    let unsubProfile = () => {};
+
     setPersistence(auth, browserSessionPersistence).then(() => {
-      unsubscribe = onAuthStateChanged(auth, async (u) => {
+      unsubscribe = onAuthStateChanged(auth, (u) => {
+        unsubProfile();
         if (u) {
           const ref = doc(db, "users", u.uid);
-          const snap = await getDoc(ref);
-          if (!snap.exists()) {
-            console.warn("AuthContext: usuário logado sem documento de perfil", u.uid);
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-          setUser({ uid: u.uid, ...snap.data() });
+          unsubProfile = onSnapshot(
+            ref,
+            (snap) => {
+              if (!snap.exists()) {
+                console.warn("AuthContext: usuário logado sem documento de perfil", u.uid);
+                setUser(null);
+              } else {
+                setUser({ uid: u.uid, ...snap.data() });
+              }
+              setLoading(false);
+            },
+            (error) => {
+              console.error("AuthContext: falha ao escutar perfil do usuário", error);
+              setUser(null);
+              setLoading(false);
+            }
+          );
         } else {
           setUser(null);
+          setLoading(false);
         }
-        setLoading(false);
       });
     }).catch((error) => {
       console.error("AuthContext: falha ao definir persistência de sessão", error);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubProfile();
+    };
   }, []);
 
   const logout = () => signOut(auth);

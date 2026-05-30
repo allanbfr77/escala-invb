@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
+import { hasMasterAccess } from "../utils/permissions";
 
 /** Fundos dos cards na login — neutros quentes (evita cinza/azulado do surface global) */
 const loginCardBg = "#141414";
@@ -107,10 +108,17 @@ export default function Login() {
 
       // Valida se as credenciais pertencem ao ministério selecionado
       const snap = await getDoc(doc(db, "users", cred.user.uid));
+      if (!snap.exists()) {
+        await signOut(auth);
+        setErro("Conta sem perfil no sistema. Peça ao administrador para configurar o usuário no Firestore.");
+        setCarregando(false);
+        setSenha("");
+        return;
+      }
       const userData = snap.data();
 
-      const isMaster = userData?.role === "master";
-      if (!userData || (!isMaster && userData.ministerioId !== perfilSelecionado.id)) {
+      const acessoGlobal = hasMasterAccess(userData);
+      if (!acessoGlobal && userData.ministerioId !== perfilSelecionado.id) {
         await signOut(auth);
         setErro(`Este email não pertence ao ${perfilSelecionado.nome}`);
         setCarregando(false);

@@ -4,7 +4,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import RelatorioUnificado from "./pages/RelatorioUnificado";
-import { isMaster } from "./utils/permissions";
+import { hasMasterAccess } from "./utils/permissions";
 import { getMesInicial, getMesMinimo, getMesMaximo } from "./utils/mesHelpers";
 
 function LoadingScreen() {
@@ -41,7 +41,7 @@ function AppContent() {
   const [mes, setMes] = useState(getMesInicial);
   const mesMinimo = useMemo(() => getMesMinimo(), []);
   const mesMaximo = useMemo(() => getMesMaximo(), []);
-  const master = isMaster(user);
+  const master = hasMasterAccess(user);
 
   useEffect(() => {
     if (!user) setView(null);
