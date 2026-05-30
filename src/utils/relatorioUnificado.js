@@ -12,6 +12,30 @@ export const MINISTERIOS_INFO = {
   infantil: { nome: "Infantil", color: "#f472b6" },
 };
 
+/** Agrupa slots numerados (BVOCAL 1…4, MÚSICO 1…4, INTRODUTOR(A) 1…3) para exibição. */
+export function obterGrupoFuncaoExibicao(funcao) {
+  const match = String(funcao).match(/^(.+?) \d+$/);
+  return match ? match[1] : funcao;
+}
+
+export function agruparContagensPorFuncao(funcoes, porFuncao) {
+  const grupos = new Map();
+  const ordem = [];
+
+  for (const f of funcoes || []) {
+    const grupo = obterGrupoFuncaoExibicao(f);
+    if (!grupos.has(grupo)) {
+      grupos.set(grupo, 0);
+      ordem.push(grupo);
+    }
+    grupos.set(grupo, grupos.get(grupo) + (porFuncao?.[f] || 0));
+  }
+
+  return ordem
+    .map((funcao) => ({ funcao, count: grupos.get(funcao) }))
+    .filter((g) => g.count > 0);
+}
+
 const TURNO_ORDER = { manhã: 0, único: 1, noite: 2 };
 /** Alerta de sobrecarga quando a pessoa está em mais de 50% dos cultos do mês */
 const SOBRECARGA_PERCENTUAL = 0.5;
@@ -30,18 +54,18 @@ function isExcluidaRelatorioGeral(pessoaNome) {
 const CATEGORIAS_TURNO_DIA = [
   {
     id: "quarta",
-    label: "nenhuma quarta-feira",
+    label: "nenhuma QUARTA-FEIRA",
     test: (d) => d.tipo === "quarta" || getDiaSemana(d.data) === 3,
   },
   {
     id: "domingo-manha",
-    label: "nenhum domingo (manhã)",
+    label: "nenhum DOMINGO (MANHÃ)",
     test: (d) =>
       (d.tipo === "domingo" || getDiaSemana(d.data) === 0) && d.turno === "manhã",
   },
   {
     id: "domingo-noite",
-    label: "nenhum domingo (noite)",
+    label: "nenhum DOMINGO (NOITE)",
     test: (d) =>
       (d.tipo === "domingo" || getDiaSemana(d.data) === 0) && d.turno === "noite",
   },
@@ -353,6 +377,8 @@ function calcularAlertasTurnoDia(timeline, cargaCruzada) {
           categoria: cat.id,
           label: cat.label,
           qtdCultosCategoria: cultosPorCategoria[cat.id].length,
+          porMinisterio: pessoa.porMinisterio,
+          ministeriosAtivos: pessoa.ministeriosAtivos,
         });
       }
     }
@@ -361,7 +387,51 @@ function calcularAlertasTurnoDia(timeline, cargaCruzada) {
   alertas.sort(
     (a, b) => a.pessoa.localeCompare(b.pessoa) || a.categoria.localeCompare(b.categoria)
   );
-  return alertas;
+  return agruparAlertasTurnoDia(alertas);
+}
+
+function chaveMinisteriosTurnoDia(porMinisterio) {
+  if (!porMinisterio) return "";
+  return MINISTERIOS_IDS.filter((mid) => porMinisterio[mid]).join(",");
+}
+
+function agruparAlertasTurnoDia(alertas) {
+  const ordemCat = CATEGORIAS_TURNO_DIA.map((c) => c.id);
+  const map = new Map();
+
+  for (const alerta of alertas) {
+    const key = `${alerta.pessoa}|${chaveMinisteriosTurnoDia(alerta.porMinisterio)}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        pessoa: alerta.pessoa,
+        porMinisterio: alerta.porMinisterio,
+        ministeriosAtivos: alerta.ministeriosAtivos,
+        itens: [],
+      });
+    }
+    map.get(key).itens.push(alerta);
+  }
+
+  const agrupados = [];
+
+  for (const grupo of map.values()) {
+    grupo.itens.sort(
+      (a, b) => ordemCat.indexOf(a.categoria) - ordemCat.indexOf(b.categoria)
+    );
+
+    const labels = grupo.itens.map((item) => item.label);
+    agrupados.push({
+      pessoa: grupo.pessoa,
+      label: labels.join(" e em "),
+      categorias: grupo.itens.map((item) => item.categoria),
+      qtdCultosTotal: grupo.itens.reduce((acc, item) => acc + item.qtdCultosCategoria, 0),
+      porMinisterio: grupo.porMinisterio,
+      ministeriosAtivos: grupo.ministeriosAtivos,
+    });
+  }
+
+  agrupados.sort((a, b) => a.pessoa.localeCompare(b.pessoa));
+  return agrupados;
 }
 
 export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, indispDocs) {

@@ -84,6 +84,26 @@ const GRUPO_FUNCOES = {
 // Lista simplificada exibida na sidebar para o Louvor
 const FUNCOES_LOUVOR_SIDEBAR = ["MINISTRANTE", "BVOCAL", "MÚSICO"];
 
+/** Slots Firestore associados à função exibida na sidebar. */
+function slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado) {
+  if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return [];
+  if (GRUPO_FUNCOES[funcaoSelecionada]) return GRUPO_FUNCOES[funcaoSelecionada];
+  if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoSelecionada]) {
+    return RECEPCAO_SLOTS;
+  }
+  return [funcaoSelecionada];
+}
+
+/** Data ainda tem escala real neste ministério (ignora "disponível"). */
+function dataTemEscalaNoMinisterio(d, ministerioSelecionado, escalas) {
+  const turnoKey = d.turno ?? "único";
+  const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
+  return funcoes.some((f) => {
+    const p = escalas[`${d.data}-${turnoKey}-${f}`];
+    return p && p !== "disponível";
+  });
+}
+
 export default function SidebarFiltros({
   usuario, ministerioSelecionado, setMinisterioSelecionado,
   datasDisponiveis, onRefresh, theme, onConfirmar,
@@ -147,6 +167,19 @@ export default function SidebarFiltros({
     if (refreshKey === 0) return;
     setDatasConfirmadas([]);
   }, [refreshKey]);
+
+  // ─── Sincroniza datasConfirmadas com escalas (onSnapshot / remoções na tabela) ─
+  useEffect(() => {
+    setDatasConfirmadas((prev) => {
+      if (prev.length === 0) return prev;
+      const next = prev.filter((id) => {
+        const d = datasDisponiveis.find((x) => x.id === id);
+        if (!d) return false;
+        return dataTemEscalaNoMinisterio(d, ministerioSelecionado, escalas);
+      });
+      return next.length === prev.length ? prev : next;
+    });
+  }, [escalas, datasDisponiveis, ministerioSelecionado]);
 
   // ─── Carrega indisponibilidades do ministério ─────────────────────────────
   useEffect(() => {
@@ -234,7 +267,7 @@ export default function SidebarFiltros({
   const podeEditar = podeEditarMinisterio(usuario, ministerioSelecionado);
 
   // Lista de pessoas filtrada por função (louvor/infantil/recepcao)
-  const pessoasFiltradas = (() => {
+  const pessoasFiltradas = useMemo(() => {
     if (!usaFiltro || !funcaoSelecionada || funcaoSelecionada === "TODOS") {
       return pessoasDoMinisterio;
     }
@@ -251,20 +284,23 @@ export default function SidebarFiltros({
       return pessoasPorFuncaoRecepcao[funcaoSelecionada] || pessoasDoMinisterio;
     }
     return pessoasPorFuncaoInfantil[funcaoSelecionada] || pessoasDoMinisterio;
-  })();
+  }, [usaFiltro, funcaoSelecionada, ministerioSelecionado, pessoasDoMinisterio]);
 
   /** Disponibilidade de uma pessoa em uma data/função (indisp., ocupação, slot "disponível"). */
   const dataEscalavelParaPessoa = useCallback((d, nomePessoa) => {
+    const turnoKey = d.turno ?? "único";
+    const pl = nomePessoa.toLowerCase();
+
     if (
       !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
-      datasConfirmadas.includes(d.id)
+      datasConfirmadas.includes(d.id) &&
+      dataTemEscalaNoMinisterio(d, ministerioSelecionado, escalas)
     ) {
       return false;
     }
-    const turnoKey = d.turno ?? "único";
+
     if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
 
-    const pl = nomePessoa.toLowerCase();
     if (pl === "disponível") {
       if (GRUPO_FUNCOES[funcaoSelecionada]) {
         const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
@@ -272,6 +308,13 @@ export default function SidebarFiltros({
       } else if (funcaoSelecionada && escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`] === "disponível") {
         return false;
       }
+    } else if (funcaoSelecionada && funcaoSelecionada !== "TODOS") {
+      const slots = slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado);
+      const jaEscalado = slots.some((f) => {
+        const ocupante = escalas[`${d.data}-${turnoKey}-${f}`];
+        return ocupante && ocupante !== "disponível" && ocupante.toLowerCase() === pl;
+      });
+      if (jaEscalado) return false;
     }
 
     const chave = `${d.data}|${turnoKey}`;
@@ -285,7 +328,8 @@ export default function SidebarFiltros({
     return datasDisponiveis.filter(d => {
       if (
         !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
-        datasConfirmadas.includes(d.id)
+        datasConfirmadas.includes(d.id) &&
+        dataTemEscalaNoMinisterio(d, ministerioSelecionado, escalas)
       ) {
         return false;
       }
@@ -293,7 +337,21 @@ export default function SidebarFiltros({
       const turnoKey = d.turno ?? "único";
       return !datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`);
     });
-  }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas, ministerioSelecionado]);
+  }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas, escalas, ministerioSelecionado]);
+
+  /** Mantém a data selecionada visível no select enquanto o usuário observa a lista reativa. */
+  const datasParaSelectExibicao = useMemo(() => {
+    if (!dataSelecionadaId || datasParaSelect.some((d) => d.id === dataSelecionadaId)) {
+      return datasParaSelect;
+    }
+    const selecionada = datasDisponiveis.find((d) => d.id === dataSelecionadaId);
+    if (!selecionada) return datasParaSelect;
+    const turnoOrder = { "manhã": 0, "único": 1, "noite": 2 };
+    return [...datasParaSelect, selecionada].sort((a, b) => {
+      if (a.data !== b.data) return a.data.localeCompare(b.data);
+      return (turnoOrder[a.turno] ?? 1) - (turnoOrder[b.turno] ?? 1);
+    });
+  }, [datasParaSelect, dataSelecionadaId, datasDisponiveis]);
 
   const dataSelecionadaObj = useMemo(
     () => datasDisponiveis.find(d => d.id === dataSelecionadaId) ?? null,
@@ -325,11 +383,11 @@ export default function SidebarFiltros({
 
   useEffect(() => {
     if (!dataSelecionadaId) return;
-    if (!datasParaSelect.some(d => d.id === dataSelecionadaId)) {
+    if (!datasDisponiveis.some((d) => d.id === dataSelecionadaId)) {
       setDataSelecionadaId("");
       setPessoasMarcadas([]);
     }
-  }, [dataSelecionadaId, datasParaSelect]);
+  }, [dataSelecionadaId, datasDisponiveis]);
 
   useEffect(() => {
     setPessoasMarcadas(prev => prev.filter(p => {
@@ -754,7 +812,7 @@ export default function SidebarFiltros({
                 ? "Nenhuma data disponível"
                 : "Selecione..."}
           </option>
-          {datasParaSelect.map(d => (
+          {datasParaSelectExibicao.map(d => (
             <option key={d.id} value={d.id}>
               {formatarData(d.data, d.turno, d.descricao)}
             </option>

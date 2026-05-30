@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
 import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
-import { MINISTERIOS_IDS, MINISTERIOS_INFO } from "../utils/relatorioUnificado";
+import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
 import { IconeMinisterio } from "../utils/ministerioIcons";
 
@@ -54,6 +54,83 @@ function TaxaBarra({ taxa, color, theme }) {
       }}>
         {taxa}%
       </span>
+    </div>
+  );
+}
+
+function FraseMinisterioTurnoDia({ porMinisterio }) {
+  if (!porMinisterio) return null;
+
+  const ids = MINISTERIOS_IDS.filter((mid) => porMinisterio[mid]);
+  if (ids.length === 0) return null;
+
+  const NomeColorido = ({ mid }) => (
+    <span style={{ color: MINISTERIOS_INFO[mid]?.color, fontWeight: 600 }}>
+      {MINISTERIOS_INFO[mid]?.nome}
+    </span>
+  );
+
+  if (ids.length === 1) {
+    return (
+      <>
+        , no Ministério <NomeColorido mid={ids[0]} />
+      </>
+    );
+  }
+
+  if (ids.length === 2) {
+    return (
+      <>
+        , nos Ministérios <NomeColorido mid={ids[0]} /> e <NomeColorido mid={ids[1]} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      , nos Ministérios{" "}
+      {ids.slice(0, -1).map((mid, i) => (
+        <span key={mid}>
+          {i > 0 && ", "}
+          <NomeColorido mid={mid} />
+        </span>
+      ))}
+      {" e "}
+      <NomeColorido mid={ids[ids.length - 1]} />
+    </>
+  );
+}
+
+function BadgesMinisterio({ porMinisterio }) {
+  if (!porMinisterio) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+      {MINISTERIOS_IDS.map((mid) => {
+        const count = porMinisterio[mid];
+        if (!count) return null;
+        const info = MINISTERIOS_INFO[mid];
+        return (
+          <span
+            key={mid}
+            title={info.nome}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              fontSize: "10px",
+              fontWeight: 700,
+              color: info.color,
+              background: `${info.color}18`,
+              border: `1px solid ${info.color}33`,
+              borderRadius: "4px",
+              padding: "2px 6px",
+            }}
+          >
+            <IconeMinisterio ministerioId={mid} size={11} />
+            {info.nome}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -254,19 +331,15 @@ function MinisterioDetalhe({ rel, theme }) {
                 </span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                {rel.funcoes.map((f) => {
-                  const count = porFuncao[f];
-                  if (!count) return null;
-                  return (
-                    <span key={f} style={{
+                {agruparContagensPorFuncao(rel.funcoes, porFuncao).map(({ funcao, count }) => (
+                    <span key={funcao} style={{
                       fontSize: "10px", fontWeight: 600,
                       background: theme.surface, border: `1px solid ${theme.border}`,
                       borderRadius: "4px", padding: "2px 6px", color: theme.textMuted,
                     }}>
-                      {f} ×{count}
+                      {funcao} ×{count}
                     </span>
-                  );
-                })}
+                  ))}
               </div>
               {consecutivas.length > 0 && (
                 <div style={{
@@ -485,7 +558,7 @@ export default function RelatorioUnificado({
 
             {/* Resumo executivo */}
             <section>
-              <SecaoTitulo icon={BarChart3} titulo="Resumo executivo" theme={theme} />
+              <SecaoTitulo icon={BarChart3} titulo="RESUMO" theme={theme} />
               <div className="rel-grid-resumo" style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
@@ -593,9 +666,9 @@ export default function RelatorioUnificado({
                   Pessoas escaladas no mês, mas ausentes em algum tipo de culto (todos os ministérios)
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {dados.alertas.turnoDia.map(({ pessoa, categoria, label, qtdCultosCategoria }) => (
+                  {dados.alertas.turnoDia.map(({ pessoa, categorias, label, qtdCultosTotal, porMinisterio }) => (
                     <div
-                      key={`${pessoa}-${categoria}-detalhe`}
+                      key={`${pessoa}-${(categorias || []).join("-")}`}
                       style={{
                         padding: "8px 12px", borderRadius: "6px",
                         border: `1px solid ${theme.border}`, background: theme.surface,
@@ -603,10 +676,15 @@ export default function RelatorioUnificado({
                       }}
                     >
                       <strong>{pessoa.toUpperCase()}</strong>
-                      <span style={{ color: theme.textMuted }}> — não escalado(a) em {label}</span>
-                      <span style={{ color: theme.textDim, fontSize: "11px" }}>
-                        {" "}({qtdCultosCategoria} culto{qtdCultosCategoria !== 1 ? "s" : ""} no mês)
-                      </span>
+                      <div style={{ marginTop: "4px" }}>
+                        <span style={{ color: theme.textMuted }}>
+                          Não escalado(a) em {label}
+                          <FraseMinisterioTurnoDia porMinisterio={porMinisterio} />
+                        </span>
+                        <span style={{ color: theme.textDim, fontSize: "11px" }}>
+                          {" · "}({qtdCultosTotal} culto{qtdCultosTotal !== 1 ? "s" : ""} no mês)
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -681,21 +759,8 @@ export default function RelatorioUnificado({
                           borderTop: `1px solid ${theme.border}`,
                           padding: "10px 16px 14px",
                         }}>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "10px" }}>
-                            {MINISTERIOS_IDS.map((mid) => {
-                              const count = c.porMinisterio[mid];
-                              if (!count) return null;
-                              const info = MINISTERIOS_INFO[mid];
-                              return (
-                                <span key={mid} style={{
-                                  fontSize: "10px", fontWeight: 700, color: info.color,
-                                  background: `${info.color}18`, border: `1px solid ${info.color}33`,
-                                  borderRadius: "4px", padding: "3px 8px",
-                                }}>
-                                  {info.nome} ×{count}
-                                </span>
-                              );
-                            })}
+                          <div style={{ marginBottom: "10px" }}>
+                            <BadgesMinisterio porMinisterio={c.porMinisterio} />
                           </div>
                           {c.consecutivasGlobais.length > 0 && (
                             <div style={{
