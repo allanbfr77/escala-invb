@@ -94,6 +94,30 @@ function slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado) {
   return [funcaoSelecionada];
 }
 
+/** Funções com sub-slots repetidos no mesmo culto (BV1–4, MS1–4, I1–3). */
+function funcaoTemMultiplosSlots(funcaoEfetiva, ministerioSelecionado) {
+  return Boolean(GRUPO_FUNCOES[funcaoEfetiva]) ||
+    (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]);
+}
+
+/** Ordem de preenchimento dos sub-slots para uma função da sidebar. */
+function ordemSlotsFuncao(funcaoEfetiva, ministerioSelecionado) {
+  if (GRUPO_FUNCOES[funcaoEfetiva]) return GRUPO_FUNCOES[funcaoEfetiva];
+  if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
+    return RECEPCAO_PREFERENCIA[funcaoEfetiva];
+  }
+  return [funcaoEfetiva];
+}
+
+/** Sub-slots ainda livres/vazios para a função na data (ignora "disponível" como ocupado). */
+function slotsDisponiveis(funcaoEfetiva, dataObj, turnoSalvo, mapaEscalas, ministerioSelecionado) {
+  if (!dataObj || !funcaoEfetiva) return [];
+  return ordemSlotsFuncao(funcaoEfetiva, ministerioSelecionado).filter((slot) => {
+    const ocupante = mapaEscalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
+    return !ocupante || ocupante === "disponível";
+  });
+}
+
 /** Data ainda tem escala real neste ministério (ignora "disponível"). */
 function dataTemEscalaNoMinisterio(d, ministerioSelecionado, escalas) {
   const turnoKey = d.turno ?? "único";
@@ -411,28 +435,28 @@ export default function SidebarFiltros({
   const toggleObreiro = (nome) => {
     if (!podeEditar || !dataSelecionadaId) return;
     setPessoasMarcadas(prev => {
-      if (prev.includes(nome)) return [];
-      return [nome];
+      if (prev.includes(nome)) return prev.filter(p => p !== nome);
+
+      if (nome === "Disponível") return ["Disponível"];
+      if (prev.includes("Disponível")) return [nome];
+
+      const multiSlot = funcaoTemMultiplosSlots(funcaoSelecionada, ministerioSelecionado);
+      if (!multiSlot) return [nome];
+
+      const turnoKey = dataSelecionadaObj?.turno ?? "único";
+      const vagasLivres = slotsDisponiveis(
+        funcaoSelecionada, dataSelecionadaObj, turnoKey, escalas, ministerioSelecionado
+      );
+      if (prev.length >= vagasLivres.length) {
+        onMensagem?.(
+          `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
+          "erro"
+        );
+        return prev;
+      }
+      return [...prev, nome];
     });
     onConflito?.(null);
-  };
-
-  const resolverFuncaoReal = (funcaoEfetiva, dataObj, turnoSalvo, mapaEscalas) => {
-    if (ministerioSelecionado === "recepcao" && RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
-      for (const slot of RECEPCAO_PREFERENCIA[funcaoEfetiva]) {
-        const ocupante = mapaEscalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
-        if (!ocupante || ocupante === "disponível") return slot;
-      }
-      return null;
-    }
-    if (GRUPO_FUNCOES[funcaoEfetiva]) {
-      for (const slot of GRUPO_FUNCOES[funcaoEfetiva]) {
-        const ocupante = mapaEscalas[`${dataObj.data}-${turnoSalvo}-${slot}`];
-        if (!ocupante || ocupante === "disponível") return slot;
-      }
-      return null;
-    }
-    return funcaoEfetiva;
   };
 
   const confirmarEscalaComFuncao = async (funcaoEfetiva) => {
@@ -449,10 +473,24 @@ export default function SidebarFiltros({
     let salvos = 0;
     const escalasLocal = { ...escalas };
 
-    for (const nomePessoa of pessoasParaSalvar) {
-      for (const dataItem of datasObj) {
-        const turnoSalvo = dataItem.turno === "único" ? "único" : dataItem.turno;
-        const funcaoReal = resolverFuncaoReal(funcaoEfetiva, dataItem, turnoSalvo, escalasLocal);
+    for (const dataItem of datasObj) {
+      const turnoSalvo = dataItem.turno === "único" ? "único" : dataItem.turno;
+      const slotsLivres = slotsDisponiveis(
+        funcaoEfetiva, dataItem, turnoSalvo, escalasLocal, ministerioSelecionado
+      );
+
+      if (pessoasParaSalvar.length > slotsLivres.length) {
+        onMensagem?.(
+          `Limite de vagas atingido para esta função neste dia (Restam apenas ${slotsLivres.length} ${slotsLivres.length === 1 ? "vaga" : "vagas"})`,
+          "erro"
+        );
+        setSalvando(false);
+        return;
+      }
+
+      for (let i = 0; i < pessoasParaSalvar.length; i++) {
+        const nomePessoa = pessoasParaSalvar[i];
+        const funcaoReal = slotsLivres[i] ?? null;
         if (!funcaoReal) { erros++; continue; }
 
         try {
@@ -548,6 +586,20 @@ export default function SidebarFiltros({
     if (pessoasMarcadas.length === 0) { onMensagem?.("Selecione ao menos um obreiro", "erro"); return; }
     if (!funcaoSelecionada)    { onMensagem?.("Selecione uma função", "erro"); return; }
     if (!dataSelecionadaId) { onMensagem?.("Selecione uma data", "erro"); return; }
+
+    if (funcaoTemMultiplosSlots(funcaoSelecionada, ministerioSelecionado) && dataSelecionadaObj) {
+      const turnoKey = dataSelecionadaObj.turno ?? "único";
+      const vagasLivres = slotsDisponiveis(
+        funcaoSelecionada, dataSelecionadaObj, turnoKey, escalas, ministerioSelecionado
+      );
+      if (pessoasMarcadas.length > vagasLivres.length) {
+        onMensagem?.(
+          `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
+          "erro"
+        );
+        return;
+      }
+    }
 
     if (funcaoSelecionada === "TODOS") {
       const opcoes = [...funcoesDoMinisterio];
