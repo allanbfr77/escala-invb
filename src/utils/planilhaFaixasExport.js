@@ -1,7 +1,6 @@
 import {
   montarFaixasPlanilha,
   formatarCabecalhoData,
-  COLUNAS_POR_FAIXA,
 } from "./planilhaFaixasLayout";
 import { nomeParaExibicao } from "./nomeExibicao";
 import { getConfigPlanilhaMinisterio } from "./planilhaMinisterioConfig";
@@ -18,12 +17,6 @@ const CORES_GRUPO_FUNCAO_EXPORT = {
   "intro-2": "#059669",
   "intro-3": "#ea580c",
 };
-
-function corFuncaoExport(ministerioId, funcao, fallback) {
-  const config = getConfigPlanilhaMinisterio(ministerioId);
-  const grupo = config?.grupoCorObreiro(funcao) || "";
-  return CORES_GRUPO_FUNCAO_EXPORT[grupo] || fallback;
-}
 
 const FAIXA_EXPORT = {
   "domingo-manha": {
@@ -49,6 +42,12 @@ const FAIXA_EXPORT = {
   },
 };
 
+function corFuncaoExport(ministerioId, funcao, fallback) {
+  const config = getConfigPlanilhaMinisterio(ministerioId);
+  const grupo = config?.grupoCorObreiro(funcao) || "";
+  return CORES_GRUPO_FUNCAO_EXPORT[grupo] || fallback;
+}
+
 function turnoSalvo(dataObj) {
   return dataObj?.turno === "único" ? "único" : dataObj?.turno;
 }
@@ -58,9 +57,6 @@ function escalaKey(dataObj, funcao) {
 }
 
 function valorCelulaExport(escalas, dataObj, funcao, LT) {
-  if (!dataObj) {
-    return { html: "", bg: LT.cellEmpty };
-  }
   const raw = escalas[escalaKey(dataObj, funcao)];
   if (!raw || raw === "disponível") {
     const cor = raw === "disponível" ? LT.slotDisponivel : LT.textDim;
@@ -69,8 +65,54 @@ function valorCelulaExport(escalas, dataObj, funcao, LT) {
   return { html: nomeParaExibicao(raw), bg: LT.surface, color: LT.text };
 }
 
+function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase, cellBorder }) {
+  const st = FAIXA_EXPORT[faixa.id] || FAIXA_EXPORT["domingo-manha"];
+  const colunasAtivas = faixa.colunas.filter(Boolean);
+  const titulo = faixa.titulo.toUpperCase();
+
+  let thead = `<tr><th style="${thBase}padding:10px 8px;text-align:center;vertical-align:middle;min-width:96px;background:${LT.surface};color:${LT.textMuted};font-size:9px;">FUNÇÃO</th>`;
+  for (const dataObj of colunasAtivas) {
+    thead += `<th style="${thBase}padding:6px 8px;text-align:center;font-size:9px;font-weight:500;background:${st.dataBg};color:${st.dataFg};min-width:72px;">${formatarCabecalhoData(dataObj)}</th>`;
+  }
+  thead += "</tr>";
+
+  let tbody = "";
+  funcoes.forEach((funcao, rowIdx) => {
+    const rowBg = rowIdx % 2 === 0 ? LT.surface : LT.zebra;
+    const corFuncao = corFuncaoExport(ministerioId, funcao, LT.text);
+    tbody += `<tr style="background:${rowBg};">`;
+    tbody += `<td style="${cellBorder}padding:7px 8px;text-align:center;vertical-align:middle;font-size:9px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;white-space:nowrap;background:${rowBg};">${funcao}</td>`;
+
+    for (const dataObj of colunasAtivas) {
+      const cel = valorCelulaExport(escalas, dataObj, funcao, LT);
+      tbody += `<td style="${cellBorder}padding:6px 8px;text-align:center;vertical-align:middle;background:${rowBg};">
+        <span style="font-size:10px;font-weight:500;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;">${cel.html}</span>
+      </td>`;
+    }
+    tbody += "</tr>";
+  });
+
+  return `
+    <section style="margin-bottom:22px;">
+      <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.5px;
+        text-transform:uppercase;color:${st.headerFg};background:${st.headerBg};
+        border:1px solid ${st.headerBorder};border-bottom:none;
+        padding:10px 14px;border-radius:10px 10px 0 0;">
+        ${titulo}
+      </div>
+      <div style="border-radius:0 0 10px 10px;border:1px solid ${st.headerBorder};border-top:none;
+        background:${LT.surface};overflow:hidden;">
+        <table style="border-collapse:collapse;font-size:13px;width:100%;">
+          <thead>${thead}</thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 /**
- * Gera HTML da tabela no layout da planilha por faixas (funções × turnos/datas).
+ * Gera HTML da planilha para download: blocos empilhados (Domingo Manhã → Domingo Noite → Quarta).
  */
 export function buildPlanilhaFaixasTableHTML({
   ministerioId,
@@ -85,62 +127,20 @@ export function buildPlanilhaFaixasTableHTML({
   const thBase = `font-family:'Outfit',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:0.35px;border:1px solid ${divider};`;
   const cellBorder = `border:1px solid ${divider};`;
 
-  let thead = "<thead>";
-
-  thead += `<tr><th rowspan="2" style="${thBase}padding:10px 8px;text-align:center;vertical-align:middle;min-width:96px;background:${LT.surface};color:${LT.textMuted};font-size:9px;">FUNÇÃO</th>`;
-
-  for (const faixa of faixas) {
-    const st = FAIXA_EXPORT[faixa.id] || FAIXA_EXPORT["domingo-manha"];
-    thead += `<th colspan="${COLUNAS_POR_FAIXA}" style="${thBase}padding:8px 4px;text-align:center;font-size:9px;background:${st.headerBg};color:${st.headerFg};border-bottom:2px solid ${st.headerBorder};">${faixa.titulo.toUpperCase()}</th>`;
-  }
-  thead += "</tr><tr>";
-
-  for (const faixa of faixas) {
-    const st = FAIXA_EXPORT[faixa.id] || FAIXA_EXPORT["domingo-manha"];
-    faixa.colunas.forEach((dataObj, colIdx) => {
-      const inicioFaixa = colIdx === 0 && faixa.id !== "domingo-manha";
-      const borderLeft = inicioFaixa ? `border-left:2px solid ${st.headerBorder};` : "";
-      if (!dataObj) {
-        thead += `<th style="${thBase}padding:6px 4px;min-width:8px;max-width:12px;background:${LT.cellEmpty};${borderLeft}"></th>`;
-        return;
-      }
-      thead += `<th style="${thBase}padding:6px 5px;text-align:center;font-size:9px;font-weight:500;background:${st.dataBg};color:${st.dataFg};${borderLeft}">${formatarCabecalhoData(dataObj)}</th>`;
-    });
-  }
-  thead += "</tr></thead>";
-
-  let tbody = "<tbody>";
-  funcoes.forEach((funcao, rowIdx) => {
-    const rowBg = rowIdx % 2 === 0 ? LT.surface : LT.zebra;
-    tbody += `<tr style="background:${rowBg};">`;
-    const corFuncao = corFuncaoExport(ministerioId, funcao, LT.text);
-    tbody += `<td style="${cellBorder}padding:7px 6px;text-align:center;vertical-align:middle;font-size:9px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;white-space:nowrap;background:${rowBg};">${funcao}</td>`;
-
-    for (const faixa of faixas) {
-      const st = FAIXA_EXPORT[faixa.id] || FAIXA_EXPORT["domingo-manha"];
-      faixa.colunas.forEach((dataObj, colIdx) => {
-        const inicioFaixa = colIdx === 0 && faixa.id !== "domingo-manha";
-        const borderLeft = inicioFaixa ? `border-left:2px solid ${st.headerBorder};` : "";
-        if (!dataObj) {
-          tbody += `<td style="${cellBorder}padding:4px;background:${LT.cellEmpty};min-width:8px;${borderLeft}"></td>`;
-          return;
-        }
-        const cel = valorCelulaExport(escalas, dataObj, funcao, LT);
-        tbody += `<td style="${cellBorder}padding:6px 4px;text-align:center;vertical-align:middle;background:${rowBg};${borderLeft}">
-          <span style="font-size:10px;font-weight:500;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;">${cel.html}</span>
-        </td>`;
-      });
-    }
-    tbody += "</tr>";
-  });
-  tbody += "</tbody>";
+  const blocos = faixas.map((faixa) =>
+    buildBlocoFaixaHTML(faixa, {
+      ministerioId,
+      funcoes,
+      escalas,
+      LT,
+      thBase,
+      cellBorder,
+    })
+  );
 
   return `
-    <div style="border-radius:10px;border:1px solid ${divider};background:${LT.surface};overflow:hidden;">
-      <table style="border-collapse:collapse;font-size:13px;width:100%;">
-        ${thead}
-        ${tbody}
-      </table>
+    <div style="display:flex;flex-direction:column;gap:0;width:100%;max-width:720px;">
+      ${blocos.join("")}
     </div>
   `;
 }

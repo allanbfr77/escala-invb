@@ -9,6 +9,7 @@ import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
+import { pessoaJaEscaladaNoMesmoMinisterioNoCulto } from "../utils/escalaDisponibilidade";
 
 const ministerios = [
   {
@@ -333,17 +334,17 @@ export default function SidebarFiltros({
       } else if (funcaoSelecionada && escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`] === "disponível") {
         return false;
       }
-    } else if (funcaoSelecionada && funcaoSelecionada !== "TODOS") {
-      const slots = slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado);
-      const jaEscalado = slots.some((f) => {
-        const ocupante = escalas[`${d.data}-${turnoKey}-${f}`];
-        return (
-          ocupante &&
-          ocupante !== "disponível" &&
-          pessoaNomeFirestore(ocupante) === pl
-        );
-      });
-      if (jaEscalado) return false;
+    } else if (funcaoSelecionada && funcaoSelecionada !== "TODOS" && pl !== "disponível") {
+      if (
+        pessoaJaEscaladaNoMesmoMinisterioNoCulto({
+          escalas,
+          ministerioId: ministerioSelecionado,
+          dataObj: d,
+          pessoaNome: nomePessoa,
+        })
+      ) {
+        return false;
+      }
     }
 
     const chave = `${d.data}|${turnoKey}`;

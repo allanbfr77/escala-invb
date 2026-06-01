@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
-import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
+import { filtrarPessoasDisponiveisNoCulto } from "../utils/escalaDisponibilidade";
 
 export default function ModalInserirEscala({ 
   isOpen, 
@@ -11,8 +11,10 @@ export default function ModalInserirEscala({
   dataObj,
   funcao,
   ministerioSelecionado,
+  escalas = {},
   usuario,
-  onSuccess
+  onSuccess,
+  onConflito,
 }) {
   const [pessoaSelecionada, setPessoaSelecionada] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -21,7 +23,12 @@ export default function ModalInserirEscala({
   if (!isOpen) return null;
 
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
-  const funcoesDoMinisterio = funcoesPorMinisterio[ministerioSelecionado] || [];
+  const pessoasParaSelect = filtrarPessoasDisponiveisNoCulto(pessoasDoMinisterio, {
+    escalas,
+    ministerioId: ministerioSelecionado,
+    dataObj,
+    funcaoAtual: funcao,
+  });
 
   const handleSalvar = async () => {
     if (!pessoaSelecionada) {
@@ -60,16 +67,18 @@ export default function ModalInserirEscala({
       );
       const conflitoSnap = await getDocs(conflitoQuery);
       
-      let temConflito = false;
-      conflitoSnap.forEach(doc => {
-        const escala = doc.data();
-        if (escala.ministerioId !== ministerioSelecionado) {
-          temConflito = true;
-        }
-      });
-
-      if (temConflito) {
-        setErro(`${pessoaSelecionada} já está escalado(a) em outro ministério nesta data!`);
+      const conflitoOutro = conflitoSnap.docs.find(
+        (d) => d.data().ministerioId !== ministerioSelecionado
+      );
+      if (conflitoOutro) {
+        const dd = conflitoOutro.data();
+        onConflito?.({
+          pessoa: pessoaSelecionada,
+          data: formatarDataAmigavel(dataObj.data, dataObj.turno),
+          ministerio: dd.ministerioId,
+          funcao: dd.funcao,
+        });
+        setErro(`${pessoaSelecionada} já está escalado(a) em outro ministério neste horário.`);
         setSalvando(false);
         return;
       }
@@ -146,7 +155,7 @@ export default function ModalInserirEscala({
             }}
           >
             <option value="">Selecione...</option>
-            {pessoasDoMinisterio.map(p => (
+            {pessoasParaSelect.map(p => (
               <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
             ))}
           </select>

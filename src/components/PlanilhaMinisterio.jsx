@@ -15,6 +15,7 @@ import {
   getFuncoesPlanilha,
 } from "../utils/planilhaMinisterioConfig";
 import { pessoaNomeFirestore, nomeParaExibicao } from "../utils/nomeExibicao";
+import { filtrarPessoasDisponiveisNoCulto } from "../utils/escalaDisponibilidade";
 
 function turnoSalvo(dataObj) {
   return dataObj?.turno === "único" ? "único" : dataObj?.turno;
@@ -52,13 +53,6 @@ function getHorarios(dataObj) {
           : "19:00",
     horaFim: dataObj.tipo === "domingo" && dataObj.turno === "manhã" ? "12:00" : "22:00",
   };
-}
-
-function getIntervaloMes(mes) {
-  const [ano, mesNum] = mes.split("-");
-  const inicio = `${ano}-${mesNum}-01`;
-  const fim = `${ano}-${mesNum}-${new Date(Number(ano), Number(mesNum), 0).getDate()}`;
-  return { inicio, fim };
 }
 
 const MENU_GAP = 4;
@@ -343,7 +337,6 @@ export default function PlanilhaMinisterio({
   const funcoes = getFuncoesPlanilha(ministerioId);
   const [salvando, setSalvando] = useState(false);
   const [indispMap, setIndispMap] = useState({});
-  const [ocupacaoPorCulto, setOcupacaoPorCulto] = useState(new Map());
 
   const { faixas } = useMemo(() => montarFaixasPlanilha(datas), [datas]);
 
@@ -386,39 +379,6 @@ export default function PlanilhaMinisterio({
     };
   }, [ministerioId, indispRefreshKey]);
 
-  useEffect(() => {
-    if (!mes) return;
-    let cancelled = false;
-    const { inicio, fim } = getIntervaloMes(mes);
-
-    getDocs(
-      query(collection(db, "escalas"), where("data", ">=", inicio), where("data", "<=", fim))
-    )
-      .then((snap) => {
-        if (cancelled) return;
-        const mapa = new Map();
-        snap.docs.forEach((docSnap) => {
-          const d = docSnap.data();
-          const turno = d.turno || "único";
-          const chave = `${d.data}|${turno}`;
-          if (!mapa.has(chave)) mapa.set(chave, []);
-          mapa.get(chave).push({
-            pessoaNome: d.pessoaNome,
-            ministerioId: d.ministerioId,
-            funcao: d.funcao,
-          });
-        });
-        setOcupacaoPorCulto(mapa);
-      })
-      .catch((err) =>
-        console.error(`PlanilhaMinisterio(${ministerioId}): ocupação`, err)
-      );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mes, escalas, ministerioId, indispRefreshKey]);
-
   const pessoaIndisponivel = useCallback(
     (pessoa, dataObj) => {
       const set = indispMap[pessoaNomeFirestore(pessoa)];
@@ -426,23 +386,6 @@ export default function PlanilhaMinisterio({
       return set.has(chaveIndisponibilidadeColuna(dataObj));
     },
     [indispMap]
-  );
-
-  const pessoaOcupadaNoCulto = useCallback(
-    (pessoa, dataObj, funcaoAtual) => {
-      if (!dataObj) return false;
-      const turno = turnoSalvo(dataObj);
-      const chave = `${dataObj.data}|${turno}`;
-      const alocacoes = ocupacaoPorCulto.get(chave) || [];
-      const pl = pessoaNomeFirestore(pessoa);
-
-      return alocacoes.some((a) => {
-        if (pessoaNomeFirestore(a.pessoaNome) !== pl) return false;
-        if (a.ministerioId !== ministerioId) return true;
-        return a.funcao !== funcaoAtual;
-      });
-    },
-    [ocupacaoPorCulto, ministerioId]
   );
 
   const getOpcoesSelect = useCallback(
@@ -453,17 +396,19 @@ export default function PlanilhaMinisterio({
       const atualUpper =
         atual && atual !== "disponível" ? nomeParaExibicao(atual) : null;
 
-      const filtrados = qualificados.filter((nome) => {
-        if (pessoaIndisponivel(nome, dataObj)) return false;
-        if (pessoaOcupadaNoCulto(nome, dataObj, funcao)) return false;
-        return true;
+      const filtrados = filtrarPessoasDisponiveisNoCulto(qualificados, {
+        escalas,
+        ministerioId,
+        dataObj,
+        funcaoAtual: funcao,
+        pessoaIndisponivel,
       });
       if (atualUpper && !filtrados.includes(atualUpper)) {
         return [...filtrados, atualUpper];
       }
       return filtrados;
     },
-    [config, escalas, pessoaIndisponivel, pessoaOcupadaNoCulto]
+    [config, escalas, ministerioId, pessoaIndisponivel]
   );
 
   const salvarCelula = useCallback(

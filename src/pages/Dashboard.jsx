@@ -403,7 +403,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           LT,
         });
         wrapper.style.padding = "20px 24px 24px";
-        wrapper.style.minWidth = "1100px";
+        wrapper.style.minWidth = "320px";
+        wrapper.style.maxWidth = "760px";
         wrapper.innerHTML = headerHTML + tableHTML;
       } else if (isMobile) {
         // ── MOBILE: cards lado a lado (3 colunas) ─────────────────────────
