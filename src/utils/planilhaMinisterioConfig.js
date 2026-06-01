@@ -3,6 +3,7 @@ import {
   pessoasPorFuncaoLouvor,
   pessoasPorFuncaoComunicacao,
   pessoasPorFuncaoRecepcao,
+  pessoasPorFuncaoInfantil,
 } from "../data/pessoas";
 
 export const NOMES_MINISTERIOS = {
@@ -56,10 +57,24 @@ const CONFIG = {
       return "";
     },
   },
+  infantil: {
+    labelCarregando: "infantil",
+    getPessoasPorFuncao: (funcao) => pessoasPorFuncaoInfantil[funcao] || [],
+    grupoCorObreiro: (funcao) => {
+      if (funcao === "BERÇÁRIO") return "ministrante";
+      if (funcao === "MATERNAL") return "bvocal";
+      if (funcao === "JUNIORES") return "musico";
+      return "";
+    },
+  },
 };
 
 export function ministerioUsaPlanilhaFaixas(ministerioId) {
   return MINISTERIOS_PLANILHA_FAIXAS.includes(ministerioId);
+}
+
+export function ministerioTemConfigPlanilhaFaixas(ministerioId) {
+  return !!CONFIG[ministerioId];
 }
 
 export function getConfigPlanilhaMinisterio(ministerioId) {

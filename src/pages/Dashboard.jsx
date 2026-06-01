@@ -19,7 +19,10 @@ import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
 import DashboardGrid from "./DashboardGrid";
 import PlanilhaMinisterio from "../components/PlanilhaMinisterio";
-import { ministerioUsaPlanilhaFaixas } from "../utils/planilhaMinisterioConfig";
+import {
+  ministerioUsaPlanilhaFaixas,
+  ministerioTemConfigPlanilhaFaixas,
+} from "../utils/planilhaMinisterioConfig";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { podeEditarMinisterio } from "../utils/permissions";
@@ -331,6 +334,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const handleDownload = useCallback(async (layout) => {
     if (layout === "text") {
       setTextoExportacao({ aberto: true, conteudo: buildTextoExport() });
+      return;
+    }
+
+    if (layout === "planilha" && !ministerioTemConfigPlanilhaFaixas(ministerioSelecionado)) {
+      mostrarMensagem("Exportação de planilha indisponível nesta visualização", "erro");
       return;
     }
 
@@ -929,13 +937,56 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setMinisterioSelecionado(v);
     setVerRelatorio(false);
     setFiltroNome("");
-    setViewMode((mode) => (mode === "louvor-planilha" ? "grid" : mode));
+    setViewMode((mode) => {
+      if (mode === "louvor-planilha") return "grid";
+      if (mode === "planilha-faixas" && v !== "infantil") return "grid";
+      return mode;
+    });
   };
 
-  const opcoesViewMode = [
-    { id: "cards", label: "TABELA" },
-    { id: "grid", label: "PLANILHA" },
-  ];
+  const opcoesViewMode = useMemo(() => {
+    if (ministerioSelecionado === "infantil") {
+      return [
+        { id: "cards", label: "TABELA" },
+        { id: "grid", label: "Planilha 1" },
+        { id: "planilha-faixas", label: "Planilha 2" },
+      ];
+    }
+    return [
+      { id: "cards", label: "TABELA" },
+      { id: "grid", label: "PLANILHA" },
+    ];
+  }, [ministerioSelecionado]);
+
+  const exibirDownload =
+    !(ministerioSelecionado === "infantil" && viewMode === "grid");
+
+  const opcoesDownload = useMemo(() => {
+    if (ministerioSelecionado === "infantil" && viewMode === "grid") {
+      return [];
+    }
+    return [
+      { label: "Tabela (Web)", icon: "▤", layout: "web", desc: "linhas e colunas" },
+      { label: "Planilha (Web)", icon: "▦", layout: "planilha", desc: "funções × turnos" },
+      { label: "Cards (Mobile)", icon: "⊞", layout: "mobile", desc: "cards por culto" },
+      { label: "Texto", icon: "✎", layout: "text", desc: "modal para copiar" },
+    ];
+  }, [ministerioSelecionado, viewMode]);
+
+  const planilhaMinisterioProps = useMemo(
+    () => ({
+      escalas,
+      datas,
+      mes,
+      loading,
+      usuario: user,
+      podeEditar,
+      onMensagem: mostrarMensagem,
+      onConflito: setConflito,
+      indispRefreshKey,
+    }),
+    [escalas, datas, mes, loading, user, podeEditar, indispRefreshKey]
+  );
 
   const gridProps = useMemo(
     () => ({ escalas, datas, loading, onRemover: handleRemover, podeEditar, filtroNome }),
@@ -1591,6 +1642,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 )}
               </div>}
 
+              {exibirDownload && (
               <div
                 ref={downloadMenuRef}
                 style={{ position: "relative", display: "inline-flex" }}
@@ -1630,12 +1682,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     <div style={{ padding:"6px 10px 4px", fontSize:"9px", fontWeight:600, color:theme.textDim, textTransform:"uppercase", letterSpacing:"0.6px" }}>
                       Formato de download
                     </div>
-                    {[
-                      { label:"Tabela (Web)",    icon:"▤", layout:"web",      desc:"linhas e colunas" },
-                      { label:"Planilha (Web)", icon:"▦", layout:"planilha", desc:"funções × turnos" },
-                      { label:"Cards (Mobile)", icon:"⊞", layout:"mobile",   desc:"cards por culto"  },
-                      { label:"Texto",          icon:"✎", layout:"text",     desc:"modal para copiar" },
-                    ].map(opt => (
+                    {opcoesDownload.map(opt => (
                       <button
                         key={opt.layout}
                         onClick={() => { setShowDownloadMenu(false); handleDownload(opt.layout); }}
@@ -1657,6 +1704,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   </div>
                 )}
               </div>
+              )}
 
               {podeEditar && (
                 <button
@@ -1853,19 +1901,16 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 Nenhuma data disponível para este mês
               </p>
             </div>
+          ) : viewMode === "planilha-faixas" && ministerioSelecionado === "infantil" ? (
+              <PlanilhaMinisterio
+                ministerioId="infantil"
+                {...planilhaMinisterioProps}
+              />
           ) : viewMode === "grid" ? (
             ministerioUsaPlanilhaFaixas(ministerioSelecionado) ? (
               <PlanilhaMinisterio
                 ministerioId={ministerioSelecionado}
-                escalas={escalas}
-                datas={datas}
-                mes={mes}
-                loading={loading}
-                usuario={user}
-                podeEditar={podeEditar}
-                onMensagem={mostrarMensagem}
-                onConflito={setConflito}
-                indispRefreshKey={indispRefreshKey}
+                {...planilhaMinisterioProps}
               />
             ) : (
               <DashboardGrid
