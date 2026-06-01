@@ -5,6 +5,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { ACCENT_RGB, accentAlpha } from "../constants/theme";
+import { nomeParaExibicao } from "../utils/nomeExibicao";
 
 const MINISTERIOS = {
   comunicacao: { label: "COMUNICAÇÕES", color: "#60a5fa", rgb: "96,165,250", bg: "rgba(96,165,250,0.09)", border: "rgba(96,165,250,0.22)", glow: "rgba(96,165,250,0.35)" },
@@ -49,7 +50,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
           if (d.ministerioId === ministerioId) return;
           if (!pessoasLower.has(d.pessoaNome)) return;
 
-          const nome = d.pessoaNome.toUpperCase();
+          const nome = nomeParaExibicao(d.pessoaNome);
           if (!agrupado[nome]) agrupado[nome] = {};
           if (!agrupado[nome][d.ministerioId]) agrupado[nome][d.ministerioId] = [];
           agrupado[nome][d.ministerioId].push({ data: d.data, turno: d.turno, funcao: d.funcao });

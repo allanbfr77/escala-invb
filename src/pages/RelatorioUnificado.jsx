@@ -6,6 +6,7 @@ import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
 import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
 import { IconeMinisterio } from "../utils/ministerioIcons";
+import { nomeParaExibicao } from "../utils/nomeExibicao";
 
 function useThemeTokens() {
   const { isDark, toggleTheme } = useTheme();
@@ -327,7 +328,7 @@ function MinisterioDetalhe({ rel, theme }) {
                 alignItems: "center", marginBottom: "6px",
               }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: theme.text }}>
-                  {pessoa.toUpperCase()}
+                  {nomeParaExibicao(pessoa)}
                 </span>
                 <span style={{
                   fontSize: "11px", fontWeight: 700, color: info?.color,
@@ -374,7 +375,7 @@ function MinisterioDetalhe({ rel, theme }) {
                     background: theme.dangerDim, border: `1px solid ${theme.danger}33`,
                     borderRadius: "4px", padding: "2px 8px",
                   }}>
-                    {pessoa.toUpperCase()}
+                    {nomeParaExibicao(pessoa)}
                   </span>
                 ))}
               </div>
@@ -657,13 +658,13 @@ export default function RelatorioUnificado({
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {dados.alertas.sobrecarga.map((c) => (
                     <AlertaItem key={c.pessoa} tipo="danger" theme={theme}>
-                      <strong>{c.pessoa.toUpperCase()}</strong> em {c.qtdCultos} de {c.totalCultosMes} cultos ({c.percentualCultos}%)
+                      <strong>{nomeParaExibicao(c.pessoa)}</strong> em {c.qtdCultos} de {c.totalCultosMes} cultos ({c.percentualCultos}%)
                       {c.qtdMinisterios >= 2 && ` · ${c.qtdMinisterios} ministérios`}
                     </AlertaItem>
                   ))}
                   {dados.alertas.indisponibilidadesMes.map(({ pessoa, ministerioId }) => (
                     <AlertaItem key={`${pessoa}-${ministerioId}`} theme={theme}>
-                      <strong>{pessoa.toUpperCase()}</strong> indisponível o mês inteiro em Ministério{" "}
+                      <strong>{nomeParaExibicao(pessoa)}</strong> indisponível o mês inteiro em Ministério{" "}
                       <strong style={{ color: MINISTERIOS_INFO[ministerioId]?.color }}>
                         {MINISTERIOS_INFO[ministerioId]?.nome}
                       </strong>
@@ -704,7 +705,7 @@ export default function RelatorioUnificado({
                         fontSize: "12px", color: theme.text,
                       }}
                     >
-                      <strong>{pessoa.toUpperCase()}</strong>
+                      <strong>{nomeParaExibicao(pessoa)}</strong>
                       <div style={{ marginTop: "4px" }}>
                         <span style={{ color: theme.textMuted }}>
                           Não escalado(a) em {label}
@@ -754,7 +755,7 @@ export default function RelatorioUnificado({
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <span style={{ fontSize: "13px", fontWeight: 700, color: theme.text }}>
-                            {c.pessoa.toUpperCase()}
+                            {nomeParaExibicao(c.pessoa)}
                           </span>
                           {c.qtdMinisterios >= 2 && (
                             <span style={{

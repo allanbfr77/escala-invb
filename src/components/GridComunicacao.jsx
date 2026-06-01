@@ -1,6 +1,7 @@
 // ===== src/components/GridComunicacao.jsx =====
 import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
+import { nomeParaExibicao } from "../utils/nomeExibicao";
 import TurnoLabelInline from "./TurnoLabelInline";
 
 const FUNCAO_CORES = {
@@ -95,7 +96,7 @@ export default function GridComunicacao({ escalas, datas, loading, onRemover, po
                             fontSize: "12px", fontFamily: "'Outfit', sans-serif",
                             letterSpacing: "0.2px",
                           }}>
-                            {pessoa.toUpperCase()}
+                            {nomeParaExibicao(pessoa)}
                           </span>
                           {podeEditar && (
                             <button

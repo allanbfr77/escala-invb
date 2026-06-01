@@ -53,6 +53,7 @@
   --pl-select-option-hover-bg: rgba(212, 175, 55, 0.14);
   --pl-select-option-selected-bg: rgba(212, 175, 55, 0.22);
   --pl-faixa-divider: #2e2e2e;
+  --pl-row-divider: rgba(255, 255, 255, 0.1);
 
   --pl-faixa-manha-bg: rgba(251, 191, 36, 0.2);
   --pl-faixa-manha-fg: #fcd34d;
@@ -160,6 +161,7 @@
   --pl-select-option-hover-bg: rgba(160, 114, 6, 0.1);
   --pl-select-option-selected-bg: rgba(160, 114, 6, 0.16);
   --pl-faixa-divider: #d1d5db;
+  --pl-row-divider: rgba(17, 24, 39, 0.1);
 
   --pl-faixa-manha-bg: rgba(180, 83, 9, 0.14);
   --pl-faixa-manha-fg: #92400e;
@@ -602,10 +604,12 @@ code {
   table-layout: fixed;
   font-family: "Outfit", sans-serif;
   font-size: clamp(10px, 1.05vw, 12px);
+  /* Altura da 1ª linha do thead — alinha FUNÇÃO, turnos e linha divisória */
+  --pl-head-faixa-row-h: 2.5rem;
 }
 
 .planilha-louvor-col-funcao {
-  width: 7%;
+  width: 8.5%;
 }
 
 .planilha-louvor-col-data--compacta {
@@ -616,29 +620,80 @@ code {
 
 .planilha-louvor-th-funcao,
 .planilha-louvor-td-funcao {
-  position: sticky;
-  left: 0;
-  z-index: 4;
   background: var(--surface);
   border-right: 1px solid var(--pl-faixa-divider);
-  padding: 8px 6px;
-  text-align: left;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.35px;
-  vertical-align: middle;
-  font-size: clamp(9px, 1vw, 11px);
+  letter-spacing: 0.2px;
+  font-size: clamp(8px, 0.88vw, 10px);
   line-height: 1.25;
+  white-space: nowrap;
   color: var(--text);
 }
 
-.planilha-louvor-th-faixa {
-  padding: 8px 4px;
+.planilha-louvor-th-funcao {
+  display: table-cell;
+  position: relative;
+  padding: 0 4px;
+  vertical-align: top;
+  text-align: center;
+  font-weight: 700;
+  font-size: clamp(9px, 1vw, 11px);
+  letter-spacing: 0.45px;
+  line-height: var(--pl-head-faixa-row-h);
+  z-index: 6;
+}
+
+/* Linha divisória sob FUNÇÃO — mesma altura da borda inferior dos th-faixa */
+.planilha-louvor-th-funcao::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--pl-head-faixa-row-h);
+  border-bottom: 2px solid var(--pl-faixa-divider);
+  box-shadow: inset 0 -1px 0 var(--pl-faixa-manha-border);
+  pointer-events: none;
+}
+
+/* Linha turnos/datas: borda superior na 2ª linha */
+.planilha-louvor-datas-row > .planilha-louvor-th-data {
+  border-top: 2px solid var(--pl-faixa-divider);
+}
+
+.planilha-louvor-datas-row > .planilha-louvor-th-data[data-faixa="domingo-manha"] {
+  border-top-color: var(--pl-faixa-manha-border);
+}
+
+.planilha-louvor-datas-row > .planilha-louvor-th-data[data-faixa="domingo-noite"] {
+  border-top-color: var(--pl-faixa-noite-border);
+}
+
+.planilha-louvor-datas-row > .planilha-louvor-th-data[data-faixa="quarta"] {
+  border-top-color: var(--pl-faixa-quarta-border);
+}
+
+/* Sticky só no corpo — evita quebra do rowSpan no thead */
+.planilha-louvor-td-funcao {
+  display: table-cell;
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  padding: 7px 4px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.planilha-louvor-faixa-row > .planilha-louvor-th-faixa {
+  height: var(--pl-head-faixa-row-h);
+  box-sizing: border-box;
+  padding: 0 4px;
   text-align: center;
   font-weight: 700;
   font-size: clamp(9px, 1vw, 11px);
   text-transform: uppercase;
   letter-spacing: 0.45px;
+  vertical-align: middle;
   border-bottom: 2px solid transparent;
 }
 
@@ -743,9 +798,13 @@ code {
 .planilha-louvor-celula {
   padding: 5px 3px;
   border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--pl-row-divider);
   vertical-align: middle;
   position: relative;
+}
+
+.planilha-louvor-table tbody .planilha-louvor-td-funcao {
+  border-bottom: 1px solid var(--pl-row-divider);
 }
 
 .planilha-louvor-celula--vazia {
@@ -773,6 +832,36 @@ code {
   font-weight: 700;
 }
 
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--projecao {
+  color: var(--pl-obreiro-ministrante);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--mesa-som {
+  color: var(--pl-obreiro-bvocal);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--transmissao {
+  color: var(--pl-obreiro-musico);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--intro-1 {
+  color: var(--pl-obreiro-ministrante);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--intro-2 {
+  color: var(--pl-obreiro-bvocal);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--intro-3 {
+  color: var(--pl-obreiro-musico);
+  font-weight: 700;
+}
+
 .planilha-louvor-celula--ativa {
   z-index: 20;
   overflow: visible;
@@ -790,13 +879,13 @@ code {
 }
 
 .planilha-louvor-select-trigger {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 3px;
   width: 100%;
+  min-width: 0;
   min-height: 32px;
-  padding: 5px 5px;
+  padding: 5px 18px 5px 6px;
   box-sizing: border-box;
   font-family: "Outfit", sans-serif;
   font-size: clamp(9px, 1vw, 11px);
@@ -812,32 +901,108 @@ code {
   transition:
     border-color 0.15s,
     box-shadow 0.15s,
-    background 0.15s;
+    background 0.15s,
+    padding-right 0.12s ease;
+}
+
+.planilha-louvor-select-trigger--com-valor {
+  padding-right: 20px;
+}
+
+.planilha-louvor-celula--preenchida:hover .planilha-louvor-select-trigger--com-valor,
+.planilha-louvor-celula--preenchida:focus-within .planilha-louvor-select-trigger--com-valor {
+  padding-right: 44px;
+}
+
+.planilha-louvor-select-trigger--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .planilha-louvor-select-valor {
   flex: 1;
   min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  word-break: break-word;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.2;
 }
 
-.planilha-louvor-select-chevron {
+.planilha-louvor-remover-btn {
+  position: absolute;
+  right: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
   flex-shrink: 0;
+  transition:
+    opacity 0.12s ease,
+    color 0.15s,
+    background 0.15s,
+    transform 0.12s ease;
+}
+
+.planilha-louvor-celula--preenchida:hover .planilha-louvor-remover-btn:not(:disabled),
+.planilha-louvor-celula--preenchida:focus-within .planilha-louvor-remover-btn:not(:disabled) {
+  opacity: 0.72;
+  pointer-events: auto;
+}
+
+.planilha-louvor-remover-btn:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-dim);
+  opacity: 1;
+  transform: translateY(-50%) scale(1.06);
+}
+
+.planilha-louvor-remover-btn:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.planilha-louvor-remover-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-focus-ring);
+}
+
+.planilha-louvor-select-chevron {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  text-align: center;
   font-size: 9px;
   color: var(--text-muted);
   line-height: 1;
+  pointer-events: none;
+  flex-shrink: 0;
   transition: transform 0.15s ease;
 }
 
 .planilha-louvor-select-trigger--dropup .planilha-louvor-select-chevron {
-  transform: rotate(180deg);
+  transform: translateY(-50%) rotate(180deg);
 }
 
-.planilha-louvor-select-trigger:hover:not(:disabled) {
+.planilha-louvor-select-trigger:not(.planilha-louvor-select-trigger--disabled):hover {
   border-color: var(--accent-border);
   background: var(--surface-hover);
 }
@@ -847,17 +1012,12 @@ code {
   box-shadow: 0 0 0 2px var(--accent-focus-ring);
 }
 
-.planilha-louvor-select-trigger:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
 
 .planilha-louvor-select-list {
   margin: 0;
   padding: 4px 0;
   list-style: none;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   background: var(--pl-select-list-bg);
   color: var(--pl-select-list-fg);
   border: 2px solid var(--pl-select-list-border);
@@ -869,6 +1029,7 @@ code {
   position: fixed;
   z-index: 9999;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 .planilha-louvor-select-option {
@@ -913,4 +1074,68 @@ code {
   font-size: 11px;
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Rodapé — preenchimento por culto */
+.planilha-louvor-tfoot-row {
+  border-top: 2px solid var(--border);
+}
+
+.planilha-louvor-tfoot-label {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  padding: 7px 4px;
+  text-align: center;
+  font-size: clamp(8px, 0.88vw, 10px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-right: 1px solid var(--pl-faixa-divider);
+  vertical-align: middle;
+}
+
+.planilha-louvor-tfoot-celula {
+  padding: 4px 3px;
+  text-align: center;
+  vertical-align: middle;
+  border-right: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.planilha-louvor-tfoot-celula--vazia {
+  background: var(--bg);
+}
+
+.planilha-louvor-tfoot-celula--inicio-faixa {
+  border-left: 2px solid var(--pl-faixa-divider) !important;
+}
+
+.planilha-louvor-preenchimento-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: "JetBrains Mono", var(--mono);
+  font-size: clamp(7px, 0.8vw, 9px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.planilha-louvor-preenchimento-badge.is-incompleto {
+  color: var(--danger);
+  background: var(--danger-dim);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.planilha-louvor-preenchimento-badge.is-completo {
+  color: var(--success);
+  background: var(--success-dim);
+  border: 1px solid rgba(74, 222, 128, 0.4);
 }

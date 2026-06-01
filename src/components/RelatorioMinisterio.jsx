@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
 import { pessoasPorMinisterio } from "../data/pessoas";
+import { nomeParaExibicao } from "../utils/nomeExibicao";
 
 export default function RelatorioMinisterio({ escalas, datas, funcoes, ministerioId, theme: t, onVoltar }) {
 
@@ -123,7 +124,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                 borderBottom: `1px solid ${t.border}`,
               }}>
                 <span style={{ fontSize: "14px", fontWeight: 700, color: t.text, letterSpacing: "0.2px" }}>
-                  {pessoa.toUpperCase()}
+                  {nomeParaExibicao(pessoa)}
                 </span>
                 <span style={{
                   background: t.accentDim, color: t.accent,
@@ -291,7 +292,7 @@ export default function RelatorioMinisterio({ escalas, datas, funcoes, ministeri
                 background: t.bg, border: `1px solid ${t.border}`,
                 borderRadius: "4px", padding: "3px 10px",
               }}>
-                {pessoa.toUpperCase()}
+                {nomeParaExibicao(pessoa)}
               </span>
             ))}
           </div>

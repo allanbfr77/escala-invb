@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { formatarData } from "../utils/dateHelper";
 import TurnoLabelInline from "./TurnoLabelInline";
+import { nomeParaExibicao } from "../utils/nomeExibicao";
 
 const FUNCAO_CORES = {
   "MINISTRANTE": "#60a5fa",  // azul
@@ -21,10 +22,10 @@ const DATA_COL_PCT = 17;
 const MINISTRANTE_COL_PCT = 13;
 const OUTRAS_FUNCOES_COL_PCT = (100 - DATA_COL_PCT - MINISTRANTE_COL_PCT) / 7;
 
-/** Evita quebra no espaço entre nome e sobrenome (ex.: LU | FERNANDES). */
+/** Evita quebra no espaço do nome (ex.: LUCIANA | F.). */
 function nomeLouvorParaExibicao(pessoaNome) {
   if (!pessoaNome) return "";
-  return pessoaNome.toUpperCase().replace(/\s+/g, "\u00A0");
+  return nomeParaExibicao(pessoaNome).replace(/\s+/g, "\u00A0");
 }
 
 const thStyle = (f) => ({
@@ -140,7 +141,7 @@ export default function GridLouvor({ escalas, datas, loading, onRemover, podeEdi
                   const dim     = filtro && pessoa && !match;
                   const hovered = hoveredChip === chipKey;
                   const isDisponivel = pessoa === "disponível";
-                  const nomeTitulo = pessoa ? pessoa.toUpperCase() : "";
+                  const nomeTitulo = pessoa ? nomeParaExibicao(pessoa) : "";
                   const nomeExibir = nomeLouvorParaExibicao(pessoa);
                   return (
                     <td

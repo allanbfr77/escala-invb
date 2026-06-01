@@ -2,6 +2,7 @@ import { useState } from "react";
 import html2canvas from "html2canvas";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { formatarData } from "../utils/dateHelper";
+import { nomeParaExibicao } from "../utils/nomeExibicao";
 // Ministry names with \u escapes to avoid encoding issues in plain .js files
 const NOMES_MIN = {
   comunicacao: "MINIST\u00C9RIO DE COMUNICA\u00C7\u00D5ES",
@@ -85,7 +86,7 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
                 <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
                   color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                   font-family:'Outfit',sans-serif;white-space:nowrap;">
-                  ${pessoa ? pessoa.toUpperCase() : "—"}
+                  ${pessoa ? nomeParaExibicao(pessoa) : "—"}
                 </span>
               </div>
             `;
@@ -138,7 +139,7 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
               <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
                 color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                 font-family:'Outfit',sans-serif;">
-                ${pessoa ? pessoa.toUpperCase() : "—"}
+                ${pessoa ? nomeParaExibicao(pessoa) : "—"}
               </span>
             </td>`;
           });

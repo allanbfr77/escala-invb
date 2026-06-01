@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { db } from "../firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { gerarDatasEscala } from "../utils/dateHelper";
+import { normalizarMapaEscalas } from "../utils/nomeExibicao";
 
 const EscalaContext = createContext();
 
@@ -106,7 +107,7 @@ export function EscalaProvider({ children, ministerioId, mes }) {
           const turnoKey = d.turno || "único";
           mapa[`${d.data}-${turnoKey}-${d.funcao}`] = d.pessoaNome;
         });
-        setEscalas(mapa);
+        setEscalas(normalizarMapaEscalas(mapa));
         setLoading(false);
         setError(null);
       },

@@ -8,6 +8,7 @@ import { pessoasPorMinisterio, pessoasPorFuncaoLouvor, pessoasPorFuncaoInfantil,
 import { formatarData } from "../utils/dateHelper";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
+import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
 
 const ministerios = [
   {
@@ -313,7 +314,7 @@ export default function SidebarFiltros({
   /** Disponibilidade de uma pessoa em uma data/função (indisp., ocupação, slot "disponível"). */
   const dataEscalavelParaPessoa = useCallback((d, nomePessoa) => {
     const turnoKey = d.turno ?? "único";
-    const pl = nomePessoa.toLowerCase();
+    const pl = pessoaNomeFirestore(nomePessoa);
 
     if (
       !ministerioPermiteEscalaFlexivel(ministerioSelecionado) &&
@@ -336,7 +337,11 @@ export default function SidebarFiltros({
       const slots = slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado);
       const jaEscalado = slots.some((f) => {
         const ocupante = escalas[`${d.data}-${turnoKey}-${f}`];
-        return ocupante && ocupante !== "disponível" && ocupante.toLowerCase() === pl;
+        return (
+          ocupante &&
+          ocupante !== "disponível" &&
+          pessoaNomeFirestore(ocupante) === pl
+        );
       });
       if (jaEscalado) return false;
     }
@@ -522,7 +527,7 @@ export default function SidebarFiltros({
         if (!funcaoReal) { erros++; continue; }
 
         try {
-          const pessoaLower = nomePessoa.toLowerCase();
+          const pessoaLower = pessoaNomeFirestore(nomePessoa);
           if (
             pessoaLower !== "disponível" &&
             !ministerioPermiteEscalaFlexivel(ministerioSelecionado)
@@ -594,7 +599,7 @@ export default function SidebarFiltros({
       if (!isGrupo && !ministerioPermiteEscalaFlexivel(ministerioSelecionado)) {
         setDatasConfirmadas(prev => [...new Set([...prev, ...idsSalvos])]);
       }
-      const nomes = pessoasParaSalvar.map(p => p.toUpperCase()).join(", ");
+      const nomes = pessoasParaSalvar.map((p) => nomeParaExibicao(p)).join(", ");
       const pluralPessoa = pessoasParaSalvar.length === 1 ? "Obreiro" : "Obreiros";
       onMensagem?.(
         `${pluralPessoa} ${nomes} escalado(s) como ${funcaoEfetiva}`,
@@ -1003,7 +1008,7 @@ export default function SidebarFiltros({
           ) : (
             obreirosLista.map((nome, i) => {
               const checked = pessoasMarcadas.includes(nome);
-              const rotulo = nome === "Disponível" ? "✦ DISPONÍVEL" : nome.toUpperCase();
+              const rotulo = nome === "Disponível" ? "✦ DISPONÍVEL" : nomeParaExibicao(nome);
               return (
                 <div
                   key={nome}

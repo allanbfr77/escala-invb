@@ -18,17 +18,14 @@ import ConfirmModal from "../components/ConfirmModal";
 import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
 import DashboardGrid from "./DashboardGrid";
-import PlanilhaLouvor from "../components/PlanilhaLouvor";
+import PlanilhaMinisterio from "../components/PlanilhaMinisterio";
+import { ministerioUsaPlanilhaFaixas } from "../utils/planilhaMinisterioConfig";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
-import {
-  formatarCabecalhoColuna,
-  estiloBadgeAbrevExport,
-  buildCellsFromEscalas,
-  parseAbreviacoesCombinadas,
-} from "../utils/gridAbreviacoes";
+import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
+import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon } from "lucide-react";
@@ -110,16 +107,6 @@ function renderTurnoInlineExportHTML(label, turno, accentColor, options = {}) {
   `;
 }
 
-function formatarCabecalhoColunaExport(dataObj, accentColor) {
-  const cabecalho = formatarCabecalhoColuna(dataObj);
-  const cabecalhoBase = cabecalho.replace(/\s+\(([MN])\)$/, "");
-  return renderTurnoInlineExportHTML(cabecalhoBase, dataObj.turno, accentColor, {
-    gap: "4px",
-    dotSize: 7,
-    fontSize: "10px",
-  });
-}
-
 function formatarDataExport(dataObj, accentColor) {
   const dataLabel = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
   const dataBase = dataLabel.replace(/\s+\((MANHÃ|NOITE)\)$/, "");
@@ -134,7 +121,10 @@ function formatarNomeTexto(nome) {
   if (!nome) return "—";
   if (nome.toLowerCase() === "disponível") return "Disponível";
 
-  return nome
+  const canon = normalizarNomePessoa(nome);
+  if (canon === "LUCIANA F.") return "Luciana F.";
+
+  return canon
     .split(" ")
     .filter(Boolean)
     .map((parte) => (
@@ -282,15 +272,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setMes(new Date(ano, m, 1).toISOString().slice(0, 7));
   };
 
-  const buildAbrevCellsExport = useCallback(
-    (ministerioId) => buildCellsFromEscalas(escalas, datas, ministerioId),
-    [escalas, datas]
-  );
-
-  const getPessoasVisiveisPlanilhaExport = useCallback(async (ministerioId) => {
-    return pessoasPorMinisterio[ministerioId] || [];
-  }, []);
-
   const buildTextoExport = useCallback(() => {
     const nomeMes = new Date(`${mes}-15`)
       .toLocaleDateString("pt-BR", { month: "long" })
@@ -406,55 +387,16 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
       if (isPlanilha) {
         downloadSuffix = "-planilha";
-        const pessoas = await getPessoasVisiveisPlanilhaExport(ministerioSelecionado);
-        const abrevCells = buildAbrevCellsExport(ministerioSelecionado);
-
-        const thBase = `font-weight:600;color:${LT.textMuted};font-size:9px;text-transform:uppercase;letter-spacing:0.35px;font-family:'Outfit',sans-serif;border-bottom:1px solid ${LT.border};`;
-        let theadHTML = `<tr><th style="${thBase}padding:8px 12px;text-align:left;min-width:168px;border-right:1px solid ${LT.border};">OBREIRO(A)</th>`;
-        datas.forEach((dataObj) => {
-          theadHTML += `<th style="${thBase}padding:6px 4px;text-align:center;min-width:64px;line-height:1.25;white-space:normal;border-right:1px solid ${LT.border};">${formatarCabecalhoColunaExport(dataObj, LT.accent)}</th>`;
+        const tableHTML = buildPlanilhaFaixasTableHTML({
+          ministerioId: ministerioSelecionado,
+          datas,
+          funcoes,
+          escalas,
+          LT,
         });
-        theadHTML += "</tr>";
-
-        let tbodyHTML = "";
-        pessoas.forEach((pessoa, idx) => {
-          const rowBg = idx % 2 === 0 ? LT.surface : LT.zebra;
-          tbodyHTML += `<tr style="background:${rowBg};">`;
-          tbodyHTML += `<td style="padding:6px 12px;font-size:11px;font-weight:500;color:${LT.text};font-family:'Outfit',sans-serif;text-align:left;white-space:nowrap;border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};">${pessoa}</td>`;
-
-          datas.forEach((dataObj) => {
-            const abrev = abrevCells[`${pessoa.toLowerCase()}|${dataObj.id}`] || "";
-            const bg = abrev ? LT.surface : LT.cellEmpty;
-            const abrevsLista = abrev
-              ? parseAbreviacoesCombinadas(ministerioSelecionado, abrev)
-              : [];
-            const conteudo = abrevsLista.length
-              ? abrevsLista
-                  .map((a) => {
-                    const badgeStyle = estiloBadgeAbrevExport(ministerioSelecionado, a);
-                    return `<span style="${badgeStyle}margin:0 1px;">${a}</span>`;
-                  })
-                  .join("")
-              : "";
-            tbodyHTML += `<td style="padding:6px 4px;text-align:center;background:${bg};border-right:1px solid ${LT.border};border-bottom:1px solid ${LT.border};vertical-align:middle;">
-              ${conteudo}
-            </td>`;
-          });
-          tbodyHTML += "</tr>";
-        });
-
-        const tableHTML = `
-          <div style="border-radius:10px;border:1px solid ${LT.border};background:${LT.surface};overflow:hidden;">
-            <table style="border-collapse:collapse;font-size:13px;">
-              <thead>${theadHTML}</thead>
-              <tbody>${tbodyHTML}</tbody>
-            </table>
-          </div>
-        `;
-
         wrapper.style.padding = "20px 24px 24px";
+        wrapper.style.minWidth = "1100px";
         wrapper.innerHTML = headerHTML + tableHTML;
-
       } else if (isMobile) {
         // ── MOBILE: cards lado a lado (3 colunas) ─────────────────────────
         const cols = 3;
@@ -481,7 +423,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
                   color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                   font-family:'Outfit',sans-serif;white-space:nowrap;">
-                  ${pessoa ? pessoa.toUpperCase() : "—"}
+                  ${pessoa ? nomeParaExibicao(pessoa) : "—"}
                 </span>
               </div>
             `;
@@ -536,7 +478,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
                 color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
                 font-family:'Outfit',sans-serif;">
-                ${pessoa ? pessoa.toUpperCase() : "—"}
+                ${pessoa ? nomeParaExibicao(pessoa) : "—"}
               </span>
             </td>`;
           });
@@ -589,7 +531,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     } finally {
       setBaixando(false);
     }
-  }, [buildAbrevCellsExport, buildTextoExport, datas, escalas, getPessoasVisiveisPlanilhaExport, mes, ministerioSelecionado]);
+  }, [buildTextoExport, datas, escalas, mes, ministerioSelecionado]);
 
   const ministerioConfig = {
     comunicacao: {
@@ -1690,7 +1632,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     </div>
                     {[
                       { label:"Tabela (Web)",    icon:"▤", layout:"web",      desc:"linhas e colunas" },
-                      { label:"Planilha (Web)", icon:"▦", layout:"planilha", desc:"integrantes × datas" },
+                      { label:"Planilha (Web)", icon:"▦", layout:"planilha", desc:"funções × turnos" },
                       { label:"Cards (Mobile)", icon:"⊞", layout:"mobile",   desc:"cards por culto"  },
                       { label:"Texto",          icon:"✎", layout:"text",     desc:"modal para copiar" },
                     ].map(opt => (
@@ -1912,8 +1854,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               </p>
             </div>
           ) : viewMode === "grid" ? (
-            ministerioSelecionado === "louvor" ? (
-              <PlanilhaLouvor
+            ministerioUsaPlanilhaFaixas(ministerioSelecionado) ? (
+              <PlanilhaMinisterio
+                ministerioId={ministerioSelecionado}
                 escalas={escalas}
                 datas={datas}
                 mes={mes}
@@ -2159,7 +2102,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 overflowWrap: "anywhere",
               }}
             >
-              <AlertTriangle size={16} color={theme.danger} style={{ display: "inline", marginRight: "6px", verticalAlign: "middle" }} /> <strong>{conflito.pessoa.toUpperCase()}</strong> já está escalado(a) no MINISTÉRIO{" "}
+              <AlertTriangle size={16} color={theme.danger} style={{ display: "inline", marginRight: "6px", verticalAlign: "middle" }} /> <strong>{nomeParaExibicao(conflito.pessoa)}</strong> já está escalado(a) no MINISTÉRIO{" "}
 <strong>{conflito.ministerio}</strong> na função <strong>{conflito.funcao}</strong> no{" "}
 <strong>{conflito.data}</strong>
             </p>

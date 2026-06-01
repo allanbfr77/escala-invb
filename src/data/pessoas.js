@@ -1,10 +1,27 @@
 // Mapeamento Função → Pessoas para ministérios com filtro dependente
+const LISTA_PESSOAS_COMUNICACAO = [
+  "ALAN",
+  "ALEX",
+  "ANNA BEATRIZ",
+  "BIANCA",
+  "JEAN",
+  "JOÃO",
+  "MATHEUS",
+  "MEDEIROS",
+];
+
+export const pessoasPorFuncaoComunicacao = {
+  "PROJEÇÃO": LISTA_PESSOAS_COMUNICACAO,
+  "MESA DE SOM": LISTA_PESSOAS_COMUNICACAO,
+  "TRANSMISSÃO": LISTA_PESSOAS_COMUNICACAO,
+};
+
 export const pessoasPorFuncaoLouvor = {
   "MINISTRANTE": ["CRIS", "DANIELA", "MIRIAN", "PR. HUMBERTO", "RAPHAELA"],
-  "BVOCAL 1":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA FERNANDES", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
-  "BVOCAL 2":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA FERNANDES", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
-  "BVOCAL 3":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA FERNANDES", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
-  "BVOCAL 4":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA FERNANDES", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
+  "BVOCAL 1":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
+  "BVOCAL 2":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
+  "BVOCAL 3":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
+  "BVOCAL 4":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
   "MÚSICO 1":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
   "MÚSICO 2":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
   "MÚSICO 3":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
@@ -13,7 +30,7 @@ export const pessoasPorFuncaoLouvor = {
 
 export const pessoasPorFuncaoRecepcao = {
   "INTRODUTOR":  ["ALFREDO", "ATAYDE", "JOÃO", "MARCIO", "SALATHIEL", "WELLINGTON"],
-  "INTRODUTORA": ["CLAUDIA", "CLEUSA", "FRANCISCA", "HELENA", "LIA", "LUCIANA FERNANDES", "LUCIANE MARTINS", "MARILDA", "MIRIAN", "ROSE"],
+  "INTRODUTORA": ["CLAUDIA", "CLEUSA", "FRANCISCA", "HELENA", "LIA", "LUCIANA F.", "LUCIANE MARTINS", "MARILDA", "MIRIAN", "ROSE"],
 };
 
 export const pessoasPorFuncaoInfantil = {
@@ -23,16 +40,7 @@ export const pessoasPorFuncaoInfantil = {
 };
 
 export const pessoasPorMinisterio = {
-  comunicacao: [
-    "ALAN",
-    "ALEX",
-    "ANNA BEATRIZ",
-    "BIANCA",
-    "JEAN",
-    "JOÃO",
-    "MATHEUS",
-    "MEDEIROS"
-  ],
+  comunicacao: LISTA_PESSOAS_COMUNICACAO,
 
   infantil: [
     "ALAN",
@@ -63,7 +71,7 @@ export const pessoasPorMinisterio = {
     "DANIELA",
     "ELIZANGELA",
     "LÉO",
-    "LUCIANA FERNANDES",
+    "LUCIANA F.",
     "MATHEUS",
     "MEDEIROS",
     "MIRIAN",
@@ -84,7 +92,7 @@ export const pessoasPorMinisterio = {
     "HELENA",
     "JOÃO",
     "LIA",
-    "LUCIANA FERNANDES",
+    "LUCIANA F.",
     "LUCIANE MARTINS",
     "MARCIO",
     "MARILDA",
