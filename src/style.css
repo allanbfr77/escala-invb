@@ -43,6 +43,36 @@
   --grid-cell-blocked: var(--surface);
   --grid-cell-indisponivel: #2A1F1F;
 
+  --pl-select-trigger-bg: #1a1a1a;
+  --pl-select-trigger-fg: #f0f0f0;
+  --pl-select-trigger-border: #3a3a3a;
+  --pl-select-list-bg: #222222;
+  --pl-select-list-fg: #f0f0f0;
+  --pl-select-list-border: rgba(212, 175, 55, 0.45);
+  --pl-select-list-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(212, 175, 55, 0.2);
+  --pl-select-option-hover-bg: rgba(212, 175, 55, 0.14);
+  --pl-select-option-selected-bg: rgba(212, 175, 55, 0.22);
+  --pl-faixa-divider: #2e2e2e;
+
+  --pl-faixa-manha-bg: rgba(251, 191, 36, 0.2);
+  --pl-faixa-manha-fg: #fcd34d;
+  --pl-faixa-manha-border: rgba(251, 191, 36, 0.45);
+  --pl-faixa-manha-data-bg: rgba(251, 191, 36, 0.07);
+
+  --pl-faixa-noite-bg: rgba(96, 165, 250, 0.2);
+  --pl-faixa-noite-fg: #93c5fd;
+  --pl-faixa-noite-border: rgba(96, 165, 250, 0.45);
+  --pl-faixa-noite-data-bg: rgba(96, 165, 250, 0.07);
+
+  --pl-faixa-quarta-bg: rgba(52, 211, 153, 0.18);
+  --pl-faixa-quarta-fg: #6ee7b7;
+  --pl-faixa-quarta-border: rgba(52, 211, 153, 0.42);
+  --pl-faixa-quarta-data-bg: rgba(52, 211, 153, 0.07);
+
+  --pl-obreiro-ministrante: #60a5fa;
+  --pl-obreiro-bvocal: #34d399;
+  --pl-obreiro-musico: #f59e0b;
+
   --code-bg: #1f1f1f;
 
   --abrev-badge-azul-fg: #60a5fa;
@@ -119,6 +149,36 @@
   --date-cell-bg: rgba(0,0,0,0.03);
   --grid-cell-blocked: #ffffff;
   --grid-cell-indisponivel: #FFE0E0;
+
+  --pl-select-trigger-bg: #ffffff;
+  --pl-select-trigger-fg: #111111;
+  --pl-select-trigger-border: #d1d5db;
+  --pl-select-list-bg: #ffffff;
+  --pl-select-list-fg: #111111;
+  --pl-select-list-border: rgba(160, 114, 6, 0.4);
+  --pl-select-list-shadow: 0 10px 28px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(160, 114, 6, 0.18);
+  --pl-select-option-hover-bg: rgba(160, 114, 6, 0.1);
+  --pl-select-option-selected-bg: rgba(160, 114, 6, 0.16);
+  --pl-faixa-divider: #d1d5db;
+
+  --pl-faixa-manha-bg: rgba(180, 83, 9, 0.14);
+  --pl-faixa-manha-fg: #92400e;
+  --pl-faixa-manha-border: rgba(180, 83, 9, 0.35);
+  --pl-faixa-manha-data-bg: rgba(180, 83, 9, 0.06);
+
+  --pl-faixa-noite-bg: rgba(29, 78, 216, 0.12);
+  --pl-faixa-noite-fg: #1e40af;
+  --pl-faixa-noite-border: rgba(29, 78, 216, 0.32);
+  --pl-faixa-noite-data-bg: rgba(29, 78, 216, 0.05);
+
+  --pl-faixa-quarta-bg: rgba(4, 120, 87, 0.12);
+  --pl-faixa-quarta-fg: #047857;
+  --pl-faixa-quarta-border: rgba(4, 120, 87, 0.32);
+  --pl-faixa-quarta-data-bg: rgba(4, 120, 87, 0.05);
+
+  --pl-obreiro-ministrante: #2563eb;
+  --pl-obreiro-bvocal: #059669;
+  --pl-obreiro-musico: #ea580c;
 
   --code-bg: #f3f4f6;
 
@@ -519,4 +579,338 @@ code {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Planilha exclusiva — Ministério de Louvor
+   ══════════════════════════════════════════════════════════ */
+.planilha-louvor-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  position: relative;
+}
+
+.planilha-louvor-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(10px, 1.05vw, 12px);
+}
+
+.planilha-louvor-col-funcao {
+  width: 7%;
+}
+
+.planilha-louvor-col-data--compacta {
+  width: 0.12% !important;
+  max-width: 3px;
+  min-width: 2px;
+}
+
+.planilha-louvor-th-funcao,
+.planilha-louvor-td-funcao {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--surface);
+  border-right: 1px solid var(--pl-faixa-divider);
+  padding: 8px 6px;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  vertical-align: middle;
+  font-size: clamp(9px, 1vw, 11px);
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.planilha-louvor-th-faixa {
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 700;
+  font-size: clamp(9px, 1vw, 11px);
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  border-bottom: 2px solid transparent;
+}
+
+.planilha-louvor-th-faixa[data-faixa="domingo-manha"] {
+  background: var(--pl-faixa-manha-bg);
+  color: var(--pl-faixa-manha-fg);
+  border-bottom-color: var(--pl-faixa-manha-border);
+  box-shadow: inset 0 -1px 0 var(--pl-faixa-manha-border);
+}
+
+.planilha-louvor-th-faixa[data-faixa="domingo-noite"] {
+  background: var(--pl-faixa-noite-bg);
+  color: var(--pl-faixa-noite-fg);
+  border-bottom-color: var(--pl-faixa-noite-border);
+  box-shadow: inset 0 -1px 0 var(--pl-faixa-noite-border);
+}
+
+.planilha-louvor-th-faixa[data-faixa="quarta"] {
+  background: var(--pl-faixa-quarta-bg);
+  color: var(--pl-faixa-quarta-fg);
+  border-bottom-color: var(--pl-faixa-quarta-border);
+  box-shadow: inset 0 -1px 0 var(--pl-faixa-quarta-border);
+}
+
+.planilha-louvor-th-faixa:not(:last-of-type) {
+  border-right: 2px solid var(--pl-faixa-divider);
+}
+
+.planilha-louvor-th-faixa:last-of-type {
+  border-right: none;
+}
+
+.planilha-louvor-data-label {
+  display: block;
+  font-weight: 600;
+  font-size: clamp(9px, 1vw, 11px);
+  letter-spacing: 0.02em;
+}
+
+.planilha-louvor-th-data[data-faixa="domingo-manha"] .planilha-louvor-data-label {
+  color: var(--pl-faixa-manha-fg);
+}
+
+.planilha-louvor-th-data[data-faixa="domingo-noite"] .planilha-louvor-data-label {
+  color: var(--pl-faixa-noite-fg);
+}
+
+.planilha-louvor-th-data[data-faixa="quarta"] .planilha-louvor-data-label {
+  color: var(--pl-faixa-quarta-fg);
+}
+
+.planilha-louvor-th-data {
+  padding: 6px 5px;
+  text-align: center;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.planilha-louvor-th-data[data-faixa="domingo-manha"]:not(.planilha-louvor-th-data--vazia) {
+  background: var(--pl-faixa-manha-data-bg);
+}
+
+.planilha-louvor-th-data[data-faixa="domingo-noite"]:not(.planilha-louvor-th-data--vazia) {
+  background: var(--pl-faixa-noite-data-bg);
+}
+
+.planilha-louvor-th-data[data-faixa="quarta"]:not(.planilha-louvor-th-data--vazia) {
+  background: var(--pl-faixa-quarta-data-bg);
+}
+
+.planilha-louvor-th-data--vazia,
+.planilha-louvor-celula--vazia {
+  width: 0.12% !important;
+  max-width: 3px;
+  min-width: 2px;
+  padding: 0 !important;
+  overflow: hidden;
+  background: var(--bg) !important;
+  border-right: 1px solid var(--border) !important;
+  border-left: none;
+}
+
+.planilha-louvor-th-data--inicio-faixa,
+.planilha-louvor-celula--inicio-faixa {
+  border-left: 2px solid var(--pl-faixa-divider) !important;
+  padding-left: 3px !important;
+}
+
+.planilha-louvor-th-data--inicio-faixa[data-faixa="domingo-noite"],
+.planilha-louvor-celula--inicio-faixa.planilha-louvor-celula--faixa-domingo-noite {
+  border-left-color: var(--pl-faixa-noite-border) !important;
+}
+
+.planilha-louvor-th-data--inicio-faixa[data-faixa="quarta"],
+.planilha-louvor-celula--inicio-faixa.planilha-louvor-celula--faixa-quarta {
+  border-left-color: var(--pl-faixa-quarta-border) !important;
+}
+
+.planilha-louvor-celula {
+  padding: 5px 3px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  position: relative;
+}
+
+.planilha-louvor-celula--vazia {
+  pointer-events: none;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--vazio {
+  color: var(--text-muted);
+  opacity: 0.5;
+  font-weight: 500;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--ministrante {
+  color: var(--pl-obreiro-ministrante);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--bvocal {
+  color: var(--pl-obreiro-bvocal);
+  font-weight: 700;
+}
+
+.planilha-louvor-select-trigger .planilha-louvor-select-valor--musico {
+  color: var(--pl-obreiro-musico);
+  font-weight: 700;
+}
+
+.planilha-louvor-celula--ativa {
+  z-index: 20;
+  overflow: visible;
+}
+
+.planilha-louvor-table tbody tr {
+  overflow: visible;
+}
+
+.planilha-louvor-select-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.planilha-louvor-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 5px;
+  box-sizing: border-box;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(9px, 1vw, 11px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--pl-select-trigger-fg);
+  background: var(--pl-select-trigger-bg);
+  border: 1px solid var(--pl-select-trigger-border);
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  text-transform: uppercase;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+
+.planilha-louvor-select-valor {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.planilha-louvor-select-chevron {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.planilha-louvor-select-trigger--dropup .planilha-louvor-select-chevron {
+  transform: rotate(180deg);
+}
+
+.planilha-louvor-select-trigger:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--surface-hover);
+}
+
+.planilha-louvor-celula--ativa .planilha-louvor-select-trigger {
+  border-color: var(--pl-select-list-border);
+  box-shadow: 0 0 0 2px var(--accent-focus-ring);
+}
+
+.planilha-louvor-select-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.planilha-louvor-select-list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--pl-select-list-bg);
+  color: var(--pl-select-list-fg);
+  border: 2px solid var(--pl-select-list-border);
+  border-radius: 6px;
+  box-shadow: var(--pl-select-list-shadow);
+}
+
+.planilha-louvor-select-list--portal {
+  position: fixed;
+  z-index: 9999;
+  box-sizing: border-box;
+}
+
+.planilha-louvor-select-option {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--pl-select-list-fg);
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(9px, 1vw, 11px);
+  font-weight: 500;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.planilha-louvor-select-option:hover,
+.planilha-louvor-select-option:focus-visible {
+  outline: none;
+  background: var(--pl-select-option-hover-bg);
+}
+
+.planilha-louvor-select-option.is-selected {
+  background: var(--pl-select-option-selected-bg);
+  font-weight: 700;
+}
+
+.planilha-louvor-loading {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: "Outfit", sans-serif;
+}
+
+.planilha-louvor-salvando {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
 }

@@ -18,6 +18,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
 import DashboardGrid from "./DashboardGrid";
+import PlanilhaLouvor from "../components/PlanilhaLouvor";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { podeEditarMinisterio } from "../utils/permissions";
@@ -232,6 +233,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", confirmLabel: "Confirmar", perigoso: false, onConfirmar: null });
   const [filtroNome, setFiltroNome] = useState("");
   const [viewMode, setViewMode] = useState("cards");
+
+  useEffect(() => {
+    setViewMode((mode) => (mode === "louvor-planilha" ? "grid" : mode));
+  }, []);
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const [textoExportacao, setTextoExportacao] = useState({ aberto: false, conteudo: "" });
   const gridRef = useRef(null);
@@ -978,7 +983,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   }, [escalas, datas, mes]);
 
   // Reset relatório e filtro ao trocar de ministério ou mês
-  const handleSetMinisterio = (v) => { setMinisterioSelecionado(v); setVerRelatorio(false); setFiltroNome(""); };
+  const handleSetMinisterio = (v) => {
+    setMinisterioSelecionado(v);
+    setVerRelatorio(false);
+    setFiltroNome("");
+    setViewMode((mode) => (mode === "louvor-planilha" ? "grid" : mode));
+  };
+
+  const opcoesViewMode = [
+    { id: "cards", label: "TABELA" },
+    { id: "grid", label: "PLANILHA" },
+  ];
 
   const gridProps = useMemo(
     () => ({ escalas, datas, loading, onRemover: handleRemover, podeEditar, filtroNome }),
@@ -1570,10 +1585,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     flexShrink: 0,
                   }}
                 >
-                  {[
-                    { id: "cards", label: "TABELA" },
-                    { id: "grid", label: "PLANILHA" },
-                  ].map((opt) => (
+                  {opcoesViewMode.map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
@@ -1900,19 +1912,33 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               </p>
             </div>
           ) : viewMode === "grid" ? (
-            <DashboardGrid
-              ministerioId={ministerioSelecionado}
-              mes={mes}
-              datas={datas}
-              escalas={escalas}
-              loading={loading}
-              usuario={user}
-              podeEditar={podeEditar}
-              onMensagem={mostrarMensagem}
-              onConflito={setConflito}
-              indispRefreshKey={indispRefreshKey}
-              isExternalDetectionEnabled={isExternalDetectionEnabled}
-            />
+            ministerioSelecionado === "louvor" ? (
+              <PlanilhaLouvor
+                escalas={escalas}
+                datas={datas}
+                mes={mes}
+                loading={loading}
+                usuario={user}
+                podeEditar={podeEditar}
+                onMensagem={mostrarMensagem}
+                onConflito={setConflito}
+                indispRefreshKey={indispRefreshKey}
+              />
+            ) : (
+              <DashboardGrid
+                ministerioId={ministerioSelecionado}
+                mes={mes}
+                datas={datas}
+                escalas={escalas}
+                loading={loading}
+                usuario={user}
+                podeEditar={podeEditar}
+                onMensagem={mostrarMensagem}
+                onConflito={setConflito}
+                indispRefreshKey={indispRefreshKey}
+                isExternalDetectionEnabled={isExternalDetectionEnabled}
+              />
+            )
           ) : (
             <>
               <div ref={gridRef} style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
