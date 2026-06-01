@@ -141,7 +141,7 @@ export default function SidebarFiltros({
   const [salvando, setSalvando]               = useState(false);
   const [pessoasMarcadas, setPessoasMarcadas] = useState([]);
   const [funcaoSelecionada, setFuncao]        = useState("");
-  const [dataSelecionadaId, setDataSelecionadaId] = useState("");
+  const [datasIds, setDatasIds] = useState([]);
   const [datasConfirmadas, setDatasConfirmadas] = useState([]);
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [extrasAberta, setExtrasAberta]       = useState(false);
@@ -175,14 +175,14 @@ export default function SidebarFiltros({
   // ─── Limpa estado ao trocar ministério ───────────────────────────────────
   useEffect(() => {
     setDatasConfirmadas([]);
-    setDataSelecionadaId("");
+    setDatasIds([]);
     setFuncao("");
     setPessoasMarcadas([]);
     setModalEscolhaFuncao({ aberto: false, opcoes: [] });
   }, [ministerioSelecionado]);
 
   useEffect(() => {
-    setDataSelecionadaId("");
+    setDatasIds([]);
     setPessoasMarcadas([]);
   }, [funcaoSelecionada]);
 
@@ -363,36 +363,41 @@ export default function SidebarFiltros({
     });
   }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas, escalas, ministerioSelecionado]);
 
-  /** Mantém a data selecionada visível no select enquanto o usuário observa a lista reativa. */
-  const datasParaSelectExibicao = useMemo(() => {
-    if (!dataSelecionadaId || datasParaSelect.some((d) => d.id === dataSelecionadaId)) {
-      return datasParaSelect;
-    }
-    const selecionada = datasDisponiveis.find((d) => d.id === dataSelecionadaId);
-    if (!selecionada) return datasParaSelect;
+  /** Mantém datas selecionadas visíveis na lista enquanto o usuário observa a reatividade. */
+  const datasParaLista = useMemo(() => {
     const turnoOrder = { "manhã": 0, "único": 1, "noite": 2 };
-    return [...datasParaSelect, selecionada].sort((a, b) => {
+    const ordenar = (a, b) => {
       if (a.data !== b.data) return a.data.localeCompare(b.data);
       return (turnoOrder[a.turno] ?? 1) - (turnoOrder[b.turno] ?? 1);
-    });
-  }, [datasParaSelect, dataSelecionadaId, datasDisponiveis]);
+    };
+    const extras = datasIds
+      .filter((id) => !datasParaSelect.some((d) => d.id === id))
+      .map((id) => datasDisponiveis.find((d) => d.id === id))
+      .filter(Boolean);
+    if (extras.length === 0) return datasParaSelect;
+    return [...datasParaSelect, ...extras].sort(ordenar);
+  }, [datasParaSelect, datasIds, datasDisponiveis]);
 
-  const dataSelecionadaObj = useMemo(
-    () => datasDisponiveis.find(d => d.id === dataSelecionadaId) ?? null,
-    [datasDisponiveis, dataSelecionadaId]
+  const datasSelecionadasObjs = useMemo(
+    () => datasIds
+      .map((id) => datasDisponiveis.find((d) => d.id === id))
+      .filter(Boolean),
+    [datasIds, datasDisponiveis]
   );
 
-  /** Obreiros disponíveis na data e função escolhidas (filtro reverso). */
-  const pessoasDisponiveisNaData = useMemo(() => {
-    if (!funcaoSelecionada || !dataSelecionadaObj) return [];
-    return pessoasFiltradas.filter(p => dataEscalavelParaPessoa(dataSelecionadaObj, p));
-  }, [funcaoSelecionada, dataSelecionadaObj, pessoasFiltradas, dataEscalavelParaPessoa]);
+  /** Obreiros disponíveis em todas as datas selecionadas (filtro reverso). */
+  const pessoasDisponiveisNasDatas = useMemo(() => {
+    if (!funcaoSelecionada || datasSelecionadasObjs.length === 0) return [];
+    return pessoasFiltradas.filter((p) =>
+      datasSelecionadasObjs.every((d) => dataEscalavelParaPessoa(d, p))
+    );
+  }, [funcaoSelecionada, datasSelecionadasObjs, pessoasFiltradas, dataEscalavelParaPessoa]);
 
-  const disponivelNaDataSelecionada = useMemo(() => {
-    if (ministerioSelecionado !== "louvor" || !dataSelecionadaObj) return false;
+  const disponivelNasDatasSelecionadas = useMemo(() => {
+    if (ministerioSelecionado !== "louvor" || datasSelecionadasObjs.length === 0) return false;
     if (!funcaoSelecionada) return false;
-    return dataEscalavelParaPessoa(dataSelecionadaObj, "Disponível");
-  }, [ministerioSelecionado, funcaoSelecionada, dataSelecionadaObj, dataEscalavelParaPessoa]);
+    return datasSelecionadasObjs.every((d) => dataEscalavelParaPessoa(d, "Disponível"));
+  }, [ministerioSelecionado, funcaoSelecionada, datasSelecionadasObjs, dataEscalavelParaPessoa]);
 
   /** Só quando todos os cultos do mês estão ocupados na função (não confundir com indisponibilidade pessoal). */
   const todasDatasOcupadasNaFuncao = useMemo(() => {
@@ -406,34 +411,53 @@ export default function SidebarFiltros({
   }, [funcaoSelecionada, datasDisponiveis, datasConfirmadas, datasOcupadas]);
 
   useEffect(() => {
-    if (!dataSelecionadaId) return;
-    if (!datasDisponiveis.some((d) => d.id === dataSelecionadaId)) {
-      setDataSelecionadaId("");
-      setPessoasMarcadas([]);
-    }
-  }, [dataSelecionadaId, datasDisponiveis]);
+    const disponiveis = new Set(datasParaSelect.map((d) => d.id));
+    setDatasIds((prev) => {
+      const next = prev.filter((id) => {
+        if (!datasDisponiveis.some((d) => d.id === id)) return false;
+        return disponiveis.has(id);
+      });
+      return next.length === prev.length ? prev : next;
+    });
+  }, [datasParaSelect, datasDisponiveis]);
 
   useEffect(() => {
     setPessoasMarcadas(prev => prev.filter(p => {
-      if (p === "Disponível") return disponivelNaDataSelecionada;
-      return pessoasDisponiveisNaData.includes(p);
+      if (p === "Disponível") return disponivelNasDatasSelecionadas;
+      return pessoasDisponiveisNasDatas.includes(p);
     }));
-  }, [pessoasDisponiveisNaData, disponivelNaDataSelecionada]);
-
-  useEffect(() => {
-    setPessoasMarcadas([]);
-  }, [dataSelecionadaId]);
+  }, [pessoasDisponiveisNasDatas, disponivelNasDatasSelecionadas]);
 
   const obreirosLista = useMemo(() => {
-    const nomes = [...pessoasDisponiveisNaData].sort((a, b) => a.localeCompare(b, "pt"));
-    if (disponivelNaDataSelecionada) nomes.unshift("Disponível");
+    const nomes = [...pessoasDisponiveisNasDatas].sort((a, b) => a.localeCompare(b, "pt"));
+    if (disponivelNasDatasSelecionadas) nomes.unshift("Disponível");
     return nomes;
-  }, [pessoasDisponiveisNaData, disponivelNaDataSelecionada]);
+  }, [pessoasDisponiveisNasDatas, disponivelNasDatasSelecionadas]);
 
   const qtdDisponiveisObreiros = obreirosLista.length;
 
+  const toggleData = (id) => {
+    if (!podeEditar || !funcaoSelecionada) return;
+    setDatasIds(prev =>
+      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+    );
+    onConflito?.(null);
+  };
+
+  const selecionarTodasDatas = () => {
+    if (!podeEditar || !funcaoSelecionada) return;
+    setDatasIds(datasParaSelect.map(d => d.id));
+    onConflito?.(null);
+  };
+
+  const limparDatasSelecionadas = () => {
+    setDatasIds([]);
+    setPessoasMarcadas([]);
+    onConflito?.(null);
+  };
+
   const toggleObreiro = (nome) => {
-    if (!podeEditar || !dataSelecionadaId) return;
+    if (!podeEditar || datasIds.length === 0) return;
     setPessoasMarcadas(prev => {
       if (prev.includes(nome)) return prev.filter(p => p !== nome);
 
@@ -443,10 +467,13 @@ export default function SidebarFiltros({
       const multiSlot = funcaoTemMultiplosSlots(funcaoSelecionada, ministerioSelecionado);
       if (!multiSlot) return [nome];
 
-      const turnoKey = dataSelecionadaObj?.turno ?? "único";
-      const vagasLivres = slotsDisponiveis(
-        funcaoSelecionada, dataSelecionadaObj, turnoKey, escalas, ministerioSelecionado
-      );
+      const vagasPorData = datasSelecionadasObjs.map((dataObj) => {
+        const turnoKey = dataObj.turno ?? "único";
+        return slotsDisponiveis(
+          funcaoSelecionada, dataObj, turnoKey, escalas, ministerioSelecionado
+        ).length;
+      });
+      const vagasLivres = Math.min(...vagasPorData, Infinity);
       if (prev.length >= vagasLivres.length) {
         onMensagem?.(
           `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
@@ -463,8 +490,9 @@ export default function SidebarFiltros({
     setSalvando(true);
     onConflito?.(null);
 
-    const dataObj = datasDisponiveis.find(d => d.id === dataSelecionadaId);
-    const datasObj = dataObj ? [dataObj] : [];
+    const datasObj = datasIds
+      .map(id => datasDisponiveis.find(d => d.id === id))
+      .filter(Boolean);
     const pessoasParaSalvar = [...pessoasMarcadas];
 
     let erros = 0;
@@ -573,7 +601,7 @@ export default function SidebarFiltros({
         "sucesso"
       );
       setPessoasMarcadas([]);
-      setDataSelecionadaId("");
+      setDatasIds([]);
       if (onRefresh) onRefresh();
       if (!erros) setTimeout(() => { if (onConfirmar) onConfirmar(); }, 1200);
     }
@@ -585,19 +613,21 @@ export default function SidebarFiltros({
     if (!podeEditar)           { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
     if (pessoasMarcadas.length === 0) { onMensagem?.("Selecione ao menos um obreiro", "erro"); return; }
     if (!funcaoSelecionada)    { onMensagem?.("Selecione uma função", "erro"); return; }
-    if (!dataSelecionadaId) { onMensagem?.("Selecione uma data", "erro"); return; }
+    if (datasIds.length === 0) { onMensagem?.("Selecione ao menos uma data", "erro"); return; }
 
-    if (funcaoTemMultiplosSlots(funcaoSelecionada, ministerioSelecionado) && dataSelecionadaObj) {
-      const turnoKey = dataSelecionadaObj.turno ?? "único";
-      const vagasLivres = slotsDisponiveis(
-        funcaoSelecionada, dataSelecionadaObj, turnoKey, escalas, ministerioSelecionado
-      );
-      if (pessoasMarcadas.length > vagasLivres.length) {
-        onMensagem?.(
-          `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
-          "erro"
+    if (funcaoTemMultiplosSlots(funcaoSelecionada, ministerioSelecionado)) {
+      for (const dataObj of datasSelecionadasObjs) {
+        const turnoKey = dataObj.turno ?? "único";
+        const vagasLivres = slotsDisponiveis(
+          funcaoSelecionada, dataObj, turnoKey, escalas, ministerioSelecionado
         );
-        return;
+        if (pessoasMarcadas.length > vagasLivres.length) {
+          onMensagem?.(
+            `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
+            "erro"
+          );
+          return;
+        }
       }
     }
 
@@ -836,9 +866,46 @@ export default function SidebarFiltros({
         </select>
       </div>
 
-      {/* Data — select único (depende da função) */}
+      {/* Data — checkboxes (depende da função) */}
       <div style={s.field}>
-        <label style={s.label}>Data</label>
+        <label style={{ ...s.label, display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+          Data
+          {datasIds.length > 0 && (
+            <span style={{
+              background: t.accent, color: "white",
+              borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: 700,
+            }}>
+              {datasIds.length}
+            </span>
+          )}
+        </label>
+        {podeEditar && funcaoSelecionada && datasParaSelect.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+            <button
+              type="button"
+              onClick={selecionarTodasDatas}
+              style={{
+                background: "transparent", border: "none", padding: 0,
+                fontSize: "11px", fontWeight: 600, color: t.accent,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              Todas
+            </button>
+            <span style={{ color: t.border }}>·</span>
+            <button
+              type="button"
+              onClick={limparDatasSelecionadas}
+              style={{
+                background: "transparent", border: "none", padding: 0,
+                fontSize: "11px", fontWeight: 600, color: t.textMuted,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              Nenhuma
+            </button>
+          </div>
+        )}
         {datasHint && (
           <div style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -850,33 +917,66 @@ export default function SidebarFiltros({
             </span>
           </div>
         )}
-        <select
-          className="sidebar-select"
-          value={dataSelecionadaId}
-          onChange={e => { setDataSelecionadaId(e.target.value); onConflito?.(null); }}
-          style={{ ...s.select, opacity: !podeEditar || !funcaoSelecionada ? 0.5 : 1 }}
-          disabled={!podeEditar || !funcaoSelecionada}
-        >
-          <option value="">
-            {!funcaoSelecionada
-              ? "Selecione a função primeiro..."
-              : datasParaSelect.length === 0
-                ? "Nenhuma data disponível"
-                : "Selecione..."}
-          </option>
-          {datasParaSelectExibicao.map(d => (
-            <option key={d.id} value={d.id}>
-              {formatarData(d.data, d.turno, d.descricao)}
-            </option>
-          ))}
-        </select>
+        <div style={{
+          borderRadius: "6px", border: `1px solid ${t.border}`,
+          overflow: "hidden",
+          opacity: !podeEditar || !funcaoSelecionada ? 0.5 : 1,
+        }}>
+          {!funcaoSelecionada ? (
+            <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
+              Selecione a função primeiro...
+            </div>
+          ) : datasParaLista.length === 0 ? (
+            <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
+              Nenhuma data disponível
+            </div>
+          ) : (
+            datasParaLista.map((d, i) => {
+              const checked = datasIds.includes(d.id);
+              return (
+                <div
+                  key={d.id}
+                  onClick={() => toggleData(d.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "7px 10px", cursor: podeEditar ? "pointer" : "default",
+                    background: checked ? t.accentDim : "transparent",
+                    borderBottom: i < datasParaLista.length - 1 ? `1px solid ${t.border}` : "none",
+                    transition: "background 0.1s",
+                  }}
+                >
+                  <span style={{
+                    width: "14px", height: "14px", borderRadius: "3px", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: `2px solid ${checked ? t.accent : t.border}`,
+                    background: checked ? t.accent : "transparent",
+                    transition: "all 0.15s",
+                  }}>
+                    {checked && (
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                  <span style={{
+                    fontSize: "13px",
+                    color: checked ? t.text : t.textMuted,
+                    fontWeight: checked ? 500 : 400,
+                  }}>
+                    {formatarData(d.data, d.turno, d.descricao)}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Obreiro — checkboxes filtrados pela data e função */}
       <div style={s.field}>
         <label style={s.label}>
           OBREIRO(A)
-          {funcaoSelecionada && dataSelecionadaId && (
+          {funcaoSelecionada && datasIds.length > 0 && (
             <span style={{
               marginLeft: "6px", fontSize: "9px", fontWeight: 600,
               color: t.accent, background: t.accentDim,
@@ -890,15 +990,15 @@ export default function SidebarFiltros({
         <div style={{
           borderRadius: "6px", border: `1px solid ${t.border}`,
           overflow: "hidden",
-          opacity: !podeEditar || !dataSelecionadaId ? 0.5 : 1,
+          opacity: !podeEditar || datasIds.length === 0 ? 0.5 : 1,
         }}>
-          {!dataSelecionadaId ? (
+          {datasIds.length === 0 ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              Selecione a data primeiro
+              Selecione ao menos uma data
             </div>
           ) : obreirosLista.length === 0 ? (
             <div style={{ padding: "10px 12px", fontSize: "13px", color: t.textMuted }}>
-              Nenhum obreiro disponível para esta data e função
+              Nenhum obreiro disponível para {datasIds.length === 1 ? "esta data" : "estas datas"} e função
             </div>
           ) : (
             obreirosLista.map((nome, i) => {
@@ -973,9 +1073,10 @@ export default function SidebarFiltros({
       >
         {salvando
           ? "Salvando..."
-          : pessoasMarcadas.length > 1
-            ? `Confirmar ${pessoasMarcadas.length} escalas`
-            : "Confirmar escala"}
+          : (() => {
+              const total = datasIds.length * pessoasMarcadas.length;
+              return total > 1 ? `Confirmar ${total} escalas` : "Confirmar escala";
+            })()}
       </button>
 
       {/* Botão limpar */}
@@ -983,7 +1084,7 @@ export default function SidebarFiltros({
         onClick={() => {
           setPessoasMarcadas([]);
           setFuncao("");
-          setDataSelecionadaId("");
+          setDatasIds([]);
           setDatasConfirmadas([]);
           onConflito?.(null);
         }}
