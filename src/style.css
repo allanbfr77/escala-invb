@@ -762,6 +762,8 @@ code {
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg);
@@ -770,7 +772,7 @@ code {
 
 .planilha-louvor-table {
   width: 100%;
-  min-width: 880px;
+  min-width: 1280px;
   border-collapse: collapse;
   table-layout: fixed;
   font-family: "Outfit", sans-serif;
@@ -781,6 +783,10 @@ code {
 
 .planilha-louvor-col-funcao {
   width: 8.5%;
+}
+
+.planilha-louvor-col-data {
+  min-width: 100px;
 }
 
 .planilha-louvor-col-data--compacta {
@@ -916,6 +922,10 @@ code {
   color: var(--pl-faixa-quarta-fg);
 }
 
+.planilha-louvor-th-data:not(.planilha-louvor-th-data--vazia) {
+  min-width: 100px;
+}
+
 .planilha-louvor-th-data {
   padding: 6px 5px;
   text-align: center;
@@ -972,6 +982,10 @@ code {
   border-bottom: 1px solid var(--pl-row-divider);
   vertical-align: middle;
   position: relative;
+}
+
+.planilha-louvor-celula:not(.planilha-louvor-celula--vazia) {
+  min-width: 100px;
 }
 
 .planilha-louvor-table tbody .planilha-louvor-td-funcao {
@@ -1102,13 +1116,14 @@ code {
 }
 
 .planilha-louvor-remover-btn {
-  margin-left: auto;
+  margin-left: 0;
   flex-shrink: 0;
   z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
+  width: 0;
+  min-width: 0;
   height: 18px;
   padding: 0;
   border: none;
@@ -1118,9 +1133,12 @@ code {
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  flex-shrink: 0;
+  overflow: hidden;
   transition:
     opacity 0.12s ease,
+    width 0.12s ease,
+    min-width 0.12s ease,
+    margin 0.12s ease,
     color 0.15s,
     background 0.15s,
     transform 0.12s ease;
@@ -1128,6 +1146,9 @@ code {
 
 .planilha-louvor-celula--preenchida:hover .planilha-louvor-remover-btn:not(:disabled),
 .planilha-louvor-celula--preenchida:focus-within .planilha-louvor-remover-btn:not(:disabled) {
+  width: 18px;
+  min-width: 18px;
+  margin-left: auto;
   opacity: 0.72;
   pointer-events: auto;
 }
@@ -1145,6 +1166,9 @@ code {
 }
 
 .planilha-louvor-remover-btn:focus-visible {
+  width: 18px;
+  min-width: 18px;
+  margin-left: auto;
   opacity: 1;
   pointer-events: auto;
   outline: none;
@@ -1302,4 +1326,24 @@ code {
   color: var(--success);
   background: var(--success-dim);
   border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+/* Planilha em viewports desktop/tablet paisagem (~1024px): mais espaço útil para nomes */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .planilha-louvor-celula:not(.planilha-louvor-celula--vazia) {
+    padding: 5px 2px;
+  }
+
+  .planilha-louvor-select-trigger {
+    padding: 4px 3px;
+  }
+
+  .planilha-louvor-select-leading {
+    gap: 3px;
+  }
+
+  .planilha-louvor-select-chevron {
+    width: 10px;
+    font-size: 8px;
+  }
 }
