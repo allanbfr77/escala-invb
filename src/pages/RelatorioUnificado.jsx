@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { Sun, Moon, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
+import { Sun, Moon, LogOut, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
 import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
 import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
@@ -218,11 +218,15 @@ function SecaoColapsavel({
 
 function CardResumo({ label, valor, sub, cor, theme }) {
   return (
-    <div style={{
-      borderRadius: "8px", border: `1px solid ${theme.border}`,
-      background: theme.surface, padding: "14px 16px",
-      display: "flex", flexDirection: "column", gap: "4px",
-    }}>
+    <div
+      className="rel-card-resumo"
+      style={{
+        borderRadius: "8px", border: `1px solid ${theme.border}`,
+        background: theme.surface, padding: "14px 16px",
+        display: "flex", flexDirection: "column", gap: "4px",
+        minWidth: 0,
+      }}
+    >
       <span style={{
         fontSize: "10px", fontWeight: 600, color: theme.textMuted,
         textTransform: "uppercase", letterSpacing: "0.6px",
@@ -248,11 +252,14 @@ function AlertaItem({ children, tipo = "warning", theme }) {
     : { bg: "rgba(96,165,250,0.08)", border: "rgba(96,165,250,0.25)", color: "#60a5fa" };
 
   return (
-    <div style={{
-      padding: "8px 12px", borderRadius: "6px",
-      background: cfg.bg, border: `1px solid ${cfg.border}`,
-      fontSize: "12px", color: theme.text, lineHeight: 1.45,
-    }}>
+    <div
+      className="rel-alert-text"
+      style={{
+        padding: "8px 12px", borderRadius: "6px",
+        background: cfg.bg, border: `1px solid ${cfg.border}`,
+        fontSize: "12px", color: theme.text, lineHeight: 1.45,
+      }}
+    >
       {children}
     </div>
   );
@@ -269,6 +276,7 @@ function MinisterioDetalhe({ rel, theme }) {
     }}>
       <button
         type="button"
+        className="rel-ministerio-toggle"
         onClick={() => setAberto((v) => !v)}
         style={{
           width: "100%", background: "transparent", border: "none",
@@ -277,7 +285,7 @@ function MinisterioDetalhe({ rel, theme }) {
           gap: "10px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+        <div className="rel-ministerio-toggle-left" style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
           <div style={{
             color: info?.color, background: `${info?.color}18`,
             borderRadius: "6px", padding: "5px",
@@ -294,7 +302,7 @@ function MinisterioDetalhe({ rel, theme }) {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+        <div className="rel-ministerio-toggle-right" style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
           <span style={{
             fontSize: "12px", fontWeight: 700, color: info?.color,
             fontFamily: "'JetBrains Mono', monospace",
@@ -441,42 +449,318 @@ export default function RelatorioUnificado({
     );
   }, [dados]);
 
+  const ministeriosResumoRows = MINISTERIOS_IDS.map((mid) => ({
+    mid,
+    rel: dados?.porMinisterio?.[mid],
+    info: MINISTERIOS_INFO[mid],
+  }));
+
   return (
-    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
+    <div
+      className="rel-page"
+      style={{
+        minHeight: "100vh",
+        background: theme.bg,
+        color: theme.text,
+        fontFamily: "'Outfit', sans-serif",
+      }}
+    >
       <style>{`
-        @media (max-width: 768px) {
-          .rel-header-pad { padding: 0 14px !important; }
-          .rel-main-pad { padding: 16px 14px !important; }
-          .rel-grid-resumo { grid-template-columns: repeat(2, 1fr) !important; }
-          .rel-grid-ministerios { grid-template-columns: 1fr !important; }
+        .rel-page {
+          width: 100%;
+          max-width: 100vw;
+          overflow-x: hidden;
+          box-sizing: border-box;
+        }
+        .rel-page *, .rel-page *::before, .rel-page *::after {
+          box-sizing: border-box;
+        }
+        .rel-header-pad { padding: 0 24px; }
+        .rel-main-pad {
+          max-width: 960px;
+          margin: 0 auto;
+          padding: 24px;
+          width: 100%;
+        }
+        .rel-grid-resumo {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .rel-grid-ministerios {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          margin-top: 12px;
+        }
+        .rel-ministerios-cards { display: none; }
+        .rel-ministerios-table-wrap {
+          display: block;
+          width: 100%;
+          margin-top: 12px;
+        }
+        .rel-table-scroll {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .rel-ministerios-table {
+          width: 100%;
+          min-width: 520px;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+        .rel-ministerios-table th,
+        .rel-ministerios-table td {
+          padding: 10px 12px;
+          text-align: left;
+          border-bottom: 1px solid var(--border);
+          vertical-align: middle;
+        }
+        .rel-ministerios-table th {
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--text-muted);
+          white-space: nowrap;
+        }
+        .rel-ministerios-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .rel-title-wrap h1 {
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        }
+        .rel-title-wrap p {
+          overflow-wrap: anywhere;
+        }
+        .rel-alert-text {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .rel-sem-escala-tag {
+          max-width: 100%;
+          overflow-wrap: anywhere;
+        }
+        .rel-card-resumo {
+          min-width: 0;
+        }
+        .rel-header-row {
+          gap: 8px;
+        }
+        .rel-header-primary {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .rel-header-brand-block {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+          flex-shrink: 1;
+        }
+        .rel-header-brand-text {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .rel-header-aside {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+        .rel-header-utilities {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+        }
+        .rel-header-icon-btn {
+          width: 28px !important;
+          height: 28px !important;
+          min-width: 28px !important;
+          padding: 0 !important;
+          border: none !important;
+          background: transparent !important;
+          display: inline-flex !important;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px !important;
+          cursor: pointer;
+          opacity: 0.55;
+          flex-shrink: 0;
+          font-family: inherit;
+          transition: opacity 0.15s, background 0.15s;
+        }
+        .rel-header-icon-btn:hover {
+          opacity: 0.9;
+          background: color-mix(in srgb, var(--border) 60%, transparent) !important;
+        }
+        .rel-header-nav-btn {
+          padding: 4px 8px !important;
+          background: transparent !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 5px !important;
+          color: var(--text-muted) !important;
+          font-size: 11px !important;
+          cursor: pointer;
+          font-family: inherit;
+          white-space: nowrap;
+          flex-shrink: 0;
+          width: auto !important;
+          max-width: none !important;
+        }
+        @media (max-width: 639px) {
+          .rel-card-resumo {
+            padding: 12px 14px !important;
+          }
+          .rel-card-resumo span:nth-child(2) {
+            font-size: 20px !important;
+          }
+          .rel-header-pad { padding: 0 12px !important; }
+          .rel-main-pad { padding: 16px 12px !important; }
+          .rel-header-row {
+            flex-direction: row !important;
+            align-items: center !important;
+            height: auto !important;
+            min-height: 44px !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+            gap: 6px !important;
+          }
+          .rel-header-primary { gap: 6px; }
+          .rel-header-aside { gap: 4px; }
+          .rel-header-nav-btn {
+            padding: 3px 6px !important;
+            font-size: 10px !important;
+          }
           .rel-header-email { display: none !important; }
+          .rel-header-divider { display: none !important; }
+          .rel-grid-resumo {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+
+        @media (max-width: 374px) {
+          .rel-grid-resumo {
+            grid-template-columns: 1fr !important;
+          }
+          .rel-header-brand-text {
+            font-size: 11px !important;
+            max-width: 88px;
+          }
+          .rel-header-mes-nav span {
+            min-width: 64px !important;
+            font-size: 10px !important;
+          }
+          .rel-header-nav-btn .rel-header-nav-label {
+            display: none;
+          }
+          .rel-header-nav-btn::before {
+            content: "←";
+          }
+        }
+
+        @media (min-width: 640px) and (max-width: 767px) {
+          .rel-header-pad { padding: 0 16px !important; }
+          .rel-main-pad { padding: 20px 16px !important; }
+        }
+
+        @media (max-width: 767px) {
+          .rel-grid-ministerios {
+            grid-template-columns: 1fr !important;
+          }
+          .rel-carga-btn {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .rel-carga-btn-left {
+            flex-wrap: wrap !important;
+            min-width: 0 !important;
+          }
+          .rel-carga-btn-right {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .rel-ministerio-toggle {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .rel-ministerio-toggle-right {
+            justify-content: space-between !important;
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 425px) {
+          .rel-ministerios-table-wrap { display: none !important; }
+          .rel-ministerios-cards {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (min-width: 426px) {
+          .rel-ministerios-cards { display: none !important; }
+          .rel-ministerios-table-wrap { display: block !important; }
+        }
+
+        @media (min-width: 768px) {
+          .rel-header-row {
+            height: 48px !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+          }
+          .rel-header-nav-btn {
+            font-size: 12px !important;
+            padding: 4px 12px !important;
+          }
         }
       `}</style>
 
       {/* Navbar */}
-      <header className="rel-header-pad" style={{
-        borderBottom: `1px solid ${theme.border}`, background: theme.surface,
-        padding: "0 24px", height: "48px", display: "flex", alignItems: "center",
-        justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{
-            width: "26px", height: "26px", borderRadius: "7px",
-            background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`,
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
-            <BarChart3 size={13} color={theme.accentOnAccent} strokeWidth={2.5} />
+      <header
+        className="rel-header-pad rel-header-row"
+        style={{
+          borderBottom: `1px solid ${theme.border}`,
+          background: theme.surface,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+        }}
+      >
+        <div className="rel-header-primary">
+          <div className="rel-header-brand-block">
+            <div style={{
+              width: "26px", height: "26px", borderRadius: "7px",
+              background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <BarChart3 size={13} color={theme.accentOnAccent} strokeWidth={2.5} />
+            </div>
+            <span className="rel-header-brand-text" style={{ fontWeight: 600, fontSize: "13px", color: theme.text }}>
+              Relatório Geral
+            </span>
           </div>
-          <span style={{ fontWeight: 600, fontSize: "13px", color: theme.text }}>
-            Relatório Geral
-          </span>
-          <span style={{ color: theme.border, fontSize: "16px" }}>|</span>
 
-          <div style={{
-            display: "flex", alignItems: "center", gap: "1px",
-            background: theme.bg, borderRadius: "7px", padding: "2px 3px",
-            border: `1px solid ${theme.border}`,
-          }}>
+          <div
+            className="rel-header-mes-nav"
+            style={{
+              display: "flex", alignItems: "center", gap: "1px",
+              background: theme.bg, borderRadius: "7px", padding: "2px 3px",
+              border: `1px solid ${theme.border}`,
+              flexShrink: 0,
+            }}
+          >
             <button
               type="button"
               onClick={handleMesAnterior}
@@ -485,13 +769,13 @@ export default function RelatorioUnificado({
                 background: "transparent", border: "none",
                 cursor: podeRetroceder ? "pointer" : "not-allowed",
                 color: podeRetroceder ? theme.textMuted : theme.textDim,
-                padding: "2px 8px", fontSize: "13px", opacity: podeRetroceder ? 1 : 0.35,
+                padding: "2px 6px", fontSize: "13px", opacity: podeRetroceder ? 1 : 0.35,
               }}
             >‹</button>
             <span style={{
               color: theme.text, fontSize: "12px",
               fontFamily: "'JetBrains Mono', monospace",
-              minWidth: "86px", textAlign: "center", fontWeight: 500,
+              minWidth: "72px", textAlign: "center", fontWeight: 500,
             }}>
               {new Date(mes + "-15").toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "").toUpperCase()}
             </span>
@@ -503,46 +787,49 @@ export default function RelatorioUnificado({
                 background: podeAvancar ? theme.accentDim : "transparent", border: "none",
                 cursor: podeAvancar ? "pointer" : "not-allowed",
                 color: podeAvancar ? theme.accent : theme.textDim,
-                padding: "2px 8px", fontSize: "13px", opacity: podeAvancar ? 1 : 0.35,
+                padding: "2px 6px", fontSize: "13px", opacity: podeAvancar ? 1 : 0.35,
               }}
             >›</button>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="rel-header-aside">
           <button
             type="button"
+            className="rel-header-nav-btn"
             onClick={onVoltar}
-            style={{
-              padding: "4px 12px", background: "transparent",
-              border: `1px solid ${theme.border}`, borderRadius: "5px",
-              color: theme.textMuted, fontSize: "12px", cursor: "pointer",
-              fontFamily: "inherit",
-            }}
+            title="Voltar para escala"
           >
-            ← Escala
+            <span className="rel-header-nav-label">← Escala</span>
           </button>
-          <button type="button" onClick={toggleTheme} style={{
-            background: "transparent", border: `1px solid ${theme.border}`,
-            borderRadius: "5px", padding: "3px 8px", cursor: "pointer",
-          }}>
-            {isDark ? <Sun size={16} color="#F5C542" /> : <Moon size={16} color="#1a3a6b" />}
-          </button>
-          <span className="rel-header-email" style={{ fontSize: "12px", color: theme.textMuted }}>
+          <div className="rel-header-utilities">
+            <button
+              type="button"
+              className="rel-header-icon-btn"
+              onClick={toggleTheme}
+              aria-label={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
+              title={isDark ? "Tema claro" : "Tema escuro"}
+            >
+              {isDark ? <Sun size={15} color="#F5C542" /> : <Moon size={15} color="#1a3a6b" />}
+            </button>
+            <button
+              type="button"
+              className="rel-header-icon-btn"
+              onClick={logout}
+              aria-label="Sair"
+              title="Sair"
+            >
+              <LogOut size={15} color={theme.textMuted} strokeWidth={2} />
+            </button>
+          </div>
+          <span className="rel-header-email" style={{ fontSize: "12px", color: theme.textMuted, marginLeft: "4px" }}>
             Olá, {user?.email}
           </span>
-          <button type="button" onClick={logout} style={{
-            padding: "4px 12px", background: "transparent",
-            border: `1px solid ${theme.border}`, borderRadius: "5px",
-            color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
-          }}>
-            Sair
-          </button>
         </div>
       </header>
 
-      <main className="rel-main-pad" style={{ maxWidth: "960px", margin: "0 auto", padding: "24px" }}>
-        <div style={{ marginBottom: "24px" }}>
+      <main className="rel-main-pad">
+        <div className="rel-title-wrap" style={{ marginBottom: "24px" }}>
           <h1 style={{ margin: "0 0 4px", fontSize: "18px", fontWeight: 700, color: theme.text }}>
             {formatarMesLabel(mes)}
           </h1>
@@ -576,11 +863,7 @@ export default function RelatorioUnificado({
             {/* Resumo executivo */}
             <section>
               <SecaoTitulo icon={BarChart3} titulo="RESUMO" theme={theme} />
-              <div className="rel-grid-resumo" style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "10px",
-              }}>
+              <div className="rel-grid-resumo">
                 <CardResumo
                   label="Preenchimento geral"
                   valor={`${dados.resumo.taxaPreenchimento}%`}
@@ -610,37 +893,72 @@ export default function RelatorioUnificado({
                 />
               </div>
 
-              <div className="rel-grid-ministerios" style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: "10px",
-                marginTop: "12px",
-              }}>
-                {MINISTERIOS_IDS.map((mid) => {
-                  const rel = dados.porMinisterio[mid];
-                  const info = MINISTERIOS_INFO[mid];
-                  return (
-                    <div key={mid} style={{
-                      borderRadius: "8px", border: `1px solid ${theme.border}`,
-                      background: theme.surface, padding: "12px 14px",
+              <div className="rel-ministerios-table-wrap">
+                <div className="rel-table-scroll" role="region" aria-label="Resumo por ministério — deslize horizontalmente">
+                  <table className="rel-ministerios-table">
+                    <thead>
+                      <tr>
+                        <th>Ministério</th>
+                        <th>Preenchimento</th>
+                        <th>Escalados</th>
+                        <th>Vazios</th>
+                        <th>Cultos</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ministeriosResumoRows.map(({ mid, rel, info }) => (
+                        <tr key={mid}>
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                              <IconeMinisterio ministerioId={mid} size={14} />
+                              <span style={{ fontWeight: 700, color: theme.text }}>{info.nome}</span>
+                            </div>
+                          </td>
+                          <td style={{ minWidth: "140px" }}>
+                            <TaxaBarra taxa={rel.taxaPreenchimento} color={info.color} theme={theme} />
+                          </td>
+                          <td style={{ color: theme.text, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                            {rel.escalados.length}
+                          </td>
+                          <td style={{
+                            color: rel.vazios > 0 ? theme.danger : theme.textMuted,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontWeight: 600,
+                          }}>
+                            {rel.vazios}
+                          </td>
+                          <td style={{ color: theme.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                            {rel.datas.length}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rel-ministerios-cards rel-grid-ministerios">
+                {ministeriosResumoRows.map(({ mid, rel, info }) => (
+                  <div key={mid} style={{
+                    borderRadius: "8px", border: `1px solid ${theme.border}`,
+                    background: theme.surface, padding: "12px 14px",
+                  }}>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px",
                     }}>
-                      <div style={{
-                        display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px",
-                      }}>
-                        <IconeMinisterio ministerioId={mid} size={14} />
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: theme.text }}>
-                          {info.nome}
-                        </span>
-                      </div>
-                      <TaxaBarra taxa={rel.taxaPreenchimento} color={info.color} theme={theme} />
-                      <div style={{
-                        marginTop: "6px", fontSize: "10px", color: theme.textMuted,
-                      }}>
-                        {rel.escalados.length} escalados · {rel.vazios} vazios
-                      </div>
+                      <IconeMinisterio ministerioId={mid} size={14} />
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: theme.text }}>
+                        {info.nome}
+                      </span>
                     </div>
-                  );
-                })}
+                    <TaxaBarra taxa={rel.taxaPreenchimento} color={info.color} theme={theme} />
+                    <div style={{
+                      marginTop: "6px", fontSize: "10px", color: theme.textMuted,
+                    }}>
+                      {rel.escalados.length} escalados · {rel.vazios} vazios · {rel.datas.length} cultos
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
 
@@ -699,6 +1017,7 @@ export default function RelatorioUnificado({
                   {dados.alertas.turnoDia.map(({ pessoa, categorias, label, qtdCultosTotal, porMinisterio }) => (
                     <div
                       key={`${pessoa}-${(categorias || []).join("-")}`}
+                      className="rel-alert-text"
                       style={{
                         padding: "8px 12px", borderRadius: "6px",
                         border: `1px solid ${theme.border}`, background: theme.surface,
@@ -746,6 +1065,7 @@ export default function RelatorioUnificado({
                     }}>
                       <button
                         type="button"
+                        className="rel-carga-btn"
                         onClick={() => toggleCarga(c.pessoa)}
                         style={{
                           width: "100%", background: "transparent", border: "none",
@@ -753,7 +1073,7 @@ export default function RelatorioUnificado({
                           display: "flex", alignItems: "center", justifyContent: "space-between",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div className="rel-carga-btn-left" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <span style={{ fontSize: "13px", fontWeight: 700, color: theme.text }}>
                             {nomeParaExibicao(c.pessoa)}
                           </span>
@@ -769,7 +1089,7 @@ export default function RelatorioUnificado({
                             <AlertCircle size={13} color={theme.danger} />
                           )}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div className="rel-carga-btn-right" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <span style={{
                             fontSize: "12px", fontWeight: 700, color: theme.accent,
                             background: theme.accentDim, borderRadius: "10px", padding: "2px 10px",
@@ -837,11 +1157,15 @@ export default function RelatorioUnificado({
               >
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                   {dados.semEscalaGlobal.map((p) => (
-                    <span key={p} style={{
-                      fontSize: "12px", color: theme.danger,
-                      background: theme.dangerDim, border: `1px solid ${theme.danger}33`,
-                      borderRadius: "4px", padding: "3px 10px",
-                    }}>
+                    <span
+                      key={p}
+                      className="rel-sem-escala-tag"
+                      style={{
+                        fontSize: "12px", color: theme.danger,
+                        background: theme.dangerDim, border: `1px solid ${theme.danger}33`,
+                        borderRadius: "4px", padding: "3px 10px",
+                      }}
+                    >
                       {p.toUpperCase()}
                     </span>
                   ))}
