@@ -2,6 +2,7 @@ import { gerarDatasEscala } from "./dateHelper";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { chaveIndisponibilidadeColuna, estaIndisponivelTodoMes } from "./indisponibilidadeHelpers";
+import { pessoaNomeFirestore } from "./nomeExibicao";
 
 export const MINISTERIOS_IDS = ["comunicacao", "louvor", "recepcao", "infantil"];
 
@@ -49,6 +50,13 @@ const PESSOAS_EXCLUIDAS_RELATORIO_GERAL = new Set([
 function isExcluidaRelatorioGeral(pessoaNome) {
   if (!pessoaNome || pessoaNome === "disponível") return false;
   return PESSOAS_EXCLUIDAS_RELATORIO_GERAL.has(String(pessoaNome).toLowerCase());
+}
+
+/** ID canônico da pessoa (minúsculas, aliases unificados) para cruzamento global. */
+function idPessoaRelatorio(pessoaNome) {
+  if (!pessoaNome || pessoaNome === "disponível") return null;
+  if (isExcluidaRelatorioGeral(pessoaNome)) return null;
+  return pessoaNomeFirestore(pessoaNome);
 }
 
 const CATEGORIAS_TURNO_DIA = [
@@ -115,7 +123,9 @@ function montarEscalasPorMinisterio(escalasDocs) {
     const mid = d.ministerioId;
     if (!porMinisterio[mid]) continue;
     const turnoKey = d.turno || "único";
-    porMinisterio[mid][`${d.data}-${turnoKey}-${d.funcao}`] = d.pessoaNome;
+    const pl = idPessoaRelatorio(d.pessoaNome);
+    if (!pl) continue;
+    porMinisterio[mid][`${d.data}-${turnoKey}-${d.funcao}`] = pl;
   }
 
   return porMinisterio;
@@ -155,7 +165,8 @@ function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
   const porPessoa = {};
 
   todasPessoas.forEach((p) => {
-    porPessoa[p.toLowerCase()] = [];
+    const pl = idPessoaRelatorio(p);
+    if (pl) porPessoa[pl] = [];
   });
 
   let totalSlots = 0;
@@ -174,8 +185,8 @@ function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
       const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
       if (pessoa && pessoa !== "disponível") {
         preenchidos++;
-        if (isExcluidaRelatorioGeral(pessoa)) return;
-        const pl = pessoa.toLowerCase();
+        const pl = idPessoaRelatorio(pessoa);
+        if (!pl) return;
         if (!porPessoa[pl]) porPessoa[pl] = [];
         porPessoa[pl].push({ ...dataObj, funcao: f });
       } else {
@@ -256,9 +267,9 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
       const turnoKey = dataObj.turno ?? "único";
       funcoes.forEach((f) => {
         const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
-        if (!pessoa || pessoa === "disponível" || isExcluidaRelatorioGeral(pessoa)) return;
+        const pl = idPessoaRelatorio(pessoa);
+        if (!pl) return;
 
-        const pl = pessoa.toLowerCase();
         if (!carga[pl]) {
           carga[pl] = { pessoa: pl, total: 0, porMinisterio: {}, slots: [] };
         }
@@ -316,14 +327,38 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
   return { lista, totalCultosMes, timeline };
 }
 
-function calcularSemEscalaGlobal(cargaCruzada) {
-  const escalados = new Set(cargaCruzada.map((c) => c.pessoa));
+/**
+ * IDs de pessoas com ao menos um slot preenchido em qualquer ministério do mês.
+ * Varre todos os documentos de escala e reforça com os mapas por ministério.
+ */
+function coletarIdsEscaladosGlobal(escalasPorMinisterio, escalasDocs) {
+  const escalados = new Set();
+
+  for (const d of escalasDocs || []) {
+    if (!MINISTERIOS_IDS.includes(d.ministerioId)) continue;
+    const pl = idPessoaRelatorio(d.pessoaNome);
+    if (pl) escalados.add(pl);
+  }
+
+  for (const mid of MINISTERIOS_IDS) {
+    const map = escalasPorMinisterio[mid] || {};
+    for (const pessoa of Object.values(map)) {
+      const pl = idPessoaRelatorio(pessoa);
+      if (pl) escalados.add(pl);
+    }
+  }
+
+  return escalados;
+}
+
+function calcularSemEscalaGlobal(escalasPorMinisterio, escalasDocs) {
+  const escalados = coletarIdsEscaladosGlobal(escalasPorMinisterio, escalasDocs);
   const todas = new Set();
 
   for (const mid of MINISTERIOS_IDS) {
     for (const p of pessoasPorMinisterio[mid] || []) {
-      if (isExcluidaRelatorioGeral(p)) continue;
-      todas.add(p.toLowerCase());
+      const pl = idPessoaRelatorio(p);
+      if (pl) todas.add(pl);
     }
   }
 
@@ -458,7 +493,7 @@ export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, i
     escalasPorMinisterio,
     datasPorMinisterio
   );
-  const semEscalaGlobal = calcularSemEscalaGlobal(cargaCruzada);
+  const semEscalaGlobal = calcularSemEscalaGlobal(escalasPorMinisterio, escalasDocs);
   const indispMap = montarIndisponibilidadesMap(indispDocs, mes);
   const indisponibilidadesMes = calcularIndisponibilidades(indispMap, datasPorMinisterio);
   const turnoDia = calcularAlertasTurnoDia(timeline, cargaCruzada);

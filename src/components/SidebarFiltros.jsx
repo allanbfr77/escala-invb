@@ -336,11 +336,16 @@ export default function SidebarFiltros({
     if (livres.length === 0) return false;
 
     if (pl === "disponível") {
-      if (GRUPO_FUNCOES[funcao]) {
-        const subFuncoes = GRUPO_FUNCOES[funcao];
-        if (subFuncoes.some(f => escalas[`${d.data}-${turnoKey}-${f}`] === "disponível")) return false;
-      } else if (escalas[`${d.data}-${turnoKey}-${funcao}`] === "disponível") {
-        return false;
+      // Louvor: "Disponível" pode repetir em vários slots; não ocultar por já existir no culto
+      if (ministerioSelecionado !== "louvor") {
+        if (GRUPO_FUNCOES[funcao]) {
+          const subFuncoes = GRUPO_FUNCOES[funcao];
+          if (subFuncoes.some(f => escalas[`${d.data}-${turnoKey}-${f}`] === "disponível")) {
+            return false;
+          }
+        } else if (escalas[`${d.data}-${turnoKey}-${funcao}`] === "disponível") {
+          return false;
+        }
       }
     } else if (pl !== "disponível") {
       if (
@@ -407,11 +412,14 @@ export default function SidebarFiltros({
     );
   }, [funcaoSelecionada, datasSelecionadasObjs, pessoasFiltradas, dataEscalavelParaPessoa]);
 
+  /** Louvor: "Disponível" permanece na lista sempre que há função + datas (ignora duplicidade no grid). */
   const disponivelNasDatasSelecionadas = useMemo(() => {
-    if (ministerioSelecionado !== "louvor" || datasSelecionadasObjs.length === 0) return false;
-    if (!funcaoSelecionada) return false;
-    return datasSelecionadasObjs.some((d) => dataEscalavelParaPessoa(d, "Disponível"));
-  }, [ministerioSelecionado, funcaoSelecionada, datasSelecionadasObjs, dataEscalavelParaPessoa]);
+    if (ministerioSelecionado !== "louvor" || datasSelecionadasObjs.length === 0) {
+      return false;
+    }
+    if (!funcaoSelecionada || funcaoSelecionada === "TODOS") return false;
+    return true;
+  }, [ministerioSelecionado, funcaoSelecionada, datasSelecionadasObjs]);
 
   /** Só quando todos os cultos do mês estão ocupados na função (não confundir com indisponibilidade pessoal). */
   const todasDatasOcupadasNaFuncao = useMemo(() => {
@@ -436,11 +444,28 @@ export default function SidebarFiltros({
   }, [datasParaSelect, datasDisponiveis]);
 
   useEffect(() => {
-    setPessoasMarcadas(prev => prev.filter(p => {
-      if (p === "Disponível") return disponivelNasDatasSelecionadas;
-      return pessoasDisponiveisNasDatas.includes(p);
-    }));
-  }, [pessoasDisponiveisNasDatas, disponivelNasDatasSelecionadas]);
+    setPessoasMarcadas((prev) =>
+      prev.filter((p) => {
+        if (p === "Disponível") {
+          if (ministerioSelecionado === "louvor") {
+            return (
+              datasIds.length > 0 &&
+              funcaoSelecionada &&
+              funcaoSelecionada !== "TODOS"
+            );
+          }
+          return disponivelNasDatasSelecionadas;
+        }
+        return pessoasDisponiveisNasDatas.includes(p);
+      })
+    );
+  }, [
+    pessoasDisponiveisNasDatas,
+    disponivelNasDatasSelecionadas,
+    ministerioSelecionado,
+    datasIds.length,
+    funcaoSelecionada,
+  ]);
 
   const obreirosLista = useMemo(() => {
     const nomes = [...pessoasDisponiveisNasDatas].sort((a, b) => a.localeCompare(b, "pt"));

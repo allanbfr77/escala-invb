@@ -26,8 +26,10 @@ function escalaKey(dataObj, funcao) {
   return `${dataObj.data}-${turno}-${funcao}`;
 }
 
+const LOUVOR_OPCAO_DISPONIVEL = "Disponível";
+
 /** Contagem de vagas preenchidas para um culto (coluna) específico. */
-function contarSlotsCulto(dataObj, funcoes, escalas) {
+function contarSlotsCulto(dataObj, funcoes, escalas, ministerioId) {
   if (!dataObj) return null;
 
   const total = funcoes.length;
@@ -35,9 +37,9 @@ function contarSlotsCulto(dataObj, funcoes, escalas) {
 
   for (const funcao of funcoes) {
     const valor = escalas[escalaKey(dataObj, funcao)];
-    if (valor && valor !== "disponível") {
-      preenchidos += 1;
-    }
+    if (!valor) continue;
+    if (ministerioId === "louvor" && valor === "disponível") continue;
+    preenchidos += 1;
   }
 
   return { preenchidos, total };
@@ -192,9 +194,11 @@ function CelulaSelect({
     .filter(Boolean)
     .join(" ");
 
-  const valorClass = valor
-    ? `planilha-louvor-select-valor--${grupoCor}`
-    : "planilha-louvor-select-valor--vazio";
+  const valorClass = !valor
+    ? "planilha-louvor-select-valor--vazio"
+    : grupoCor
+      ? `planilha-louvor-select-valor--${grupoCor}`
+      : "planilha-louvor-select-valor";
 
   const listaPortal =
     aberto &&
@@ -232,11 +236,14 @@ function CelulaSelect({
               type="button"
               role="option"
               className={`planilha-louvor-select-option${
-                valor === nome ? " is-selected" : ""
+                valor &&
+                pessoaNomeFirestore(valor) === pessoaNomeFirestore(nome)
+                  ? " is-selected"
+                  : ""
               }`}
               onClick={() => escolher(nome)}
             >
-              {nome}
+              {nomeParaExibicao(nome)}
             </button>
           </li>
         ))}
@@ -403,10 +410,17 @@ export default function PlanilhaMinisterio({
         funcaoAtual: funcao,
         pessoaIndisponivel,
       });
-      if (atualUpper && !filtrados.includes(atualUpper)) {
-        return [...filtrados, atualUpper];
+      let opcoes = filtrados;
+      if (atualUpper && !opcoes.includes(atualUpper)) {
+        opcoes = [...opcoes, atualUpper];
       }
-      return filtrados;
+      if (ministerioId === "louvor") {
+        opcoes = opcoes.filter(
+          (n) => pessoaNomeFirestore(n) !== "disponível"
+        );
+        return [LOUVOR_OPCAO_DISPONIVEL, ...opcoes];
+      }
+      return opcoes;
     },
     [config, escalas, ministerioId, pessoaIndisponivel]
   );
@@ -444,32 +458,39 @@ export default function PlanilhaMinisterio({
           return;
         }
 
-        const qConflito = query(
-          collection(db, "escalas"),
-          where("pessoaNome", "==", pessoaLower),
-          where("data", "==", dataObj.data),
-          where("turno", "==", turno)
-        );
-        const snapConflito = await getDocs(qConflito);
-        const conflitoOutro = snapConflito.docs.find(
-          (d) => d.data().ministerioId !== ministerioId
-        );
-        if (conflitoOutro) {
-          const dd = conflitoOutro.data();
-          onConflito?.({
-            pessoa: valorBruto,
-            data: formatarData(dataObj.data, dataObj.turno, dataObj.descricao),
-            ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
-            funcao: dd.funcao,
-          });
-          return;
-        }
+        const isDisponivelLouvor =
+          ministerioId === "louvor" && pessoaLower === "disponível";
 
-        const mesmaPessoaMinisterio = snapConflito.docs.filter(
-          (d) =>
-            d.data().ministerioId === ministerioId && d.data().funcao !== funcao
-        );
-        for (const docSnap of mesmaPessoaMinisterio) await deleteDoc(docSnap.ref);
+        if (!isDisponivelLouvor) {
+          const qConflito = query(
+            collection(db, "escalas"),
+            where("pessoaNome", "==", pessoaLower),
+            where("data", "==", dataObj.data),
+            where("turno", "==", turno)
+          );
+          const snapConflito = await getDocs(qConflito);
+          const conflitoOutro = snapConflito.docs.find(
+            (d) => d.data().ministerioId !== ministerioId
+          );
+          if (conflitoOutro) {
+            const dd = conflitoOutro.data();
+            onConflito?.({
+              pessoa: valorBruto,
+              data: formatarData(dataObj.data, dataObj.turno, dataObj.descricao),
+              ministerio: NOMES_MINISTERIOS[dd.ministerioId] || dd.ministerioId,
+              funcao: dd.funcao,
+            });
+            return;
+          }
+
+          const mesmaPessoaMinisterio = snapConflito.docs.filter(
+            (d) =>
+              d.data().ministerioId === ministerioId && d.data().funcao !== funcao
+          );
+          for (const docSnap of mesmaPessoaMinisterio) {
+            await deleteDoc(docSnap.ref);
+          }
+        }
 
         const { horaInicio, horaFim } = getHorarios(dataObj);
         await addDoc(collection(db, "escalas"), {
@@ -604,10 +625,9 @@ export default function PlanilhaMinisterio({
                     const valorRaw = dataObj
                       ? escalas[escalaKey(dataObj, funcao)]
                       : null;
-                    const valor =
-                      valorRaw && valorRaw !== "disponível"
-                        ? nomeParaExibicao(valorRaw)
-                        : "";
+                    const isDisponivelLouvor =
+                      ministerioId === "louvor" && valorRaw === "disponível";
+                    const valor = valorRaw ? nomeParaExibicao(valorRaw) : "";
                     return (
                       <CelulaSelect
                         key={`${faixa.id}-${colIdx}-${funcao}`}
@@ -615,7 +635,7 @@ export default function PlanilhaMinisterio({
                         inicioFaixa={colIdx === 0 && faixa.id !== "domingo-manha"}
                         dataObj={dataObj}
                         funcao={funcao}
-                        grupoCor={grupoCor}
+                        grupoCor={isDisponivelLouvor ? "" : grupoCor}
                         valor={valor}
                         opcoes={getOpcoesSelect(dataObj, funcao)}
                         podeEditar={podeEditar}
@@ -636,7 +656,12 @@ export default function PlanilhaMinisterio({
             </th>
             {faixas.map((faixa) =>
               faixa.colunas.map((dataObj, colIdx) => {
-                const stats = contarSlotsCulto(dataObj, funcoes, escalas);
+                const stats = contarSlotsCulto(
+                  dataObj,
+                  funcoes,
+                  escalas,
+                  ministerioId
+                );
                 const completo =
                   stats && stats.preenchidos === stats.total && stats.total > 0;
 
