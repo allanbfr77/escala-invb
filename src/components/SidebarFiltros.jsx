@@ -313,7 +313,10 @@ export default function SidebarFiltros({
   }, [usaFiltro, funcaoSelecionada, ministerioSelecionado, pessoasDoMinisterio]);
 
   /** Disponibilidade de uma pessoa em uma data/função (indisp., ocupação, slot "disponível"). */
-  const dataEscalavelParaPessoa = useCallback((d, nomePessoa) => {
+  const dataEscalavelParaPessoa = useCallback((d, nomePessoa, funcaoCtx) => {
+    const funcao = funcaoCtx ?? funcaoSelecionada;
+    if (!funcao || funcao === "TODOS") return false;
+
     const turnoKey = d.turno ?? "único";
     const pl = pessoaNomeFirestore(nomePessoa);
 
@@ -325,16 +328,21 @@ export default function SidebarFiltros({
       return false;
     }
 
-    if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcaoSelecionada}`)) return false;
+    if (datasOcupadas.has(`${d.data}|${turnoKey}|${funcao}`)) return false;
+
+    const livres = slotsDisponiveis(
+      funcao, d, turnoKey, escalas, ministerioSelecionado
+    );
+    if (livres.length === 0) return false;
 
     if (pl === "disponível") {
-      if (GRUPO_FUNCOES[funcaoSelecionada]) {
-        const subFuncoes = GRUPO_FUNCOES[funcaoSelecionada];
+      if (GRUPO_FUNCOES[funcao]) {
+        const subFuncoes = GRUPO_FUNCOES[funcao];
         if (subFuncoes.some(f => escalas[`${d.data}-${turnoKey}-${f}`] === "disponível")) return false;
-      } else if (funcaoSelecionada && escalas[`${d.data}-${turnoKey}-${funcaoSelecionada}`] === "disponível") {
+      } else if (escalas[`${d.data}-${turnoKey}-${funcao}`] === "disponível") {
         return false;
       }
-    } else if (funcaoSelecionada && funcaoSelecionada !== "TODOS" && pl !== "disponível") {
+    } else if (pl !== "disponível") {
       if (
         pessoaJaEscaladaNoMesmoMinisterioNoCulto({
           escalas,
@@ -391,18 +399,18 @@ export default function SidebarFiltros({
     [datasIds, datasDisponiveis]
   );
 
-  /** Obreiros disponíveis em todas as datas selecionadas (filtro reverso). */
+  /** Obreiros clicáveis: ao menos uma data selecionada ainda tem vaga para a função. */
   const pessoasDisponiveisNasDatas = useMemo(() => {
     if (!funcaoSelecionada || datasSelecionadasObjs.length === 0) return [];
     return pessoasFiltradas.filter((p) =>
-      datasSelecionadasObjs.every((d) => dataEscalavelParaPessoa(d, p))
+      datasSelecionadasObjs.some((d) => dataEscalavelParaPessoa(d, p))
     );
   }, [funcaoSelecionada, datasSelecionadasObjs, pessoasFiltradas, dataEscalavelParaPessoa]);
 
   const disponivelNasDatasSelecionadas = useMemo(() => {
     if (ministerioSelecionado !== "louvor" || datasSelecionadasObjs.length === 0) return false;
     if (!funcaoSelecionada) return false;
-    return datasSelecionadasObjs.every((d) => dataEscalavelParaPessoa(d, "Disponível"));
+    return datasSelecionadasObjs.some((d) => dataEscalavelParaPessoa(d, "Disponível"));
   }, [ministerioSelecionado, funcaoSelecionada, datasSelecionadasObjs, dataEscalavelParaPessoa]);
 
   /** Só quando todos os cultos do mês estão ocupados na função (não confundir com indisponibilidade pessoal). */
@@ -478,8 +486,8 @@ export default function SidebarFiltros({
         return slotsDisponiveis(
           funcaoSelecionada, dataObj, turnoKey, escalas, ministerioSelecionado
         ).length;
-      });
-      const vagasLivres = Math.min(...vagasPorData, Infinity);
+      }).filter((n) => n > 0);
+      const vagasLivres = vagasPorData.length > 0 ? Math.min(...vagasPorData) : 0;
       if (prev.length >= vagasLivres.length) {
         onMensagem?.(
           `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
@@ -513,7 +521,13 @@ export default function SidebarFiltros({
         funcaoEfetiva, dataItem, turnoSalvo, escalasLocal, ministerioSelecionado
       );
 
-      if (pessoasParaSalvar.length > slotsLivres.length) {
+      const pessoasNestaData = pessoasParaSalvar.filter((nome) =>
+        dataEscalavelParaPessoa(dataItem, nome, funcaoEfetiva)
+      );
+
+      if (pessoasNestaData.length === 0) continue;
+
+      if (pessoasNestaData.length > slotsLivres.length) {
         onMensagem?.(
           `Limite de vagas atingido para esta função neste dia (Restam apenas ${slotsLivres.length} ${slotsLivres.length === 1 ? "vaga" : "vagas"})`,
           "erro"
@@ -522,8 +536,8 @@ export default function SidebarFiltros({
         return;
       }
 
-      for (let i = 0; i < pessoasParaSalvar.length; i++) {
-        const nomePessoa = pessoasParaSalvar[i];
+      for (let i = 0; i < pessoasNestaData.length; i++) {
+        const nomePessoa = pessoasNestaData[i];
         const funcaoReal = slotsLivres[i] ?? null;
         if (!funcaoReal) { erros++; continue; }
 
@@ -627,7 +641,10 @@ export default function SidebarFiltros({
         const vagasLivres = slotsDisponiveis(
           funcaoSelecionada, dataObj, turnoKey, escalas, ministerioSelecionado
         );
-        if (pessoasMarcadas.length > vagasLivres.length) {
+        const pessoasNestaData = pessoasMarcadas.filter((nome) =>
+          dataEscalavelParaPessoa(dataObj, nome)
+        );
+        if (pessoasNestaData.length > vagasLivres.length) {
           onMensagem?.(
             `Limite de vagas atingido para esta função neste dia (Restam apenas ${vagasLivres.length} ${vagasLivres.length === 1 ? "vaga" : "vagas"})`,
             "erro"
