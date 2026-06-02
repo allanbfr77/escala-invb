@@ -168,6 +168,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
             return (
               <div
                 key={nome}
+                className="cross-ministry-card"
                 onMouseEnter={() => setHovered(nome)}
                 onMouseLeave={() => setHovered(null)}
                 style={{
@@ -177,7 +178,6 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
-                  alignSelf: "start",
                   width: "100%",
                   minHeight: 0,
                   transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
@@ -215,12 +215,16 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
                   </span>
                 </div>
 
-                {/* Ministry groups — altura só pelo conteúdo (sem flex-grow) */}
-                <div style={{
-                  padding: "10px 14px",
-                  display: "flex", flexDirection: "column", gap: "12px",
-                  flexShrink: 0,
-                }}>
+                {/* Lista de escalas — scroll interno quando excede a altura do card */}
+                <div
+                  className="cross-ministry-scroll"
+                  style={{
+                    padding: "10px 14px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
                   {ministeriosIds.map(mid => {
                     const cfg = MINISTERIOS[mid] || {
                       label: mid.toUpperCase(), color: t.accent,

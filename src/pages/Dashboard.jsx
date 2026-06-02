@@ -1331,18 +1331,44 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           }
         }
 
-        /* Membros em outros ministérios: 1 coluna no estreito; grade a partir de ~tablet */
+        /* Membros em outros ministérios: grade responsiva com cards de altura uniforme */
         .cross-ministry-grid {
           display: grid;
-          gap: 10px;
-          align-items: start;
+          gap: 16px;
+          align-items: stretch;
           padding-top: 4px;
           grid-template-columns: minmax(0, 1fr);
         }
         @media (min-width: 560px) {
           .cross-ministry-grid {
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           }
+        }
+        .cross-ministry-card {
+          height: 320px;
+          max-height: 320px;
+        }
+        .cross-ministry-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          scrollbar-width: thin;
+          scrollbar-color: var(--text-muted) transparent;
+          padding-right: 2px;
+        }
+        .cross-ministry-scroll::-webkit-scrollbar {
+          width: 5px;
+        }
+        .cross-ministry-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .cross-ministry-scroll::-webkit-scrollbar-thumb {
+          background: var(--border);
+          border-radius: 999px;
+        }
+        .cross-ministry-scroll::-webkit-scrollbar-thumb:hover {
+          background: var(--text-muted);
         }
       `}</style>
 
