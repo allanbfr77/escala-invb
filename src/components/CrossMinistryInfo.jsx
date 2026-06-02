@@ -80,64 +80,88 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
     >
 
       {/* Header */}
-      <div style={{
-        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between",
-        gap: "10px",
-        marginBottom: visivel ? "12px" : "0",
-      }}>
-        <div style={{
-          display: "flex", flexWrap: "wrap", alignItems: "center", gap: "7px",
-          flex: "1 1 auto", minWidth: 0,
+      <div
+        className="cross-ministry-header"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          gap: "8px",
+          marginBottom: visivel ? "12px" : "0",
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="9" stroke={t.textMuted} strokeWidth="1.8"/>
+          <path d="M12 8v4M12 16h.01" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        <span style={{
+          fontSize: "10px", fontWeight: 600, color: t.textMuted,
+          textTransform: "uppercase", letterSpacing: "0.7px",
+          fontFamily: "'Outfit', sans-serif",
+          lineHeight: 1.35,
+          minWidth: 0,
+          wordBreak: "break-word",
         }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="9" stroke={t.textMuted} strokeWidth="1.8"/>
-            <path d="M12 8v4M12 16h.01" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          <span style={{
-            fontSize: "10px", fontWeight: 600, color: t.textMuted,
-            textTransform: "uppercase", letterSpacing: "0.7px",
-            fontFamily: "'Outfit', sans-serif",
-            lineHeight: 1.35,
-            flex: "1 1 140px", minWidth: 0,
-            wordBreak: "break-word",
-          }}>
-            Membros escalados em outros ministérios este mês
-          </span>
-          <span style={{
-            fontSize: "10px", fontWeight: 700, color: t.accent,
-            background: t.accentDim, borderRadius: "10px", padding: "1px 7px",
+          Membros escalados em outros ministérios este mês
+        </span>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "2px",
             flexShrink: 0,
-          }}>
+          }}
+        >
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              color: t.accent,
+              background: t.accentDim,
+              borderRadius: "10px",
+              padding: "1px 7px",
+              flexShrink: 0,
+            }}
+          >
             {pessoas.length}
           </span>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setVisivel(v => !v)}
-          title={visivel ? "Ocultar" : "Mostrar"}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: visivel ? t.accent : t.textMuted,
-            padding: "8px", minWidth: "44px", minHeight: "44px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "color 0.15s", flexShrink: 0,
-            WebkitTapHighlightColor: "transparent",
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = t.accent}
-          onMouseLeave={e => e.currentTarget.style.color = visivel ? t.accent : t.textMuted}
-        >
-          {visivel ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/>
-            </svg>
-          )}
-        </button>
+            <button
+              type="button"
+              className="cross-ministry-toggle-btn"
+              onClick={() => setVisivel(v => !v)}
+              title={visivel ? "Ocultar" : "Mostrar"}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: visivel ? t.accent : t.textMuted,
+                padding: "8px",
+                minWidth: "44px",
+                minHeight: "44px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.15s",
+                flexShrink: 0,
+                WebkitTapHighlightColor: "transparent",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = t.accent}
+              onMouseLeave={e => e.currentTarget.style.color = visivel ? t.accent : t.textMuted}
+            >
+              {visivel ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/>
+                </svg>
+              )}
+            </button>
+        </div>
       </div>
 
       {/* Cards grid */}

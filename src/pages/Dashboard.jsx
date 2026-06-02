@@ -1623,6 +1623,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       <style>{`
         .fab-mobile { display: none !important; }
         @media (max-width: 900px) { .fab-mobile { display: flex !important; } }
+        /* Tablet (768–900px): FAB e botão olho da seção cross-ministry coexistem */
+        @media (min-width: 768px) and (max-width: 900px) {
+          .fab-mobile {
+            bottom: 28px !important;
+            right: 28px !important;
+          }
+          .cross-ministry-desktop-only {
+            padding-bottom: 80px;
+            box-sizing: border-box;
+          }
+        }
       `}</style>
 
       {/* Navbar */}
