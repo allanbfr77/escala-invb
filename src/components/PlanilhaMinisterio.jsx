@@ -291,9 +291,14 @@ function CelulaSelect({
             }
           }}
         >
-          <span className={`planilha-louvor-select-valor ${valorClass}`}>
-            {valor || "—"}
-          </span>
+          <div className="planilha-louvor-select-leading">
+            <span className={`planilha-louvor-select-valor ${valorClass}`}>
+              {valor || "—"}
+            </span>
+            <span className="planilha-louvor-select-chevron" aria-hidden>
+              ▾
+            </span>
+          </div>
           {exibirRemover && (
             <button
               type="button"
@@ -318,9 +323,6 @@ function CelulaSelect({
               </svg>
             </button>
           )}
-          <span className="planilha-louvor-select-chevron" aria-hidden>
-            ▾
-          </span>
         </div>
       </div>
       {listaPortal}
