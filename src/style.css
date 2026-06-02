@@ -444,6 +444,68 @@ code {
   }
 }
 
+/* Tablet/desktop only (≥768px): modo planilha e seção cross-ministry */
+@media (max-width: 767px) {
+  .view-mode-btn--planilha-desktop-only,
+  .cross-ministry-desktop-only {
+    display: none !important;
+  }
+}
+
+/* Mobile estreito (≤639px): evita vazamento lateral e padding desbalanceado */
+@media (max-width: 639px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dashboard-root,
+  .dashboard-body,
+  .main-pad,
+  .escala-grid-host {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .main-pad .escala-grid-host > div:has(> .grid-table),
+  .main-pad .grid-louvor-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .grid-table {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: fixed;
+  }
+
+  .grid-table tbody {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+  }
+
+  .grid-row {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
 /* Responsividade para tabelas em dispositivos móveis */
 @media (max-width: 768px) {
   table {

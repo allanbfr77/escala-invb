@@ -30,7 +30,10 @@ import { formatarData } from "../utils/dateHelper";
 import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
 import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
+import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
+
+const PLANILHA_VIEW_MODES = new Set(["grid", "planilha-faixas", "louvor-planilha"]);
 import { Sun, Moon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
 
@@ -226,10 +229,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", confirmLabel: "Confirmar", perigoso: false, onConfirmar: null });
   const [filtroNome, setFiltroNome] = useState("");
   const [viewMode, setViewMode] = useState("cards");
+  const isTabletUp = useMediaQuery(TABLET_MIN_QUERY);
 
   useEffect(() => {
     setViewMode((mode) => (mode === "louvor-planilha" ? "grid" : mode));
   }, []);
+
+  useEffect(() => {
+    if (!isTabletUp) {
+      setViewMode((mode) => (PLANILHA_VIEW_MODES.has(mode) ? "cards" : mode));
+    }
+  }, [isTabletUp]);
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const [textoExportacao, setTextoExportacao] = useState({ aberto: false, conteudo: "" });
   const gridRef = useRef(null);
@@ -959,6 +969,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     ];
   }, [ministerioSelecionado]);
 
+  const opcoesViewModeVisiveis = useMemo(() => {
+    if (isTabletUp) return opcoesViewMode;
+    return opcoesViewMode.filter((o) => o.id === "cards");
+  }, [opcoesViewMode, isTabletUp]);
+
   const exibirDownload =
     !(ministerioSelecionado === "infantil" && viewMode === "grid");
 
@@ -996,7 +1011,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const current = ministerioConfig[ministerioSelecionado];
 
   return (
-    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
+    <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1370,6 +1385,73 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .cross-ministry-scroll::-webkit-scrollbar-thumb:hover {
           background: var(--text-muted);
         }
+
+        /* Mobile estreito (320px–639px): largura total e padding lateral equilibrado */
+        @media (max-width: 639px) {
+          .dashboard-root,
+          .dashboard-body,
+          .main-pad {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+          .dashboard-root {
+            overflow-x: hidden;
+          }
+          .header-pad {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+          }
+          .main-pad {
+            padding: 12px !important;
+            overflow-x: hidden !important;
+          }
+          .page-header {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+          }
+          .page-header-actions {
+            max-width: 100%;
+            min-width: 0;
+            flex-wrap: wrap;
+          }
+          .escala-grid-host {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+          }
+          .main-pad .escala-grid-host > div:has(> .grid-table),
+          .main-pad .grid-louvor-wrap {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: hidden !important;
+            box-sizing: border-box !important;
+          }
+          .grid-table {
+            display: block !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+          }
+          .grid-table tbody {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .grid-row {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+        }
       `}</style>
 
       {/* Drawer overlay */}
@@ -1524,7 +1606,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       </header>
 
       {/* Layout */}
-      <div style={{ display: "flex", minHeight: "calc(100vh - 56px)" }}>
+      <div className="dashboard-body" style={{ display: "flex", minHeight: "calc(100vh - 56px)", minWidth: 0, width: "100%", maxWidth: "100%" }}>
 
         {/* Sidebar desktop */}
         <aside className="desktop-sidebar" style={{
@@ -1551,7 +1633,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </aside>
 
         {/* Main */}
-        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "20px 24px", overflowX: "hidden", minWidth: 0 }}>
+        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "20px 24px", overflowX: "hidden", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
 
           {/* Page header */}
           <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", gap: "10px" }}>
@@ -1594,7 +1676,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
 
-              {!verRelatorio && (
+              {!verRelatorio && opcoesViewModeVisiveis.length > 1 && (
                 <div
                   style={{
                     display: "flex",
@@ -1605,10 +1687,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     flexShrink: 0,
                   }}
                 >
-                  {opcoesViewMode.map((opt) => (
+                  {opcoesViewModeVisiveis.map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
+                      className={opt.id !== "cards" ? "view-mode-btn--planilha-desktop-only" : undefined}
                       onClick={() => setViewMode(opt.id)}
                       style={{
                         padding: "5px 10px",
@@ -1928,12 +2011,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 Nenhuma data disponível para este mês
               </p>
             </div>
-          ) : viewMode === "planilha-faixas" && ministerioSelecionado === "infantil" ? (
+          ) : isTabletUp && viewMode === "planilha-faixas" && ministerioSelecionado === "infantil" ? (
               <PlanilhaMinisterio
                 ministerioId="infantil"
                 {...planilhaMinisterioProps}
               />
-          ) : viewMode === "grid" ? (
+          ) : isTabletUp && viewMode === "grid" ? (
             ministerioUsaPlanilhaFaixas(ministerioSelecionado) ? (
               <PlanilhaMinisterio
                 ministerioId={ministerioSelecionado}
@@ -1956,13 +2039,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             )
           ) : (
             <>
-              <div ref={gridRef} style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
+              <div ref={gridRef} className="escala-grid-host" style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
                 {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
                 {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
                 {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
                 {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
               </div>
-              {podeEditar && (
+              {podeEditar && isTabletUp && (
                 <CrossMinistryInfo
                   ministerioId={ministerioSelecionado}
                   mes={mes}

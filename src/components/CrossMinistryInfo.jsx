@@ -74,7 +74,10 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
   if (loading || pessoas.length === 0) return null;
 
   return (
-    <div style={{ marginTop: "24px", minWidth: 0, maxWidth: "100%" }}>
+    <div
+      className="cross-ministry-desktop-only"
+      style={{ marginTop: "24px", minWidth: 0, maxWidth: "100%" }}
+    >
 
       {/* Header */}
       <div style={{
