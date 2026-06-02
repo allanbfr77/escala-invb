@@ -32,6 +32,7 @@ import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
+import { pedirConfirmacao as pedirConfirmacaoAsync, cancelarConfirmacao } from "../utils/confirmacaoAsync";
 
 const PLANILHA_VIEW_MODES = new Set(["grid", "planilha-faixas", "louvor-planilha"]);
 import { Sun, Moon } from "lucide-react";
@@ -227,6 +228,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
   const [conflito, setConflito] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ aberto: false, titulo: "", descricao: "", confirmLabel: "Confirmar", perigoso: false, onConfirmar: null });
+  const pedirConfirmacao = useCallback(
+    (opts) => pedirConfirmacaoAsync(setConfirmModal, opts),
+    []
+  );
   const [filtroNome, setFiltroNome] = useState("");
   const [viewMode, setViewMode] = useState("cards");
   const isTabletUp = useMediaQuery(TABLET_MIN_QUERY);
@@ -1000,8 +1005,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       onMensagem: mostrarMensagem,
       onConflito: setConflito,
       indispRefreshKey,
+      pedirConfirmacao,
     }),
-    [escalas, datas, mes, loading, user, podeEditar, indispRefreshKey]
+    [escalas, datas, mes, loading, user, podeEditar, indispRefreshKey, pedirConfirmacao]
   );
 
   const gridProps = useMemo(
@@ -1601,6 +1607,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           indispRefreshKey={indispRefreshKey}
           mes={mes}
           escalas={escalas}
+          pedirConfirmacao={pedirConfirmacao}
         />
       </div>
 
@@ -1744,6 +1751,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             indispRefreshKey={indispRefreshKey}
             mes={mes}
             escalas={escalas}
+            pedirConfirmacao={pedirConfirmacao}
           />
         </aside>
 
@@ -2198,7 +2206,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         descricao={confirmModal.descricao}
         confirmLabel={confirmModal.confirmLabel}
         onConfirmar={confirmModal.onConfirmar}
-        onCancelar={() => setConfirmModal(prev => ({ ...prev, aberto: false }))}
+        onCancelar={() => cancelarConfirmacao(setConfirmModal, confirmModal)}
         perigoso={confirmModal.perigoso}
         theme={theme}
       />

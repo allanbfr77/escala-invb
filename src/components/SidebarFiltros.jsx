@@ -10,6 +10,12 @@ import { podeEditarMinisterio } from "../utils/permissions";
 import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
 import { pessoaJaEscaladaNoMesmoMinisterioNoCulto } from "../utils/escalaDisponibilidade";
+import {
+  MINISTERIO_INFANTIL_ID,
+  contarCultosEscaladosInfantilNoMes,
+  mensagemLimiteInfantil,
+  precisaConfirmarLimiteInfantil,
+} from "../utils/limiteEscalasInfantil";
 
 const ministerios = [
   {
@@ -138,6 +144,7 @@ export default function SidebarFiltros({
   indispRefreshKey = 0,
   mes = "",
   escalas = {},
+  pedirConfirmacao = null,
 }) {
   const t = theme || {};
   const [salvando, setSalvando]               = useState(false);
@@ -654,6 +661,57 @@ export default function SidebarFiltros({
     setSalvando(false);
   };
 
+  const confirmarLimiteInfantilSeNecessario = async (funcaoEfetiva) => {
+    if (
+      ministerioSelecionado !== MINISTERIO_INFANTIL_ID ||
+      !pedirConfirmacao ||
+      !mes
+    ) {
+      return true;
+    }
+
+    const datasObj = datasIds
+      .map((id) => datasDisponiveis.find((d) => d.id === id))
+      .filter(Boolean);
+
+    for (const nome of pessoasMarcadas) {
+      if (nome === "Disponível") continue;
+
+      const pessoaLower = pessoaNomeFirestore(nome);
+      const datasParaPessoa = datasObj.filter((d) =>
+        dataEscalavelParaPessoa(d, nome, funcaoEfetiva)
+      );
+
+      if (
+        !precisaConfirmarLimiteInfantil(
+          pessoaLower,
+          mes,
+          escalas,
+          datasParaPessoa,
+          datasDisponiveis
+        )
+      ) {
+        continue;
+      }
+
+      const cultosAtuais = contarCultosEscaladosInfantilNoMes(
+        pessoaLower,
+        mes,
+        escalas,
+        datasDisponiveis
+      );
+
+      const confirmou = await pedirConfirmacao({
+        titulo: "Limite de escalas — Infantil",
+        descricao: mensagemLimiteInfantil(nomeParaExibicao(nome), cultosAtuais),
+      });
+
+      if (!confirmou) return false;
+    }
+
+    return true;
+  };
+
   const handleConfirmarEscala = async () => {
     if (!podeEditar)           { onMensagem?.("Você só pode editar seu próprio ministério", "erro"); return; }
     if (pessoasMarcadas.length === 0) { onMensagem?.("Selecione ao menos um obreiro", "erro"); return; }
@@ -688,6 +746,8 @@ export default function SidebarFiltros({
       setModalEscolhaFuncao({ aberto: true, opcoes });
       return;
     }
+
+    if (!(await confirmarLimiteInfantilSeNecessario(funcaoSelecionada))) return;
 
     await confirmarEscalaComFuncao(funcaoSelecionada);
   };
@@ -1409,6 +1469,7 @@ export default function SidebarFiltros({
                   disabled={salvando}
                   onClick={async () => {
                     setModalEscolhaFuncao({ aberto: false, opcoes: [] });
+                    if (!(await confirmarLimiteInfantilSeNecessario(fn))) return;
                     await confirmarEscalaComFuncao(fn);
                   }}
                   style={{

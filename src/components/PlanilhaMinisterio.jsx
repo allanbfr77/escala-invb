@@ -16,6 +16,12 @@ import {
 } from "../utils/planilhaMinisterioConfig";
 import { pessoaNomeFirestore, nomeParaExibicao } from "../utils/nomeExibicao";
 import { filtrarPessoasDisponiveisNoCulto } from "../utils/escalaDisponibilidade";
+import {
+  MINISTERIO_INFANTIL_ID,
+  contarCultosEscaladosInfantilNoMes,
+  mensagemLimiteInfantil,
+  precisaConfirmarLimiteInfantil,
+} from "../utils/limiteEscalasInfantil";
 
 function turnoSalvo(dataObj) {
   return dataObj?.turno === "único" ? "único" : dataObj?.turno;
@@ -341,6 +347,7 @@ export default function PlanilhaMinisterio({
   onMensagem,
   onConflito,
   indispRefreshKey = 0,
+  pedirConfirmacao = null,
 }) {
   const config = getConfigPlanilhaMinisterio(ministerioId);
   const funcoes = getFuncoesPlanilha(ministerioId);
@@ -443,6 +450,36 @@ export default function PlanilhaMinisterio({
       if (!valorBruto && !valorAnterior) return;
       if (pessoaLower === anteriorLower) return;
 
+      if (
+        ministerioId === MINISTERIO_INFANTIL_ID &&
+        pedirConfirmacao &&
+        mes &&
+        pessoaLower &&
+        pessoaLower !== "disponível" &&
+        precisaConfirmarLimiteInfantil(
+          pessoaLower,
+          mes,
+          escalas,
+          [dataObj],
+          datas
+        )
+      ) {
+        const cultosAtuais = contarCultosEscaladosInfantilNoMes(
+          pessoaLower,
+          mes,
+          escalas,
+          datas
+        );
+        const confirmou = await pedirConfirmacao({
+          titulo: "Limite de escalas — Infantil",
+          descricao: mensagemLimiteInfantil(
+            nomeParaExibicao(valorBruto),
+            cultosAtuais
+          ),
+        });
+        if (!confirmou) return;
+      }
+
       setSalvando(true);
       try {
         const qFuncao = query(
@@ -516,7 +553,7 @@ export default function PlanilhaMinisterio({
         setSalvando(false);
       }
     },
-    [escalas, ministerioId, podeEditar, usuario, onMensagem, onConflito]
+    [escalas, ministerioId, mes, datas, podeEditar, usuario, onMensagem, onConflito, pedirConfirmacao]
   );
 
   if (!config) {
