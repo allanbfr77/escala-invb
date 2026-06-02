@@ -1411,11 +1411,96 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             width: 100%;
             max-width: 100%;
             min-width: 0;
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .page-header-alert-slot {
+            flex: none !important;
+            width: 100% !important;
+            padding: 0 !important;
+            order: 2;
           }
           .page-header-actions {
-            max-width: 100%;
+            width: 100% !important;
+            max-width: 100% !important;
             min-width: 0;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            order: 3;
+          }
+          .page-header-actions__view {
+            width: 100%;
+            justify-content: center;
+          }
+          .page-toolbar {
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 8px !important;
+            align-items: stretch !important;
+          }
+          .page-toolbar__search {
+            width: 100% !important;
+            display: flex !important;
+          }
+          .page-toolbar__search input {
+            width: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .page-toolbar__buttons {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            align-items: center !important;
+          }
+          .page-toolbar__buttons > * {
+            flex: 0 1 auto;
+          }
+          .header-pad {
+            flex-wrap: wrap !important;
+            height: auto !important;
+            min-height: 48px;
+            align-content: center;
+            row-gap: 8px !important;
+            column-gap: 6px !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+          }
+          .header-pad__start,
+          .header-pad__end {
+            display: flex;
+            align-items: center;
             flex-wrap: wrap;
+            gap: 6px;
+            min-width: 0;
+          }
+          .header-pad__start {
+            flex: 1 1 auto;
+            max-width: 100%;
+          }
+          .header-pad__end {
+            flex: 1 1 100%;
+            justify-content: flex-end;
+            gap: 6px;
+          }
+          .header-pad .mes-nav {
+            flex-shrink: 0;
+          }
+          .header-pad .mes-nav span {
+            min-width: 72px !important;
+            font-size: 11px !important;
+          }
+          .header-pad__end .header-btn {
+            flex-shrink: 0;
+            padding: 4px 8px !important;
+            font-size: 11px !important;
+          }
+          .header-btn-relatorio {
+            white-space: nowrap;
           }
           .escala-grid-host {
             width: 100%;
@@ -1450,6 +1535,23 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             max-width: 100% !important;
             min-width: 0 !important;
             box-sizing: border-box !important;
+          }
+        }
+
+        @media (max-width: 399px) {
+          .header-pad__start {
+            flex: 1 1 100%;
+            justify-content: space-between;
+          }
+          .header-pad__end {
+            justify-content: space-between;
+          }
+          .header-pad .mes-nav span {
+            min-width: 64px !important;
+          }
+          .header-pad__end .header-btn-relatorio {
+            padding: 4px 6px !important;
+            font-size: 10px !important;
           }
         }
       `}</style>
@@ -1529,7 +1631,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         padding: "0 24px", height: "48px", display: "flex", alignItems: "center",
         justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="header-pad__start" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={theme.accentOnAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
@@ -1564,10 +1666,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="header-pad__end" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {onOpenRelatorio && (
             <button
               type="button"
+              className="header-btn header-btn-relatorio"
               onClick={onOpenRelatorio}
               title="Relatório geral de todos os ministérios"
               style={{
@@ -1584,6 +1687,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           )}
           {/* Botão toggle tema */}
           <button
+            className="header-btn header-btn-theme"
             onClick={toggleTheme}
             title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
             style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "14px", cursor: "pointer", padding: "3px 8px", lineHeight: 1, transition: "all 0.15s" }}
@@ -1598,7 +1702,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 </button>
 
           <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>Olá, {user?.email}</span>
-          <button onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+          <button className="header-btn header-btn-sair" onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
           >Sair</button>
@@ -1661,7 +1765,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
 
             {/* Alertas centralizados */}
-            <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "0 16px" }}>
+            <div className="page-header-alert-slot" style={{ flex: 1, display: "flex", justifyContent: "center", padding: "0 16px" }}>
               {mensagem.texto && (
                 <div style={{
                   padding: "7px 14px", borderRadius: "6px", fontSize: "13px", display: "flex", alignItems: "center", gap: "7px",
@@ -1674,10 +1778,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               )}
             </div>
 
-            <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+            <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, minWidth: 0 }}>
 
               {!verRelatorio && opcoesViewModeVisiveis.length > 1 && (
                 <div
+                  className="page-header-actions__view"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1711,8 +1816,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </div>
               )}
 
+              <div className="page-toolbar" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", flex: 1, minWidth: 0 }}>
               {/* Filtro por nome — apenas no modo edição e fora do relatório */}
-              {podeEditar && !verRelatorio && viewMode === "cards" && <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              {podeEditar && !verRelatorio && viewMode === "cards" && <div className="page-toolbar__search" style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                   style={{ position: "absolute", left: "8px", pointerEvents: "none", zIndex: 1 }}>
                   <circle cx="11" cy="11" r="8" stroke={theme.textMuted} strokeWidth="2"/>
@@ -1752,6 +1858,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 )}
               </div>}
 
+              <div className="page-toolbar__buttons" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
               {exibirDownload && (
               <div
                 ref={downloadMenuRef}
@@ -1943,6 +2050,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   <span className="btn-label">{limpando ? "Limpando..." : "Limpar mês"}</span>
                 </button>
               )}
+              </div>
+              </div>
             </div>
           </div>
 

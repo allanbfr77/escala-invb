@@ -504,6 +504,102 @@ code {
     min-width: 0;
     box-sizing: border-box;
   }
+
+  /* Header superior */
+  .header-pad {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 48px;
+    align-content: center;
+    row-gap: 8px;
+    column-gap: 6px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .header-pad__start,
+  .header-pad__end {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .header-pad__end {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+
+  .header-pad .mes-nav span {
+    min-width: 72px;
+    font-size: 11px;
+  }
+
+  .header-pad__end .header-btn {
+    flex-shrink: 0;
+  }
+
+  /* Barra de ferramentas da página */
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header-alert-slot {
+    flex: none;
+    width: 100%;
+    padding: 0;
+    order: 2;
+  }
+
+  .page-header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    order: 3;
+  }
+
+  .page-toolbar {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .page-toolbar__search {
+    width: 100%;
+  }
+
+  .page-toolbar__search input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .page-toolbar__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    width: 100%;
+    align-items: center;
+  }
+}
+
+@media (max-width: 399px) {
+  .header-pad__start {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .header-pad__end {
+    justify-content: space-between;
+  }
+
+  .header-pad .mes-nav span {
+    min-width: 64px;
+  }
 }
 
 /* Responsividade para tabelas em dispositivos móveis */

@@ -34,7 +34,7 @@ export const pessoasPorFuncaoRecepcao = {
 };
 
 export const pessoasPorFuncaoInfantil = {
-  "BERÇÁRIO": ["BIANCA", "CELIANA", "CRIS", "ELIZANGELA", "MARILDA", "MARILIA", "RAPHAELA", "VANESSA HONORATO"],
+  "BERÇÁRIO": ["BIANCA", "CELIANA", "CRIS", "ELIZANGELA", "MARILDA", "MARILIA", "RAPHAELA", "VANESSA H."],
   "MATERNAL": ["ALAN", "ANNA BEATRIZ", "ELIZANGELA", "FRANCISCA", "LUCIANE MARTINS", "LUCYENE PAULINO", "MARILIA", "MEDEIROS", "RAPHAELA", "SEBASTIANA", "SUELLEN"],
   "JUNIORES": ["ALAN", "ALESSANDRO", "ANNA BEATRIZ", "LUCIANE MARTINS", "MARILIA", "MEDEIROS", "PR. MARCIO", "VANESSA R."],
 };
@@ -60,7 +60,7 @@ export const pessoasPorMinisterio = {
     "RAPHAELA",
     "SEBASTIANA",
     "SUELLEN",
-    "VANESSA HONORATO",
+    "VANESSA H.",
     "VANESSA R."
   ],
 
