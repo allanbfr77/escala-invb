@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, setDoc, doc } from "firebase/firesto
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { accentAlpha } from "../constants/theme";
+import { chaveIndisponibilidadeColuna, contarIndisponibilidadesNoMes } from "../utils/indisponibilidadeHelpers";
 
 export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOutrosMinisterios, ministerioId, datasDisponiveis, mes, theme: t }) {
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
@@ -357,7 +358,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
               const indisponiveis = getDatasIndisponiveis(pessoa);
               const aberta = expandida === pessoa;
               const isSalvando = salvando[key];
-              const qtd = indisponiveis.size;
+              const qtd = contarIndisponibilidadesNoMes(indisponiveis, datasDisponiveis);
 
               return (
                 <div key={pessoa} style={{ borderBottom: `1px solid ${t.border}` }}>
@@ -514,7 +515,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                             marginTop: "4px",
                           }}>
                             {datasDisponiveis.map(d => {
-                              const chave = `${d.data}|${d.turno ?? "único"}`;
+                              const chave = chaveIndisponibilidadeColuna(d);
                               const marcada = indisponiveis.has(chave);
                               return (
                                 <button

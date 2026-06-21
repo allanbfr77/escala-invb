@@ -43,3 +43,14 @@ export function filtrarPessoasDisponiveisMes(pessoas, datas, indisponiveisMap) {
     (p) => !estaIndisponivelTodoMes(p, datas, indisponiveisMap)
   );
 }
+
+/** Conta indisponibilidades alinhadas às colunas do mês (ignora datas de outros meses no Firestore). */
+export function contarIndisponibilidadesNoMes(indisponiveisSet, datas) {
+  if (!indisponiveisSet?.size || !datas?.length) return 0;
+
+  let n = 0;
+  for (const d of datas) {
+    if (indisponiveisSet.has(chaveIndisponibilidadeColuna(d))) n++;
+  }
+  return n;
+}
