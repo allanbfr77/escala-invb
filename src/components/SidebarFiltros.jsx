@@ -832,10 +832,27 @@ export default function SidebarFiltros({
   return (
     <div style={{ fontFamily: "'Outfit', sans-serif" }}>
 
-      <div style={{ marginBottom: "20px", paddingBottom: "16px", borderBottom: `1px solid ${t.border}` }}>
-        <p style={{ fontSize: "11px", fontWeight: 600, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.6px" }}>
-          Adicionar à escala
-        </p>
+      <div style={{ display: "flex", alignItems: "center", gap: "11px", marginBottom: "20px", paddingBottom: "16px", borderBottom: `1px solid ${t.border}` }}>
+        <div style={{
+          width: "34px", height: "34px", borderRadius: "9px",
+          background: t.accentDim, color: t.accent,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+            <line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/>
+          </svg>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: "13px", fontWeight: 700, color: t.text, letterSpacing: "-0.1px", lineHeight: 1.2 }}>
+            Adicionar à escala
+          </div>
+          <div style={{ fontSize: "10.5px", color: t.textMuted, marginTop: "2px" }}>
+            Monte a escala do mês
+          </div>
+        </div>
       </div>
 
       {/* Ministério — dropdown customizado */}
@@ -1157,9 +1174,9 @@ export default function SidebarFiltros({
         disabled={salvando || !podeEditar}
         style={{
           width: "100%", padding: "12px", borderRadius: "6px",
-          border: `1px solid ${salvando || !podeEditar ? t.border : "rgba(52,211,153,0.35)"}`,
-          background: salvando || !podeEditar ? "transparent" : "rgba(52,211,153,0.08)",
-          color: salvando || !podeEditar ? t.textDim : "#34d399",
+          border: `1px solid ${t.border}`,
+          background: "transparent",
+          color: salvando || !podeEditar ? t.textDim : t.textMuted,
           fontSize: "14px", fontWeight: 600,
           cursor: salvando || !podeEditar ? "not-allowed" : "pointer",
           fontFamily: "inherit", letterSpacing: "-0.2px",
@@ -1168,14 +1185,16 @@ export default function SidebarFiltros({
         }}
         onMouseEnter={e => {
           if (!salvando && podeEditar) {
-            e.currentTarget.style.background = "rgba(52,211,153,0.15)";
+            e.currentTarget.style.background = "rgba(52,211,153,0.12)";
             e.currentTarget.style.borderColor = "rgba(52,211,153,0.55)";
+            e.currentTarget.style.color = "#34d399";
           }
         }}
         onMouseLeave={e => {
           if (!salvando && podeEditar) {
-            e.currentTarget.style.background = "rgba(52,211,153,0.08)";
-            e.currentTarget.style.borderColor = "rgba(52,211,153,0.35)";
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = t.border;
+            e.currentTarget.style.color = t.textMuted;
           }
         }}
       >
@@ -1199,9 +1218,9 @@ export default function SidebarFiltros({
         disabled={!podeEditar}
         style={{
           width: "100%", padding: "10px", borderRadius: "6px",
-          border: `1px solid ${!podeEditar ? t.border : "rgba(248,113,113,0.3)"}`,
-          background: !podeEditar ? "transparent" : "rgba(248,113,113,0.06)",
-          color: !podeEditar ? t.textDim : "#f87171",
+          border: `1px solid ${t.border}`,
+          background: "transparent",
+          color: !podeEditar ? t.textDim : t.textMuted,
           fontSize: "14px", fontWeight: 600,
           cursor: "pointer",
           fontFamily: "inherit",
@@ -1209,14 +1228,16 @@ export default function SidebarFiltros({
         }}
         onMouseEnter={e => {
           if (podeEditar) {
-            e.currentTarget.style.background = "rgba(248,113,113,0.13)";
+            e.currentTarget.style.background = "rgba(248,113,113,0.12)";
             e.currentTarget.style.borderColor = "rgba(248,113,113,0.5)";
+            e.currentTarget.style.color = "#f87171";
           }
         }}
         onMouseLeave={e => {
           if (podeEditar) {
-            e.currentTarget.style.background = "rgba(248,113,113,0.06)";
-            e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = t.border;
+            e.currentTarget.style.color = t.textMuted;
           }
         }}
       >

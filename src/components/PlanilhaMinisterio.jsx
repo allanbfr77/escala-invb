@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore";
@@ -7,7 +7,6 @@ import { chaveIndisponibilidadeColuna } from "../utils/indisponibilidadeHelpers"
 import {
   montarFaixasPlanilha,
   formatarCabecalhoData,
-  COLUNAS_POR_FAIXA,
 } from "../utils/planilhaFaixasLayout";
 import {
   NOMES_MINISTERIOS,
@@ -64,7 +63,7 @@ function getHorarios(dataObj) {
 }
 
 const MENU_GAP = 4;
-const MENU_ITEM_HEIGHT = 28;
+const MENU_ITEM_HEIGHT = 34;
 const MENU_LIST_PADDING = 10;
 
 function calcularPosicaoMenu(triggerEl, optionsCount = 1) {
@@ -99,12 +98,13 @@ function CelulaSelect({
   faixaId,
   inicioFaixa,
   funcao,
-  grupoCor,
   valor,
   opcoes,
   podeEditar,
   salvando,
   onChange,
+  destacar = false,
+  filtroAtivo = false,
 }) {
   const [aberto, setAberto] = useState(false);
   const [menuPos, setMenuPos] = useState(null);
@@ -193,18 +193,17 @@ function CelulaSelect({
     "planilha-louvor-celula",
     aberto ? "planilha-louvor-celula--ativa" : "",
     valor ? "planilha-louvor-celula--preenchida" : "",
-    valor && grupoCor ? `planilha-louvor-celula--obreiro-${grupoCor}` : "",
     inicioFaixa ? "planilha-louvor-celula--inicio-faixa" : "",
     faixaId ? `planilha-louvor-celula--faixa-${faixaId}` : "",
+    destacar ? "planilha-louvor-celula--destaque" : "",
+    filtroAtivo && valor && !destacar ? "planilha-louvor-celula--esmaecida" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   const valorClass = !valor
     ? "planilha-louvor-select-valor--vazio"
-    : grupoCor
-      ? `planilha-louvor-select-valor--${grupoCor}`
-      : "planilha-louvor-select-valor";
+    : "planilha-louvor-select-valor--preenchido";
 
   const listaPortal =
     aberto &&
@@ -262,7 +261,6 @@ function CelulaSelect({
       className={celulaClass}
       data-label={funcao}
       data-faixa={faixaId || undefined}
-      data-funcao-grupo={grupoCor || undefined}
     >
       <div className="planilha-louvor-select-wrap">
         <div
@@ -298,7 +296,10 @@ function CelulaSelect({
           }}
         >
           <div className="planilha-louvor-select-leading">
-            <span className={`planilha-louvor-select-valor ${valorClass}`}>
+            <span
+              className={`planilha-louvor-select-valor ${valorClass}`}
+              title={valor || undefined}
+            >
               {valor || "—"}
             </span>
             <span className="planilha-louvor-select-chevron" aria-hidden>
@@ -348,24 +349,16 @@ export default function PlanilhaMinisterio({
   onConflito,
   indispRefreshKey = 0,
   pedirConfirmacao = null,
+  filtroNome = "",
 }) {
   const config = getConfigPlanilhaMinisterio(ministerioId);
   const funcoes = getFuncoesPlanilha(ministerioId);
+  const termoFiltro = filtroNome.trim().toLowerCase();
+  const filtroAtivo = termoFiltro.length > 0;
   const [salvando, setSalvando] = useState(false);
   const [indispMap, setIndispMap] = useState({});
 
   const { faixas } = useMemo(() => montarFaixasPlanilha(datas), [datas]);
-
-  const largurasGrid = useMemo(() => {
-    const flat = faixas.flatMap((f) => f.colunas);
-    const vazias = flat.filter((c) => !c).length;
-    const comData = flat.filter(Boolean).length;
-    const pctFuncao = 8.5;
-    const pctVazia = 0.12;
-    const pctData =
-      comData > 0 ? (100 - pctFuncao - vazias * pctVazia) / comData : 6;
-    return { pctFuncao, pctVazia, pctData };
-  }, [faixas]);
 
   useEffect(() => {
     if (!ministerioId) return;
@@ -577,167 +570,234 @@ export default function PlanilhaMinisterio({
   }
 
   return (
-    <div className="planilha-louvor-wrap">
-      <table className="planilha-louvor-table">
-        <colgroup>
-          <col
-            className="planilha-louvor-col-funcao"
-            style={{ width: `${largurasGrid.pctFuncao}%` }}
-          />
-          {faixas.flatMap((faixa) =>
-            faixa.colunas.map((dataObj, colIdx) => (
-              <col
-                key={`${faixa.id}-${colIdx}`}
-                className={
-                  dataObj
-                    ? "planilha-louvor-col-data"
-                    : "planilha-louvor-col-data planilha-louvor-col-data--compacta"
-                }
-                style={{
-                  width: dataObj
-                    ? `${largurasGrid.pctData}%`
-                    : `${largurasGrid.pctVazia}%`,
-                }}
-              />
-            ))
-          )}
-        </colgroup>
-        <thead>
-          <tr className="planilha-louvor-faixa-row">
-            <th rowSpan={2} scope="col" className="planilha-louvor-th-funcao">
-              Função
-            </th>
-            {faixas.map((faixa) => (
-              <th
-                key={faixa.id}
-                colSpan={COLUNAS_POR_FAIXA}
-                className="planilha-louvor-th-faixa"
-                data-faixa={faixa.id}
-              >
-                {faixa.titulo}
-              </th>
-            ))}
-          </tr>
-          <tr className="planilha-louvor-datas-row">
-            {faixas.map((faixa) =>
-              faixa.colunas.map((dataObj, colIdx) => (
-                <th
-                  key={`${faixa.id}-${colIdx}`}
-                  data-faixa={faixa.id}
-                  className={[
-                    "planilha-louvor-th-data",
-                    !dataObj ? "planilha-louvor-th-data--vazia" : "",
-                    colIdx === 0 && faixa.id !== "domingo-manha"
-                      ? "planilha-louvor-th-data--inicio-faixa"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {dataObj ? (
-                    <span
-                      className="planilha-louvor-data-label"
-                      title={formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
-                    >
-                      {formatarCabecalhoData(dataObj)}
-                    </span>
-                  ) : null}
-                </th>
-              ))
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {funcoes.map((funcao, rowIdx) => {
-            const grupoCor = config.grupoCorObreiro(funcao);
-            return (
-              <tr
-                key={funcao}
-                className="planilha-louvor-row"
-                style={{
-                  background: rowIdx % 2 === 0 ? "transparent" : "var(--row-zebra)",
-                }}
-              >
-                <th className="planilha-louvor-td-funcao">{funcao}</th>
-                {faixas.map((faixa) =>
-                  faixa.colunas.map((dataObj, colIdx) => {
-                    const valorRaw = dataObj
-                      ? escalas[escalaKey(dataObj, funcao)]
-                      : null;
-                    const isDisponivelLouvor =
-                      ministerioId === "louvor" && valorRaw === "disponível";
-                    const valor = valorRaw ? nomeParaExibicao(valorRaw) : "";
-                    return (
-                      <CelulaSelect
-                        key={`${faixa.id}-${colIdx}-${funcao}`}
-                        faixaId={faixa.id}
-                        inicioFaixa={colIdx === 0 && faixa.id !== "domingo-manha"}
-                        dataObj={dataObj}
-                        funcao={funcao}
-                        grupoCor={isDisponivelLouvor ? "" : grupoCor}
-                        valor={valor}
-                        opcoes={getOpcoesSelect(dataObj, funcao)}
-                        podeEditar={podeEditar}
-                        salvando={salvando}
-                        onChange={salvarCelula}
-                      />
-                    );
-                  })
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="planilha-louvor-tfoot-row">
-            <th className="planilha-louvor-tfoot-label" scope="row">
-              Total
-            </th>
-            {faixas.map((faixa) =>
-              faixa.colunas.map((dataObj, colIdx) => {
-                const stats = contarSlotsCulto(
-                  dataObj,
-                  funcoes,
-                  escalas,
-                  ministerioId
-                );
-                const completo =
-                  stats && stats.preenchidos === stats.total && stats.total > 0;
+    <div className="planilha-louvor-wrap planilha-louvor-wrap--empilhada">
+      {faixas.map((faixa, faixaIdx) => {
+        const colunas = faixa.colunas.map((dataObj, colIdx) => ({
+          dataObj,
+          colIdx,
+        }));
 
-                return (
-                  <td
-                    key={`footer-${faixa.id}-${colIdx}`}
-                    className={[
-                      "planilha-louvor-tfoot-celula",
-                      !dataObj ? "planilha-louvor-tfoot-celula--vazia" : "",
-                      colIdx === 0 && faixa.id !== "domingo-manha"
-                        ? "planilha-louvor-tfoot-celula--inicio-faixa"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    data-faixa={faixa.id}
-                  >
-                    {stats ? (
-                      <span
-                        className={[
-                          "planilha-louvor-preenchimento-badge",
-                          completo ? "is-completo" : "is-incompleto",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        title={`${stats.preenchidos} de ${stats.total} funções preenchidas`}
-                      >
-                        {stats.preenchidos}/{stats.total}
-                      </span>
-                    ) : null}
-                  </td>
-                );
-              })
+        return (
+          <Fragment key={faixa.id}>
+            {faixaIdx > 0 && (
+              <div className="planilha-bloco-divisoria" aria-hidden />
             )}
-          </tr>
-        </tfoot>
-      </table>
+          <section
+            className="planilha-louvor-bloco"
+            data-faixa={faixa.id}
+          >
+            <h3 className="planilha-louvor-bloco-titulo">
+              {faixa.id === "domingo-manha" ? (
+                <svg
+                  className="planilha-louvor-bloco-icone"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <circle cx="12" cy="12" r="5" />
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+              ) : (
+                <svg
+                  className="planilha-louvor-bloco-icone"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+              <span>{faixa.titulo}</span>
+            </h3>
+            <div className="planilha-louvor-bloco-corpo">
+              <table className="planilha-louvor-table planilha-louvor-table--bloco">
+                <colgroup>
+                  <col className="planilha-louvor-col-funcao" />
+                  {colunas.map(({ colIdx }) => (
+                    <col key={colIdx} className="planilha-louvor-col-data" />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="planilha-louvor-datas-row">
+                    <th
+                      scope="col"
+                      className="planilha-louvor-th-funcao planilha-louvor-th-funcao--bloco"
+                      aria-label="Função"
+                    />
+                    {colunas.map(({ dataObj, colIdx }, idx) => {
+                      if (!dataObj) {
+                        return (
+                          <th
+                            key={`${faixa.id}-${colIdx}`}
+                            scope="col"
+                            data-faixa={faixa.id}
+                            aria-hidden
+                            className={[
+                              "planilha-louvor-th-data",
+                              "planilha-louvor-th-data--vazia",
+                              idx === 0 ? "planilha-louvor-th-data--inicio-dados" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          />
+                        );
+                      }
+                      return (
+                        <th
+                          key={`${faixa.id}-${colIdx}`}
+                          scope="col"
+                          data-faixa={faixa.id}
+                          className={[
+                            "planilha-louvor-th-data",
+                            idx === 0 ? "planilha-louvor-th-data--inicio-dados" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          <span
+                            className="planilha-louvor-data-label"
+                            title={formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+                          >
+                            <svg
+                              className="planilha-louvor-data-icone"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <rect x="3" y="4" width="18" height="18" rx="2" />
+                              <path d="M16 2v4M8 2v4M3 10h18" />
+                            </svg>
+                            {formatarCabecalhoData(dataObj)}
+                          </span>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {funcoes.map((funcao, rowIdx) => {
+                    const grupoCor = config.grupoCorObreiro(funcao);
+                    return (
+                      <tr
+                        key={funcao}
+                        className="planilha-louvor-row"
+                        style={{
+                          background: rowIdx % 2 === 0 ? "transparent" : "var(--row-zebra)",
+                        }}
+                      >
+                        <th
+                          className={[
+                            "planilha-louvor-td-funcao",
+                            grupoCor ? `planilha-louvor-td-funcao--${grupoCor}` : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          <span className="planilha-louvor-funcao-label">{funcao}</span>
+                        </th>
+                        {colunas.map(({ dataObj, colIdx }) => {
+                          const valorRaw = dataObj
+                            ? escalas[escalaKey(dataObj, funcao)]
+                            : "";
+                          const valor = valorRaw ? nomeParaExibicao(valorRaw) : "";
+                          const destacar =
+                            filtroAtivo &&
+                            valor &&
+                            valor.toLowerCase().includes(termoFiltro);
+                          return (
+                            <CelulaSelect
+                              key={`${faixa.id}-${colIdx}-${funcao}`}
+                              faixaId={faixa.id}
+                              inicioFaixa={false}
+                              dataObj={dataObj}
+                              funcao={funcao}
+                              valor={valor}
+                              opcoes={getOpcoesSelect(dataObj, funcao)}
+                              podeEditar={podeEditar}
+                              salvando={salvando}
+                              onChange={salvarCelula}
+                              destacar={destacar}
+                              filtroAtivo={filtroAtivo}
+                            />
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="planilha-louvor-tfoot-row">
+                    <th className="planilha-louvor-tfoot-label" scope="row">
+                      Total
+                    </th>
+                    {colunas.map(({ dataObj, colIdx }) => {
+                      if (!dataObj) {
+                        return (
+                          <td
+                            key={`footer-${faixa.id}-${colIdx}`}
+                            className="planilha-louvor-tfoot-celula planilha-louvor-tfoot-celula--vazia"
+                            data-faixa={faixa.id}
+                            aria-hidden
+                          />
+                        );
+                      }
+                      const stats = contarSlotsCulto(
+                        dataObj,
+                        funcoes,
+                        escalas,
+                        ministerioId
+                      );
+                      const completo =
+                        stats && stats.preenchidos === stats.total && stats.total > 0;
+
+                      return (
+                        <td
+                          key={`footer-${faixa.id}-${colIdx}`}
+                          className="planilha-louvor-tfoot-celula"
+                          data-faixa={faixa.id}
+                        >
+                          {stats ? (
+                            <span
+                              className={[
+                                "planilha-louvor-preenchimento-badge",
+                                completo ? "is-completo" : "is-incompleto",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              title={`${stats.preenchidos} de ${stats.total} funções preenchidas`}
+                            >
+                              {stats.preenchidos}/{stats.total}
+                            </span>
+                          ) : null}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+          </Fragment>
+        );
+      })}
       {salvando && (
         <div className="planilha-louvor-salvando" aria-live="polite">
           Salvando...

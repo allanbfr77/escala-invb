@@ -8,33 +8,24 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 import html2canvas from "html2canvas";
 
-import GridComunicacao from "../components/GridComunicacao";
-import GridInfantil from "../components/GridInfantil";
-import GridLouvor from "../components/GridLouvor";
-import GridRecepcao from "../components/GridRecepcao";
 import RelatorioMinisterio from "../components/RelatorioMinisterio";
 import SkeletonGrid from "../components/SkeletonGrid";
 import ConfirmModal from "../components/ConfirmModal";
 import CrossMinistryInfo from "../components/CrossMinistryInfo";
 import IndisponibilidadeModal from "../components/IndisponibilidadeModal";
-import DashboardGrid from "./DashboardGrid";
 import PlanilhaMinisterio from "../components/PlanilhaMinisterio";
-import {
-  ministerioUsaPlanilhaFaixas,
-  ministerioTemConfigPlanilhaFaixas,
-} from "../utils/planilhaMinisterioConfig";
+import { ministerioTemConfigPlanilhaFaixas } from "../utils/planilhaMinisterioConfig";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
 import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
 import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
-import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
+import { estaIndisponivelTodoMesFromSet, contarIndisponibilidadesNoMes } from "../utils/indisponibilidadeHelpers";
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
 import { pedirConfirmacao as pedirConfirmacaoAsync, cancelarConfirmacao } from "../utils/confirmacaoAsync";
 
-const PLANILHA_VIEW_MODES = new Set(["grid", "planilha-faixas", "louvor-planilha"]);
 import { Sun, Moon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
 
@@ -224,6 +215,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [baixando, setBaixando] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const downloadMenuRef = useRef(null);
+  const [showAcoesMenu, setShowAcoesMenu] = useState(false);
+  const acoesMenuRef = useRef(null);
+  const [filtroNome, setFiltroNome] = useState("");
   const [drawerAberto, setDrawerAberto] = useState(false);
   const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
   const [conflito, setConflito] = useState(null);
@@ -232,28 +226,27 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     (opts) => pedirConfirmacaoAsync(setConfirmModal, opts),
     []
   );
-  const [filtroNome, setFiltroNome] = useState("");
-  const [viewMode, setViewMode] = useState("cards");
   const isTabletUp = useMediaQuery(TABLET_MIN_QUERY);
-
-  useEffect(() => {
-    setViewMode((mode) => (mode === "louvor-planilha" ? "grid" : mode));
-  }, []);
-
-  useEffect(() => {
-    if (!isTabletUp) {
-      setViewMode((mode) => (PLANILHA_VIEW_MODES.has(mode) ? "cards" : mode));
-    }
-  }, [isTabletUp]);
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const [textoExportacao, setTextoExportacao] = useState({ aberto: false, conteudo: "" });
-  const gridRef = useRef(null);
   const mainRef = useRef(null);
 
   const mostrarMensagem = (texto, tipo = "sucesso") => {
     setMensagem({ texto, tipo });
     setTimeout(() => setMensagem({ texto: "", tipo: "" }), 3000);
   };
+
+  // Fecha o menu de 3 pontinhos (ações destrutivas) ao clicar fora
+  useEffect(() => {
+    if (!showAcoesMenu) return;
+    const handler = (e) => {
+      if (acoesMenuRef.current && !acoesMenuRef.current.contains(e.target)) {
+        setShowAcoesMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAcoesMenu]);
 
   useEffect(() => {
     if (!conflito) return;
@@ -597,24 +590,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     },
   };
 
-  // ── incrementa refreshKey após remover para o Sidebar re-buscar
-  const handleRemover = useCallback(async (dataStr, turno, funcao) => {
-    try {
-      const q = query(
-        collection(db, "escalas"),
-        where("ministerioId", "==", ministerioSelecionado),
-        where("data", "==", dataStr),
-        where("turno", "==", turno),
-        where("funcao", "==", funcao)
-      );
-      const snap = await getDocs(q);
-      for (const doc of snap.docs) await deleteDoc(doc.ref);
-      setRefreshKey(k => k + 1);
-    } catch (err) {
-      mostrarMensagem("Erro ao remover escala", "erro");
-    }
-  }, [ministerioSelecionado]);
-
   // ── usa ConfirmModal em vez de window.confirm
   const handleLimparTudo = () => {
     setConfirmModal({
@@ -952,47 +927,16 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const handleSetMinisterio = (v) => {
     setMinisterioSelecionado(v);
     setVerRelatorio(false);
-    setFiltroNome("");
-    setViewMode((mode) => {
-      if (mode === "louvor-planilha") return "grid";
-      if (mode === "planilha-faixas" && v !== "infantil") return "grid";
-      return mode;
-    });
   };
 
-  const opcoesViewMode = useMemo(() => {
-    if (ministerioSelecionado === "infantil") {
-      return [
-        { id: "cards", label: "TABELA" },
-        { id: "grid", label: "Planilha 1" },
-        { id: "planilha-faixas", label: "Planilha 2" },
-      ];
-    }
-    return [
-      { id: "cards", label: "TABELA" },
-      { id: "grid", label: "PLANILHA" },
-    ];
-  }, [ministerioSelecionado]);
-
-  const opcoesViewModeVisiveis = useMemo(() => {
-    if (isTabletUp) return opcoesViewMode;
-    return opcoesViewMode.filter((o) => o.id === "cards");
-  }, [opcoesViewMode, isTabletUp]);
-
-  const exibirDownload =
-    !(ministerioSelecionado === "infantil" && viewMode === "grid");
-
-  const opcoesDownload = useMemo(() => {
-    if (ministerioSelecionado === "infantil" && viewMode === "grid") {
-      return [];
-    }
-    return [
-      { label: "Tabela (Web)", icon: "▤", layout: "web", desc: "linhas e colunas" },
+  const opcoesDownload = useMemo(
+    () => [
       { label: "Planilha (Web)", icon: "▦", layout: "planilha", desc: "funções × turnos" },
       { label: "Cards (Mobile)", icon: "⊞", layout: "mobile", desc: "cards por culto" },
       { label: "Texto", icon: "✎", layout: "text", desc: "modal para copiar" },
-    ];
-  }, [ministerioSelecionado, viewMode]);
+    ],
+    []
+  );
 
   const planilhaMinisterioProps = useMemo(
     () => ({
@@ -1006,15 +950,170 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       onConflito: setConflito,
       indispRefreshKey,
       pedirConfirmacao,
+      filtroNome,
     }),
-    [escalas, datas, mes, loading, user, podeEditar, indispRefreshKey, pedirConfirmacao]
+    [escalas, datas, mes, loading, user, podeEditar, indispRefreshKey, pedirConfirmacao, filtroNome]
   );
 
-  const gridProps = useMemo(
-    () => ({ escalas, datas, loading, onRemover: handleRemover, podeEditar, filtroNome }),
-    [escalas, datas, loading, handleRemover, podeEditar, filtroNome]
-  );
   const current = ministerioConfig[ministerioSelecionado];
+
+  // ── Resumo do mês para o painel lateral ──────────────────────────────
+  const resumoCobertura = useMemo(() => {
+    const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
+    let total = 0;
+    let preenchidos = 0;
+    const contagem = new Map();
+    (datas || []).forEach((d) => {
+      const turnoKey = d.turno ?? "único";
+      funcoes.forEach((f) => {
+        total += 1;
+        const v = escalas[`${d.data}-${turnoKey}-${f}`];
+        if (!v) return;
+        if (ministerioSelecionado === "louvor" && v.toLowerCase() === "disponível") return;
+        preenchidos += 1;
+        const nome = nomeParaExibicao(v);
+        contagem.set(nome, (contagem.get(nome) || 0) + 1);
+      });
+    });
+    const ranking = [...contagem.entries()]
+      .map(([nome, qtd]) => ({ nome, qtd }))
+      .sort((a, b) => b.qtd - a.qtd || a.nome.localeCompare(b.nome));
+    const pct = total ? Math.round((preenchidos / total) * 100) : 0;
+
+    // ── Membros do ministério × quem foi (ou não) escalado ───────────────
+    const membrosCanon = [
+      ...new Set(
+        (pessoasPorMinisterio[ministerioSelecionado] || [])
+          .map((p) => normalizarNomePessoa(p))
+          .filter((p) => p && p !== "disponível")
+      ),
+    ];
+    const escaladosSet = new Set(contagem.keys());
+    const naoEscalados = membrosCanon
+      .filter((p) => !escaladosSet.has(p))
+      .sort((a, b) => a.localeCompare(b, "pt"));
+    const totalMembros = membrosCanon.length;
+    const escaladosCount = membrosCanon.filter((p) => escaladosSet.has(p)).length;
+    const vagasAbertas = total - preenchidos;
+    const mediaPorEscalado = escaladosCount
+      ? (preenchidos / escaladosCount)
+      : 0;
+
+    return {
+      total, preenchidos, pct, ranking,
+      totalMembros, escaladosCount, naoEscalados, vagasAbertas, mediaPorEscalado,
+    };
+  }, [datas, escalas, ministerioSelecionado]);
+
+  const [indispResumo, setIndispResumo] = useState([]);
+  useEffect(() => {
+    if (!ministerioSelecionado) return;
+    let cancelled = false;
+    getDocs(
+      query(
+        collection(db, "indisponibilidades"),
+        where("ministerioId", "==", ministerioSelecionado)
+      )
+    )
+      .then((snap) => {
+        if (cancelled) return;
+        const lista = [];
+        snap.docs.forEach((docSnap) => {
+          const { pessoaNome, datas: datasIndisp = [] } = docSnap.data();
+          if (!pessoaNome) return;
+          const qtd = contarIndisponibilidadesNoMes(new Set(datasIndisp), datas);
+          if (qtd > 0) lista.push({ nome: nomeParaExibicao(pessoaNome), qtd });
+        });
+        lista.sort((a, b) => b.qtd - a.qtd || a.nome.localeCompare(b.nome));
+        setIndispResumo(lista);
+      })
+      .catch(() => {
+        if (!cancelled) setIndispResumo([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ministerioSelecionado, datas, indispRefreshKey]);
+
+  // Cards do dashboard (resumo do mês) — exibidos dentro do Relatório
+  const dashboardResumo = (
+    <div className="dashboard-cards-section">
+      <div className="dashboard-cards">
+        <section className="painel-card painel-card--kpis">
+          <div className="painel-card-titulo">Visão geral do mês</div>
+          <div className="kpi-grid">
+            <div className="kpi-tile">
+              <div className="kpi-num">{resumoCobertura.pct}<span className="kpi-unit">%</span></div>
+              <div className="kpi-label">Cobertura</div>
+              <div className="kpi-barra">
+                <div className="kpi-barra-fill" style={{ width: `${resumoCobertura.pct}%` }} />
+              </div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-num">
+                {resumoCobertura.preenchidos}<span className="kpi-unit">/{resumoCobertura.total}</span>
+              </div>
+              <div className="kpi-label">Escalas preenchidas</div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-num">
+                {resumoCobertura.escaladosCount}<span className="kpi-unit">/{resumoCobertura.totalMembros}</span>
+              </div>
+              <div className="kpi-label">Membros escalados</div>
+            </div>
+            <div className="kpi-tile">
+              <div className="kpi-num">{resumoCobertura.vagasAbertas}</div>
+              <div className="kpi-label">Vagas em aberto</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="painel-card">
+          <div className="painel-card-titulo">
+            Membros não escalados
+            <span className="painel-card-badge">{resumoCobertura.naoEscalados.length}</span>
+          </div>
+          <div className="painel-card-sub">sem nenhuma escala neste mês</div>
+          {resumoCobertura.naoEscalados.length === 0 ? (
+            <div className="painel-vazio">Todos os membros foram escalados</div>
+          ) : (
+            <div className="chips-wrap">
+              {resumoCobertura.naoEscalados.map((nome) => (
+                <span key={nome} className="chip-membro">{formatarNomeTexto(nome)}</span>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {resumoCobertura.ranking.length > 0 && (
+          <section className="painel-card">
+            <div className="painel-card-titulo">Escalas por pessoa</div>
+            <div className="painel-card-sub">escalas no mês</div>
+            <ul className="painel-lista painel-lista--barras">
+              {resumoCobertura.ranking.slice(0, 6).map((p) => {
+                const max = resumoCobertura.ranking[0]?.qtd || 1;
+                const pct = Math.round((p.qtd / max) * 100);
+                return (
+                  <li key={p.nome}>
+                    <div className="painel-lista-linha">
+                      <span className="painel-lista-nome">{p.nome}</span>
+                      <span className="painel-lista-qtd">{p.qtd}</span>
+                    </div>
+                    <div className="painel-mini-barra">
+                      <div
+                        className="painel-mini-barra-fill"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
@@ -1508,6 +1607,20 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .header-btn-relatorio {
             white-space: nowrap;
           }
+          /* Header reestruturado: neutraliza larguras fixas no mobile */
+          .header-pad__start {
+            width: auto !important;
+            flex: 1 1 auto !important;
+            justify-content: flex-start !important;
+            padding: 0 !important;
+          }
+          .header-pad__end {
+            padding: 0 !important;
+            position: static !important;
+          }
+          .header-ministerio-titulo {
+            display: none !important;
+          }
           .escala-grid-host {
             width: 100%;
             max-width: 100%;
@@ -1646,45 +1759,62 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       {/* Navbar */}
       <header className="header-pad" style={{
         borderBottom: `1px solid ${theme.border}`, background: theme.surface,
-        padding: "0 24px", height: "48px", display: "flex", alignItems: "center",
+        padding: "0", height: "68px", display: "flex", alignItems: "center",
         justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100,
       }}>
-        <div className="header-pad__start" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "26px", height: "26px", borderRadius: "7px", background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentGradientEnd})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={theme.accentOnAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-          </div>
-          <span className="header-title" style={{ fontWeight: 600, fontSize: "13px", letterSpacing: "-0.2px", color: theme.text }}>
-            Escala INVB
-          </span>
-          <span className="header-sep" style={{ color: theme.border, fontSize: "16px" }}>|</span>
-
+        {/* Bloco esquerdo: largura da sidebar, seletor de mês centralizado */}
+        <div className="header-pad__start" style={{ width: "268px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 14px" }}>
           {/* Navegação de mês */}
-          <div className="mes-nav" style={{ display: "flex", alignItems: "center", gap: "1px", background: theme.bg, borderRadius: "7px", padding: "2px 3px", border: `1px solid ${theme.border}` }}>
+          <div className="mes-nav" style={{ display: "flex", alignItems: "center", gap: "2px", background: theme.bg, borderRadius: "9px", padding: "4px 5px", border: `1px solid ${theme.border}` }}>
             <button
               onClick={handleMesAnterior}
               disabled={!podeRetroceder}
               title={!podeRetroceder ? "Mês mais antigo disponível" : undefined}
-              style={{ background: "transparent", border: "none", cursor: podeRetroceder ? "pointer" : "not-allowed", color: podeRetroceder ? theme.textMuted : theme.textDim, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeRetroceder ? 1 : 0.35, transition: "all 0.15s" }}
+              style={{ background: "transparent", border: "none", cursor: podeRetroceder ? "pointer" : "not-allowed", color: podeRetroceder ? theme.textMuted : theme.textDim, padding: "4px 11px", borderRadius: "6px", fontSize: "17px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeRetroceder ? 1 : 0.35, transition: "all 0.15s" }}
               onMouseEnter={e => { if (podeRetroceder) { e.currentTarget.style.color = theme.text; e.currentTarget.style.background = theme.surface; } }}
               onMouseLeave={e => { if (podeRetroceder) { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; } }}
             >‹</button>
-            <span style={{ color: theme.text, fontSize: "12px", fontFamily: "'JetBrains Mono', monospace", minWidth: "86px", textAlign: "center", fontWeight: 500, letterSpacing: "0.5px" }}>
+            <span style={{ color: theme.text, fontSize: "14px", fontFamily: "'JetBrains Mono', monospace", minWidth: "100px", textAlign: "center", fontWeight: 600, letterSpacing: "0.5px" }}>
               {new Date(mes + "-15").toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "").toUpperCase()}
             </span>
             <button
               onClick={handleMesProximo}
               disabled={!podeAvancar}
               title={!podeAvancar ? "Dezembro é o último mês disponível" : undefined}
-              style={{ background: podeAvancar ? theme.accentDim : "transparent", border: "none", cursor: podeAvancar ? "pointer" : "not-allowed", color: podeAvancar ? theme.accent : theme.textDim, padding: "2px 8px", borderRadius: "5px", fontSize: "13px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeAvancar ? 1 : 0.35, transition: "all 0.15s" }}
+              style={{ background: podeAvancar ? theme.accentDim : "transparent", border: "none", cursor: podeAvancar ? "pointer" : "not-allowed", color: podeAvancar ? theme.accent : theme.textDim, padding: "4px 11px", borderRadius: "6px", fontSize: "17px", lineHeight: 1, fontFamily: "'Outfit', sans-serif", opacity: podeAvancar ? 1 : 0.35, transition: "all 0.15s" }}
               onMouseEnter={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = theme.accentOnAccent; } }}
               onMouseLeave={e => { if (podeAvancar) { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; } }}
             >›</button>
           </div>
         </div>
 
-        <div className="header-pad__end" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Bloco direito: ocupa a área da planilha; nome do ministério centralizado, ações à direita */}
+        <div className="header-pad__end" style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", padding: "0 24px" }}>
+          {!verRelatorio && (
+            <h1 className="header-ministerio-titulo" style={{
+              position: "absolute", left: "50%", top: "50%",
+              transform: "translate(-50%, -50%)",
+              margin: 0, pointerEvents: "none", whiteSpace: "nowrap",
+              display: "flex", alignItems: "center", gap: "10px",
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: "clamp(18px, 1.9vw, 24px)",
+              fontWeight: 700, letterSpacing: "-0.3px",
+              color: theme.text, lineHeight: 1.1,
+            }}>
+              {current.nome}
+              {!podeEditar && (
+                <span style={{
+                  fontSize: "10px", fontWeight: 700, letterSpacing: "0.3px",
+                  padding: "2px 8px", borderRadius: "20px",
+                  background: "rgba(248,113,113,0.1)", color: "#f87171",
+                  border: "1px solid rgba(248,113,113,0.3)",
+                  whiteSpace: "nowrap", lineHeight: 1.4,
+                }}>
+                  LEITURA
+                </span>
+              )}
+            </h1>
+          )}
           {onOpenRelatorio && (
             <button
               type="button"
@@ -1703,21 +1833,19 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               Relatório Geral
             </button>
           )}
-          {/* Botão toggle tema */}
-          <button
-            className="header-btn header-btn-theme"
-            onClick={toggleTheme}
-            title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
-            style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "14px", cursor: "pointer", padding: "3px 8px", lineHeight: 1, transition: "all 0.15s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
-          >
-  {isDark ? (
-    <Sun size={16} color="#F5C542" />
-  ) : (
-    <Moon size={16} color="#1a3a6b" />
-  )}
-</button>
+          {/* Toggle de tema — só no header quando a barra de ações não está visível */}
+          {!(isTabletUp && podeEditar) && (
+            <button
+              className="header-btn header-btn-theme"
+              onClick={toggleTheme}
+              title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
+              style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "14px", cursor: "pointer", padding: "3px 8px", lineHeight: 1, transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
+            >
+              {isDark ? <Sun size={16} color="#F5C542" /> : <Moon size={16} color="#1a3a6b" />}
+            </button>
+          )}
 
           <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>Olá, {user?.email}</span>
           <button className="header-btn header-btn-sair" onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
@@ -1728,7 +1856,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       </header>
 
       {/* Layout */}
-      <div className="dashboard-body" style={{ display: "flex", minHeight: "calc(100vh - 56px)", minWidth: 0, width: "100%", maxWidth: "100%" }}>
+      <div className="dashboard-body" style={{ display: "flex", minHeight: "calc(100vh - 60px)", minWidth: 0, width: "100%", maxWidth: "100%" }}>
 
         {/* Sidebar desktop */}
         <aside className="desktop-sidebar" style={{
@@ -1737,7 +1865,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           background: "var(--surface)",
           backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
           padding: "18px 14px", overflowY: "auto",
-          position: "sticky", top: "48px", height: "calc(100vh - 48px)",
+          position: "sticky", top: "68px", height: "calc(100vh - 68px)",
+          alignSelf: "flex-start",
         }}>
           <SidebarFiltros
             usuario={user}
@@ -1756,11 +1885,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </aside>
 
         {/* Main */}
-        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "20px 24px", overflowX: "hidden", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "0 24px", overflowX: "clip", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
 
           {/* Page header */}
-          <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", gap: "10px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+          <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px", gap: "10px" }}>
+            {!isTabletUp && (
+            <div style={{ order: 3, display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
               <div style={{
                 color: theme.accent, flexShrink: 0, opacity: 0.85,
                 background: theme.accentDim, borderRadius: "8px",
@@ -1782,103 +1912,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </p>
               </div>
             </div>
+            )}
 
-            {/* Alertas centralizados */}
-            <div className="page-header-alert-slot" style={{ flex: 1, display: "flex", justifyContent: "center", padding: "0 16px" }}>
-              {mensagem.texto && (
-                <div style={{
-                  padding: "7px 14px", borderRadius: "6px", fontSize: "13px", display: "flex", alignItems: "center", gap: "7px",
-                  background: mensagem.tipo === "sucesso" ? theme.successDim : theme.dangerDim,
-                  color: mensagem.tipo === "sucesso" ? theme.success : theme.danger,
-                  border: `1px solid ${mensagem.tipo === "sucesso" ? theme.success : theme.danger}33`,
-                }}>
-                  {mensagem.tipo === "sucesso" ? "✓" : "✕"} {mensagem.texto}
-                </div>
-              )}
-            </div>
+            {/* Espaçador central do cabeçalho (mantém o layout estável) */}
+            <div className="page-header-alert-slot" style={{ flex: 1, padding: "0 16px" }} />
 
+            {!isTabletUp && (
             <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, minWidth: 0 }}>
 
-              {!verRelatorio && opcoesViewModeVisiveis.length > 1 && (
-                <div
-                  className="page-header-actions__view"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: "5px",
-                    overflow: "hidden",
-                    flexShrink: 0,
-                  }}
-                >
-                  {opcoesViewModeVisiveis.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className={opt.id !== "cards" ? "view-mode-btn--planilha-desktop-only" : undefined}
-                      onClick={() => setViewMode(opt.id)}
-                      style={{
-                        padding: "5px 10px",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        fontFamily: "inherit",
-                        background: viewMode === opt.id ? theme.accentDim : "transparent",
-                        color: viewMode === opt.id ? theme.accent : theme.textMuted,
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
               <div className="page-toolbar" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", flex: 1, minWidth: 0 }}>
-              {/* Filtro por nome — apenas no modo edição e fora do relatório */}
-              {podeEditar && !verRelatorio && viewMode === "cards" && <div className="page-toolbar__search" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                  style={{ position: "absolute", left: "8px", pointerEvents: "none", zIndex: 1 }}>
-                  <circle cx="11" cy="11" r="8" stroke={theme.textMuted} strokeWidth="2"/>
-                  <path d="M21 21l-4.35-4.35" stroke={theme.textMuted} strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Filtrar nome..."
-                  value={filtroNome}
-                  onChange={e => setFiltroNome(e.target.value)}
-                  style={{
-                    padding: "5px 24px 5px 26px",
-                    background: "transparent",
-                    border: `1px solid ${filtroNome ? theme.accent : theme.border}`,
-                    borderRadius: "5px",
-                    color: theme.text,
-                    fontSize: "12px",
-                    fontFamily: "inherit",
-                    outline: "none",
-                    width: "130px",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={e => { if (!filtroNome) e.target.style.borderColor = theme.borderLight; }}
-                  onBlur={e => { if (!filtroNome) e.target.style.borderColor = theme.border; }}
-                />
-                {filtroNome && (
-                  <button
-                    onClick={() => setFiltroNome("")}
-                    style={{
-                      position: "absolute", right: "6px",
-                      background: "none", border: "none", cursor: "pointer",
-                      color: theme.textMuted, fontSize: "15px", padding: 0,
-                      lineHeight: 1, display: "flex", alignItems: "center",
-                    }}
-                    title="Limpar filtro"
-                  >×</button>
-                )}
-              </div>}
-
-              <div className="page-toolbar__buttons" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-              {exibirDownload && (
               <div
                 ref={downloadMenuRef}
                 style={{ position: "relative", display: "inline-flex" }}
@@ -1940,7 +1982,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   </div>
                 )}
               </div>
-              )}
 
               {podeEditar && (
                 <button
@@ -2070,8 +2111,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </button>
               )}
               </div>
-              </div>
             </div>
+            )}
           </div>
 
           {/* Estado de erro */}
@@ -2106,14 +2147,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
           {/* Grid ou Relatório */}
           {verRelatorio ? (
-            <RelatorioMinisterio
-              escalas={escalas}
-              datas={datas}
-              funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
-              ministerioId={ministerioSelecionado}
-              theme={theme}
-              onVoltar={() => setVerRelatorio(false)}
-            />
+            <>
+              {podeEditar && isTabletUp && dashboardResumo}
+              <RelatorioMinisterio
+                escalas={escalas}
+                datas={datas}
+                funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
+                ministerioId={ministerioSelecionado}
+                theme={theme}
+                onVoltar={() => setVerRelatorio(false)}
+              />
+            </>
           ) : loading && Object.keys(escalas).length === 0 ? (
             <SkeletonGrid
               theme={theme}
@@ -2139,48 +2183,220 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 Nenhuma data disponível para este mês
               </p>
             </div>
-          ) : isTabletUp && viewMode === "planilha-faixas" && ministerioSelecionado === "infantil" ? (
-              <PlanilhaMinisterio
-                ministerioId="infantil"
-                {...planilhaMinisterioProps}
-              />
-          ) : isTabletUp && viewMode === "grid" ? (
-            ministerioUsaPlanilhaFaixas(ministerioSelecionado) ? (
-              <PlanilhaMinisterio
-                ministerioId={ministerioSelecionado}
-                {...planilhaMinisterioProps}
-              />
-            ) : (
-              <DashboardGrid
-                ministerioId={ministerioSelecionado}
-                mes={mes}
-                datas={datas}
-                escalas={escalas}
-                loading={loading}
-                usuario={user}
-                podeEditar={podeEditar}
-                onMensagem={mostrarMensagem}
-                onConflito={setConflito}
-                indispRefreshKey={indispRefreshKey}
-                isExternalDetectionEnabled={isExternalDetectionEnabled}
-              />
-            )
-          ) : (
-            <>
-              <div ref={gridRef} className="escala-grid-host" style={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
-                {ministerioSelecionado === "comunicacao" && <GridComunicacao {...gridProps} theme={theme} />}
-                {ministerioSelecionado === "infantil"    && <GridInfantil    {...gridProps} theme={theme} />}
-                {ministerioSelecionado === "louvor"      && <GridLouvor      {...gridProps} theme={theme} />}
-                {ministerioSelecionado === "recepcao"    && <GridRecepcao    {...gridProps} theme={theme} />}
-              </div>
+          ) : ministerioTemConfigPlanilhaFaixas(ministerioSelecionado) ? (
+            <div className="escala-stack">
               {podeEditar && isTabletUp && (
-                <CrossMinistryInfo
-                  ministerioId={ministerioSelecionado}
-                  mes={mes}
-                  theme={theme}
-                />
+                <div className="qa-bar-section">
+
+                  {/* Ações rápidas — barra fixa centralizada no topo */}
+                  <div className="qa-bar">
+                    {/* Filtro: destaca a pessoa digitada na planilha */}
+                    <div className={`qa-filtro${filtroNome ? " is-active" : ""}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                      <input
+                        type="text"
+                        className="qa-filtro-input"
+                        value={filtroNome}
+                        onChange={(e) => setFiltroNome(e.target.value)}
+                        placeholder="Filtrar pessoa..."
+                        aria-label="Filtrar pessoa na planilha"
+                      />
+                      {filtroNome && (
+                        <button
+                          type="button"
+                          className="qa-filtro-clear"
+                          onClick={() => setFiltroNome("")}
+                          title="Limpar filtro"
+                          aria-label="Limpar filtro"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {[
+                      {
+                        key: "relatorio",
+                        label: "Relatório",
+                        active: verRelatorio,
+                        onClick: () => setVerRelatorio(v => !v),
+                        icon: (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 20V10M12 20V4M6 20v-6" />
+                          </svg>
+                        ),
+                      },
+                      {
+                        key: "indisponivel",
+                        label: "Indisponível",
+                        active: verIndisponibilidade,
+                        onClick: () => setVerIndisponibilidade(v => !v),
+                        icon: (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                          </svg>
+                        ),
+                      },
+                      {
+                        key: "baixar-planilha",
+                        label: "Planilha",
+                        onClick: () => handleDownload("planilha"),
+                        icon: (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                        ),
+                      },
+                      {
+                        key: "baixar-texto",
+                        label: "Texto",
+                        onClick: () => handleDownload("text"),
+                        icon: (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="8" y1="13" x2="16" y2="13" />
+                            <line x1="8" y1="17" x2="13" y2="17" />
+                          </svg>
+                        ),
+                      },
+                      {
+                        key: "tema",
+                        label: isDark ? "Tema claro" : "Tema escuro",
+                        onClick: toggleTheme,
+                        icon: isDark
+                          ? <Sun size={15} color="#F5C542" />
+                          : <Moon size={15} color="#1a3a6b" />,
+                      },
+                      ...(ministerioSelecionado === "louvor"
+                        ? [{
+                            key: "organizar-louvor",
+                            label: "Organizar",
+                            onClick: handleOrganizarLouvor,
+                            icon: (
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                              </svg>
+                            ),
+                          }]
+                        : []),
+                      ...(ministerioSelecionado === "recepcao"
+                        ? [{
+                            key: "organizar-recepcao",
+                            label: "Organizar",
+                            onClick: handleOrganizarRecepcao,
+                            icon: (
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                              </svg>
+                            ),
+                          }]
+                        : []),
+                    ].map(acao => (
+                      <button
+                        key={acao.key}
+                        type="button"
+                        className={`qa-bar-btn${acao.active ? " is-active" : ""}`}
+                        onClick={acao.onClick}
+                        disabled={acao.disabled}
+                      >
+                        {acao.icon}
+                        <span>{acao.label}</span>
+                      </button>
+                    ))}
+
+                    {/* Menu de 3 pontinhos — ação destrutiva (Limpar) */}
+                    <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
+                      <button
+                        type="button"
+                        className="acoes-kebab-btn"
+                        onClick={() => setShowAcoesMenu(v => !v)}
+                        title="Mais ações"
+                        aria-haspopup="true"
+                        aria-expanded={showAcoesMenu}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                          <circle cx="12" cy="5" r="1.7" />
+                          <circle cx="12" cy="12" r="1.7" />
+                          <circle cx="12" cy="19" r="1.7" />
+                        </svg>
+                      </button>
+                      {showAcoesMenu && (
+                        <div className="acoes-kebab-menu" role="menu">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="acoes-kebab-item is-danger"
+                            onClick={() => { setShowAcoesMenu(false); handleLimparTudo(); }}
+                            disabled={limpando}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                              <path d="M10 11v6" /><path d="M14 11v6" />
+                            </svg>
+                            <span>{limpando ? "Limpando..." : "Limpar escala"}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
-            </>
+
+              <div className="planilha-layout__main">
+                {/* Confirmação — apenas o texto, no canto inferior direito (ao lado de "Salvando...") */}
+                {mensagem.texto && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      position: "fixed",
+                      bottom: "16px",
+                      right: "16px",
+                      zIndex: 9999,
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      color: mensagem.tipo === "sucesso" ? theme.success : theme.danger,
+                      pointerEvents: "none",
+                      animation: "msg-fade 0.2s ease",
+                    }}
+                  >
+                    {mensagem.texto}
+                  </div>
+                )}
+                <PlanilhaMinisterio
+                  ministerioId={ministerioSelecionado}
+                  {...planilhaMinisterioProps}
+                />
+                {podeEditar && isTabletUp && (
+                  <CrossMinistryInfo
+                    ministerioId={ministerioSelecionado}
+                    mes={mes}
+                    theme={theme}
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              padding: "48px 24px", textAlign: "center",
+              borderRadius: "10px", border: `1px solid ${theme.border}`,
+              background: "var(--surface)",
+            }}>
+              <p style={{ fontSize: "13px", color: theme.textMuted, fontFamily: "'Outfit', sans-serif" }}>
+                Planilha indisponível para este ministério
+              </p>
+            </div>
           )}
         </main>
       </div>

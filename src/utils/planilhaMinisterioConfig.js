@@ -14,7 +14,7 @@ export const NOMES_MINISTERIOS = {
 };
 
 /** Ministérios que usam a planilha em faixas (substitui DashboardGrid). */
-export const MINISTERIOS_PLANILHA_FAIXAS = ["louvor", "comunicacao", "recepcao"];
+export const MINISTERIOS_PLANILHA_FAIXAS = ["louvor", "comunicacao", "recepcao", "infantil"];
 
 function getPessoasIntroducaoPorFuncao(funcao) {
   if (funcao === "INTRODUTOR(A) 1") {

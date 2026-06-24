@@ -65,12 +65,12 @@ export function montarFaixasPlanilha(datas) {
     faixas: [
       {
         id: "domingo-manha",
-        titulo: "Domingo Manhã",
+        titulo: "Domingo/Manhã",
         colunas: colDomingoManha,
       },
       {
         id: "domingo-noite",
-        titulo: "Domingo Noite",
+        titulo: "Domingo/Noite",
         colunas: colDomingoNoite,
       },
       {
@@ -90,9 +90,6 @@ export function formatarCabecalhoData(dataObj) {
   if (!dataObj) return "";
   const [, mes, dia] = dataObj.data.split("-");
   const diaMes = `${dia}/${mes}`;
-  if (dataObj.tipo === "quarta") return `QUA ${diaMes}`;
-  if (dataObj.turno === "manhã") return `DOM ${diaMes}`;
-  if (dataObj.turno === "noite") return `DOM ${diaMes}`;
   if (dataObj.tipo === "extra" && dataObj.descricao) {
     return dataObj.descricao.toUpperCase().slice(0, 12);
   }
