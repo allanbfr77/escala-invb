@@ -1387,9 +1387,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
           }
         }
-        /* Sem altura fixa: cada card ocupa só o necessário; cap com scroll só se exceder */
+        /* Altura fixa: cards uniformes na grade; conteúdo excedente rola dentro */
         .cross-ministry-card {
-          max-height: 360px;
+          height: 280px;
+          max-height: 280px;
         }
         .cross-ministry-scroll {
           flex: 1 1 auto;

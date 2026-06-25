@@ -1064,20 +1064,49 @@ code {
   color: var(--text);
 }
 
-/* Título da aba "Outros ministérios" */
+/* Cabeçalho da aba "Outros ministérios" */
+.cross-ministry-wrap {
+  padding-bottom: 48px;
+}
+@media (max-width: 900px) {
+  .cross-ministry-wrap {
+    padding-bottom: 72px;
+  }
+}
+
+.cross-ministry-count-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  font-family: "Outfit", sans-serif;
+  flex-shrink: 0;
+}
+
 .cross-ministry-titulo {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   font-family: "Outfit", sans-serif;
   line-height: 1.4;
-  white-space: nowrap;
+  color: var(--text);
+  text-align: center;
 }
 @media (max-width: 639px) {
+  .cross-ministry-count-circle {
+    width: 64px;
+    height: 64px;
+    font-size: 30px;
+  }
   .cross-ministry-titulo {
-    white-space: normal;
-    font-size: 13px;
+    font-size: 16px;
     letter-spacing: 0.4px;
   }
 }

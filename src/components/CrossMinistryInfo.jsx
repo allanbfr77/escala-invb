@@ -4,7 +4,6 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
-import { ACCENT_RGB, accentAlpha } from "../constants/theme";
 import { nomeParaExibicao } from "../utils/nomeExibicao";
 import BotaoVoltar from "./BotaoVoltar";
 
@@ -18,7 +17,6 @@ const MINISTERIOS = {
 export default function CrossMinistryInfo({ ministerioId, mes, theme: t, onVoltar }) {
   const [dados, setDados] = useState({});
   const [loading, setLoading] = useState(true);
-  const [hoveredCard, setHovered] = useState(null);
 
   useEffect(() => {
     if (!ministerioId || !mes) { setLoading(false); return; }
@@ -97,7 +95,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t, onVolta
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "1080px", margin: "0 auto", minWidth: 0 }}>
+    <div className="cross-ministry-wrap" style={{ width: "100%", maxWidth: "1080px", margin: "0 auto", minWidth: 0 }}>
 
       {onVoltar && (
         <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "8px" }}>
@@ -117,23 +115,13 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t, onVolta
           textAlign: "center",
         }}
       >
-        <div style={{
-          width: "60px",
-          height: "60px",
-          borderRadius: "50%",
-          border: `2px solid ${t.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "28px",
-          fontWeight: 800,
-          color: t.text,
-          lineHeight: 1,
-          fontFamily: "'Outfit', sans-serif",
-        }}>
+        <div
+          className="cross-ministry-count-circle"
+          style={{ border: `2px solid ${t.border}` }}
+        >
           {pessoas.length}
         </div>
-        <span className="cross-ministry-titulo" style={{ color: t.text }}>
+        <span className="cross-ministry-titulo">
           Membros escalados em <br className="cross-titulo-br" />outros ministérios este mês
         </span>
       </div>
@@ -144,57 +132,35 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t, onVolta
           const ministeriosIds = Object.keys(grupos);
           const totalEscalas = ministeriosIds.reduce((acc, mid) => acc + grupos[mid].length, 0);
 
-          const cfgPrimary = MINISTERIOS[ministeriosIds[0]] || {
-            color: t.accent,
-            rgb: ACCENT_RGB.replace(/\s/g, ""),
-            glow: accentAlpha(0.35),
-            border: t.accent,
-          };
-          const isHovered = hoveredCard === nome;
-
           return (
             <div
               key={nome}
               className="cross-ministry-card"
-              onMouseEnter={() => setHovered(nome)}
-              onMouseLeave={() => setHovered(null)}
               style={{
                 borderRadius: "8px",
-                border: `1px solid ${isHovered ? cfgPrimary.color : cfgPrimary.border}`,
+                border: `1px solid ${t.border}`,
                 background: t.surface,
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
                 width: "100%",
                 minHeight: 0,
-                transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
-                transform: isHovered ? "translateY(-2px)" : "translateY(0)",
-                boxShadow: isHovered ? `0 6px 20px ${cfgPrimary.glow}` : "none",
-                cursor: "default",
               }}
             >
               <div style={{
                 padding: "10px 14px",
                 borderBottom: `1px solid ${t.border}`,
-                display: "flex", alignItems: "center", justifyContent: "space-between",
                 flexShrink: 0,
               }}>
                 <span style={{
                   fontSize: "13px", fontWeight: 700, color: t.text,
                   letterSpacing: "0.3px", fontFamily: "'Outfit', sans-serif",
-                  wordBreak: "break-word", minWidth: 0,
+                  wordBreak: "break-word",
                 }}>
-                  {nome}
-                </span>
-                <span style={{
-                  fontSize: "10px", fontWeight: 700,
-                  color: cfgPrimary.color,
-                  background: `rgba(${cfgPrimary.rgb}, 0.15)`,
-                  borderRadius: "10px", padding: "2px 8px",
-                  border: `1px solid ${cfgPrimary.border || t.border}`,
-                  flexShrink: 0,
-                }}>
-                  {totalEscalas} {totalEscalas === 1 ? "escala" : "escalas"}
+                  {nome}{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    ({totalEscalas} {totalEscalas === 1 ? "escala" : "escalas"})
+                  </span>
                 </span>
               </div>
 
