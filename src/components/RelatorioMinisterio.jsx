@@ -410,23 +410,30 @@ export default function RelatorioMinisterio({
         }
 
         .rel-mes-header {
+          position: relative;
           display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 16px;
+          justify-content: center;
+          align-items: center;
           margin-bottom: 20px;
+          min-height: 40px;
+        }
+
+        .rel-mes-header-voltar {
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
         }
 
         .rel-mes-titulo {
           margin: 0;
-          font-size: 18px;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-        }
-
-        .rel-mes-subtitulo {
-          margin: 4px 0 0;
-          font-size: 12px;
+          font-size: 20px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+          font-family: 'Outfit', sans-serif;
+          line-height: 1.4;
+          text-align: center;
         }
 
         .rel-mes-voltar {
@@ -898,17 +905,16 @@ export default function RelatorioMinisterio({
           color: var(--text-muted);
         }
 
+        @media (max-width: 639px) {
+          .rel-mes-titulo {
+            font-size: 16px;
+            letter-spacing: 0.4px;
+          }
+        }
+
         @media (max-width: 520px) {
           .rel-mes-cards {
             grid-template-columns: 1fr;
-          }
-
-          .rel-mes-header {
-            flex-direction: column;
-          }
-
-          .rel-mes-voltar {
-            align-self: flex-start;
           }
 
           .rel-mes-turma-badge {
@@ -918,21 +924,14 @@ export default function RelatorioMinisterio({
       `}</style>
 
       <header className="rel-mes-header">
-        <div>
-          <h2 className="rel-mes-titulo" style={{ color: theme.text }}>
-            Escalas do mês
-          </h2>
-          <p className="rel-mes-subtitulo" style={{ color: theme.textMuted }}>
-            {resumo.obreirosEscalados} obreiro{resumo.obreirosEscalados !== 1 ? "s" : ""}
-            {resumo.turmas > 0 && (
-              <>
-                {" · "}
-                {resumo.turmas} turma{resumo.turmas !== 1 ? "s" : ""}
-              </>
-            )}
-          </p>
-        </div>
-        {onVoltar && <BotaoVoltar onClick={onVoltar} title="Voltar para escala" />}
+        <h2 className="rel-mes-titulo" style={{ color: theme.text }}>
+          Escalas do mês
+        </h2>
+        {onVoltar && (
+          <div className="rel-mes-header-voltar">
+            <BotaoVoltar onClick={onVoltar} title="Voltar para escala" />
+          </div>
+        )}
       </header>
 
       <div className="rel-mes-cards">
