@@ -1364,6 +1364,18 @@ code {
     padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
     padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
   }
+
+  .main-pad .rel-mes,
+  .escala-stack .rel-mes {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .escala-stack:has(.rel-mes) {
+    align-items: stretch;
+  }
 }
 
 /* Telas estreitas: header em duas linhas (dashboard) */

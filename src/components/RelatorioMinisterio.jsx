@@ -905,20 +905,112 @@ export default function RelatorioMinisterio({
           color: var(--text-muted);
         }
 
+        @media (max-width: 767px) {
+          .rel-mes {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+
+          .rel-mes-cards {
+            grid-template-columns: 1fr;
+            width: 100%;
+            min-width: 0;
+          }
+
+          .rel-mes-card {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+
+          .rel-mes-table-wrap,
+          .rel-mes-table-scroll {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+
+          .rel-mes-table {
+            min-width: 0;
+            width: 100%;
+            table-layout: fixed;
+          }
+
+          .rel-mes-col-turma {
+            width: 30%;
+          }
+
+          .rel-mes-col-escalas {
+            width: 48px;
+          }
+
+          .rel-mes-col-indicador {
+            width: 40px;
+          }
+
+          .rel-mes-table thead th,
+          .rel-mes-cell {
+            padding: 8px 6px;
+          }
+
+          .rel-mes-table thead th.rel-mes-th--escalas,
+          .rel-mes-cell--escalas {
+            padding-left: 4px;
+            padding-right: 4px;
+          }
+
+          .rel-mes-table thead th.rel-mes-th--indicador,
+          .rel-mes-cell--indicador {
+            padding-left: 2px;
+            padding-right: 6px;
+          }
+
+          .rel-mes-avatar {
+            width: 28px;
+            height: 28px;
+            font-size: 10px;
+          }
+
+          .rel-mes-obreiro {
+            gap: 8px;
+          }
+
+          .rel-mes-nome {
+            font-size: 12px;
+          }
+
+          .rel-mes-turma-badge {
+            max-width: 88px;
+            font-size: 10px;
+            padding: 2px 6px;
+          }
+
+          .rel-mes-escalas-num {
+            font-size: 13px;
+          }
+
+          .rel-mes-indicador {
+            min-width: 32px;
+            min-height: 32px;
+            padding: 4px 2px;
+            margin-right: 0;
+          }
+
+          .rel-mes-sem-escala-faixa {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+        }
+
         @media (max-width: 639px) {
           .rel-mes-titulo {
             font-size: 16px;
             letter-spacing: 0.4px;
-          }
-        }
-
-        @media (max-width: 520px) {
-          .rel-mes-cards {
-            grid-template-columns: 1fr;
-          }
-
-          .rel-mes-turma-badge {
-            max-width: 100px;
           }
         }
       `}</style>
