@@ -272,7 +272,7 @@ export default function Login() {
             textTransform: "uppercase", letterSpacing: "1px",
             fontFamily: "'DM Mono', monospace",
           }}>
-            Sistema de Escala · v1.0.0
+            Sistema de Escala · v1.1.0
           </span>
         </div>
 
