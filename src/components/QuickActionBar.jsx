@@ -230,11 +230,12 @@ export default function QuickActionBar({
           )}
         </div>
 
-        {itens.map((item) => (
-          <MenuItem key={item.key} item={item} onHashNavClick={onHashNavClick} />
-        ))}
+        <div className="qa-bar-items">
+          {itens.map((item) => (
+            <MenuItem key={item.key} item={item} onHashNavClick={onHashNavClick} />
+          ))}
 
-        <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
+          <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
           <button
             type="button"
             className="qa-bar-link qa-bar-link--kebab"
@@ -246,6 +247,7 @@ export default function QuickActionBar({
             disabled={!podeEditar}
           >
             <span className="qa-bar-link-icon">{ICONS.kebab}</span>
+            <span className="qa-bar-link-label qa-bar-kebab-label">Mais</span>
           </button>
           {showAcoesMenu && (
             <div className="acoes-kebab-menu" role="menu">
@@ -261,6 +263,7 @@ export default function QuickActionBar({
               </button>
             </div>
           )}
+          </div>
         </div>
       </nav>
     </div>

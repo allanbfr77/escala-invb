@@ -690,6 +690,10 @@ export default function RelatorioUnificado({
           .rel-grid-ministerios {
             grid-template-columns: 1fr !important;
           }
+          .rel-main-pad {
+            padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+            padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+          }
           .rel-carga-btn {
             flex-direction: column !important;
             align-items: stretch !important;

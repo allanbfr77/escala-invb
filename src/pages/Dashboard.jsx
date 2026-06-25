@@ -1047,10 +1047,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         /* 1366px landscape: título do ministério não sobrepõe a barra de ações */
         @media (max-width: 1024px) {
           .page-header { flex-wrap: wrap; align-items: flex-start !important; row-gap: 10px !important; }
-          .page-header-actions { flex-wrap: wrap; }
         }
 
-        /* Mobile (<768px): título no topo, respiro do header, divisor e menu fixo */
+        /* Mobile (<768px): título no topo */
         @media (max-width: 767px) {
           .main-pad { padding-top: 12px !important; }
           .page-header {
@@ -1064,16 +1063,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .page-header-top { order: 1; width: 100%; }
           .page-header-ministry { flex: 1; min-width: 0; }
           .page-header-alert-slot { display: none !important; }
-          .page-header-actions {
-            order: 2 !important;
-            position: sticky !important;
-            top: 68px !important;
-            z-index: 39 !important;
-            background: var(--bg) !important;
-            margin-bottom: 14px !important;
-            padding-bottom: 12px !important;
-            border-bottom: 1px solid var(--border) !important;
-          }
         }
         @media (min-width: 768px) {
           .page-header--with-ministry {
@@ -1099,7 +1088,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           display: flex;
           justify-content: flex-end;
         }
-        .qa-filtro--hidden { display: none !important; }
 
         /* Tablet + mobile: cards em vez de tabela */
         @media (max-width: 900px) {
@@ -1110,7 +1098,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .header-pad { padding: 0 14px !important; }
           .main-pad { padding: 14px 10px !important; }
           .page-header { flex-wrap: wrap; gap: 8px !important; }
-          .page-header-actions { width: 100%; justify-content: flex-end; }
           .btn-label { display: none; }
           .mes-nav span { min-width: 70px !important; font-size: 11px !important; }
 
@@ -1477,80 +1464,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .page-header-alert-slot {
             display: none !important;
           }
-          .page-header-actions {
-            width: 100% !important;
-            max-width: 100% !important;
-            min-width: 0;
-            flex-direction: row !important;
-            align-items: center !important;
-            justify-content: flex-start !important;
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            order: 2 !important;
-            position: sticky !important;
-            top: 68px !important;
-            z-index: 39 !important;
-            background: var(--bg) !important;
-            margin-bottom: 14px !important;
-            padding-bottom: 12px !important;
-            border-bottom: 1px solid var(--border) !important;
-          }
-          .page-header-actions__view {
-            width: 100%;
-            justify-content: center;
-          }
-          /* Toolbar mobile: grade de botões iguais e alinhados (ícone + rótulo) */
-          .page-toolbar {
-            display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
-            width: 100% !important;
-            gap: 8px !important;
-          }
-          .page-toolbar > div {
-            width: 100% !important;
-            display: flex !important;
-          }
-          .page-toolbar > button,
-          .page-toolbar > div > button {
-            width: 100% !important;
-            height: 40px !important;
-            padding: 0 8px !important;
-            gap: 5px !important;
-            justify-content: center !important;
-            box-sizing: border-box !important;
-            min-width: 0 !important;
-          }
-          .page-toolbar .btn-label {
-            display: inline !important;
-            font-size: 11px !important;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-          .page-toolbar .download-chevron {
-            display: none !important;
-          }
-          .page-toolbar__search {
-            width: 100% !important;
-            display: flex !important;
-          }
-          .page-toolbar__search input {
-            width: 100% !important;
-            flex: 1 1 auto !important;
-            min-width: 0 !important;
-            box-sizing: border-box !important;
-          }
-          .page-toolbar__buttons {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            justify-content: space-between !important;
-            width: 100% !important;
-            align-items: center !important;
-          }
-          .page-toolbar__buttons > * {
-            flex: 0 1 auto;
-          }
           .header-pad {
             flex-wrap: wrap !important;
             height: auto !important;
@@ -1858,19 +1771,20 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         {/* Main */}
         <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "0 24px", overflowX: "clip", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
 
-          {/* Page header */}
+          {/* Cabeçalho da página + ações (mobile: ícones abaixo do título) */}
+          <div className="page-header-block">
           <div className={`page-header${showMinistryHeaderBlock ? " page-header--with-ministry" : ""}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px", gap: "10px" }}>
             {showMinistryHeaderBlock && (
             <div className="page-header-top">
               <div className="page-header-ministry" style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
-              <div style={{
+              <div className="page-header-ministry-icon" style={{
                 color: theme.accent, flexShrink: 0, opacity: 0.85,
                 background: theme.accentDim, borderRadius: "8px",
                 padding: "6px", display: "flex", alignItems: "center", justifyContent: "center",
               }}>{current.icon}</div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <h2 style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "-0.1px", color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>
+                <div className="page-header-ministry-title-row" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h2 className="page-header-ministry-title" style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "-0.1px", color: theme.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>
                     {current.nome}
                   </h2>
                   {!podeEditar && (
@@ -1879,7 +1793,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     </span>
                   )}
                 </div>
-                <p style={{ fontSize: "11px", color: theme.textMuted, marginTop: "2px" }}>
+                <p className="page-header-ministry-subtitle" style={{ fontSize: "11px", color: theme.textMuted, marginTop: "2px" }}>
                   {datas.length} datas · {Object.keys(escalas).length} escalas
                 </p>
               </div>
@@ -1890,6 +1804,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             {/* Espaçador central do cabeçalho (mantém o layout estável) */}
             <div className="page-header-alert-slot" style={{ flex: 1, padding: "0 16px" }} />
           </div>
+
+          {showMinistryHeaderBlock && <hr className="page-header-block-divider page-header-block-divider--title" aria-hidden />}
 
           <QuickActionBar
             filtroNome={filtroNome}
@@ -1908,7 +1824,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onTexto={() => handleDownload("text")}
             onToggleTheme={toggleTheme}
             isDark={isDark}
-            isDark={isDark}
             onOrganizar={handleOrganizar}
             podeOrganizar={podeOrganizar}
             podeEditar={podeEditar}
@@ -1918,6 +1833,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             setShowAcoesMenu={setShowAcoesMenu}
             acoesMenuRef={acoesMenuRef}
           />
+
+          <hr className="page-header-block-divider page-header-block-divider--actions" aria-hidden />
+          </div>
 
           {/* Estado de erro */}
           {error && (
