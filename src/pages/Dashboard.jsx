@@ -955,7 +955,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   );
 
   const current = ministerioConfig[ministerioSelecionado];
-  const showMinistryHeaderBlock = !isTabletUp && !verRelatorio && !verOutrosMinisterios;
+  const showMinistryHeaderBlock = !isTabletUp;
 
   return (
     <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
