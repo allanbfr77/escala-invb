@@ -8,7 +8,7 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 import html2canvas from "html2canvas";
 
-import BotaoVoltar from "../components/BotaoVoltar";
+import QuickActionBar from "../components/QuickActionBar";
 import RelatorioMinisterio from "../components/RelatorioMinisterio";
 import SkeletonGrid from "../components/SkeletonGrid";
 import ConfirmModal from "../components/ConfirmModal";
@@ -35,7 +35,6 @@ import {
   useDashboardHashSync,
 } from "../utils/hashNavigation";
 
-import { Sun, Moon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
 
 // ─── Helpers de controle de mês ──────────────────────────────────────────────
@@ -232,8 +231,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   useDashboardHashSync(verRelatorio, verOutrosMinisterios, setVerRelatorio, setVerOutrosMinisterios);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const downloadMenuRef = useRef(null);
   const [showAcoesMenu, setShowAcoesMenu] = useState(false);
   const acoesMenuRef = useRef(null);
   const [filtroNome, setFiltroNome] = useState("");
@@ -977,14 +974,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setAppHash(verOutrosMinisterios ? HASH_SECTIONS.PLANILHA : HASH_SECTIONS.OUTROS_MINISTERIOS);
   }, [verOutrosMinisterios]);
 
-  const opcoesDownload = useMemo(
-    () => [
-      { label: "Planilha (Web)", icon: "▦", layout: "planilha", desc: "funções × turnos" },
-      { label: "Cards (Mobile)", icon: "⊞", layout: "mobile", desc: "cards por culto" },
-      { label: "Texto", icon: "✎", layout: "text", desc: "modal para copiar" },
-    ],
-    []
-  );
+  const naPlanilha = !verRelatorio && !verOutrosMinisterios;
+  const podeOrganizar = ministerioSelecionado === "louvor" || ministerioSelecionado === "recepcao";
+  const handleOrganizar = useCallback(() => {
+    if (ministerioSelecionado === "louvor") handleOrganizarLouvor();
+    else if (ministerioSelecionado === "recepcao") handleOrganizarRecepcao();
+  }, [ministerioSelecionado, handleOrganizarLouvor, handleOrganizarRecepcao]);
 
   const planilhaMinisterioProps = useMemo(
     () => ({
@@ -1823,20 +1818,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               Relatório Geral
             </a>
           )}
-          {/* Toggle de tema — só no header quando a barra de ações não está visível */}
-          {podeEditar && !isTabletUp && (
-            <button
-              className="header-btn header-btn-theme"
-              onClick={toggleTheme}
-              title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
-              style={{ background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "14px", cursor: "pointer", padding: "3px 8px", lineHeight: 1, transition: "all 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; }}
-            >
-              {isDark ? <Sun size={16} color="#F5C542" /> : <Moon size={16} color="#1a3a6b" />}
-            </button>
-          )}
-
           <span className="header-email" style={{ fontSize: "12px", color: theme.textMuted }}>Olá, {user?.email}</span>
           <button className="header-btn header-btn-sair" onClick={logout} style={{ padding: "4px 12px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = theme.danger; e.currentTarget.style.color = theme.danger; }}
@@ -1908,405 +1889,34 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
             {/* Espaçador central do cabeçalho (mantém o layout estável) */}
             <div className="page-header-alert-slot" style={{ flex: 1, padding: "0 16px" }} />
-
-            {!isTabletUp && (
-            <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, minWidth: 0 }}>
-
-              <div className="page-toolbar" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", flex: 1, minWidth: 0 }}>
-              <div
-                ref={downloadMenuRef}
-                style={{ position: "relative", display: "inline-flex" }}
-                onBlur={e => { if (!downloadMenuRef.current?.contains(e.relatedTarget)) setShowDownloadMenu(false); }}
-              >
-                <button
-                  onClick={() => { setShowDownloadMenu(v => !v); }}
-                  disabled={baixando || !podeEditar}
-                  title={!podeEditar ? "Disponível apenas no modo de edição" : "Baixar escala"}
-                  style={{
-                    padding: "5px 10px", background: "transparent",
-                    border: `1px solid ${theme.border}`, borderRadius: "5px",
-                    color: !podeEditar ? theme.textDim : theme.textMuted,
-                    fontSize: "12px",
-                    cursor: (baixando || !podeEditar) ? "not-allowed" : "pointer",
-                    fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
-                    opacity: !podeEditar ? 0.35 : 1,
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  <span className="btn-label">{baixando ? "Gerando..." : "Baixar escala"}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                    className="download-chevron"
-                    style={{ marginLeft:"2px", transition:"transform 0.15s", transform: showDownloadMenu ? "rotate(180deg)" : "rotate(0deg)" }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                {showDownloadMenu && (
-                  <div style={{
-                    position:"absolute", top:"calc(100% + 4px)", right:0,
-                    background: theme.surface, border:`1px solid ${theme.border}`,
-                    borderRadius:"7px", boxShadow:"0 8px 24px rgba(0,0,0,0.35)",
-                    zIndex:200, minWidth:"170px", overflow:"hidden",
-                  }}>
-                    <div style={{ padding:"6px 10px 4px", fontSize:"9px", fontWeight:600, color:theme.textDim, textTransform:"uppercase", letterSpacing:"0.6px" }}>
-                      Formato de download
-                    </div>
-                    {opcoesDownload.map(opt => (
-                      <button
-                        key={opt.layout}
-                        onClick={() => { setShowDownloadMenu(false); handleDownload(opt.layout); }}
-                        style={{
-                          width:"100%", textAlign:"left", background:"none",
-                          border:"none", padding:"8px 12px", cursor:"pointer",
-                          display:"flex", alignItems:"center", gap:"10px",
-                          color:theme.text, fontFamily:"inherit",
-                        }}
-                      >
-                        <span style={{ fontSize:"15px", lineHeight:1, color:theme.textMuted }}>{opt.icon}</span>
-                        <div>
-                          <div style={{ fontSize:"12px", fontWeight:600 }}>{opt.label}</div>
-                          <div style={{ fontSize:"10px", color:theme.textMuted }}>{opt.desc}</div>
-                        </div>
-                      </button>
-                    ))}
-                    <div style={{ height:"4px" }} />
-                  </div>
-                )}
-              </div>
-
-              {podeEditar && (
-                <a
-                  href={`#${HASH_SECTIONS.OUTROS_MINISTERIOS}`}
-                  onClick={(e) => handleHashNavClick(e, toggleOutrosMinisterios)}
-                  style={{
-                    padding: "5px 10px", fontFamily: "inherit",
-                    background: verOutrosMinisterios ? "rgba(96,165,250,0.12)" : "transparent",
-                    border: `1px solid ${verOutrosMinisterios ? "#60a5fa" : theme.border}`,
-                    borderRadius: "5px",
-                    color: verOutrosMinisterios ? "#60a5fa" : theme.textMuted,
-                    fontSize: "12px", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: "5px",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => {
-                    if (!verOutrosMinisterios) {
-                      e.currentTarget.style.borderColor = "#60a5fa";
-                      e.currentTarget.style.color = "#60a5fa";
-                      e.currentTarget.style.background = "rgba(96,165,250,0.07)";
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!verOutrosMinisterios) {
-                      e.currentTarget.style.borderColor = theme.border;
-                      e.currentTarget.style.color = theme.textMuted;
-                      e.currentTarget.style.background = "transparent";
-                    }
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                  <span className="btn-label">Outros Min.</span>
-                </a>
-              )}
-
-              {podeEditar && (
-                <a
-                  href={`#${HASH_SECTIONS.RELATORIO}`}
-                  onClick={(e) => handleHashNavClick(e, toggleRelatorio)}
-                  style={{
-                    padding: "5px 10px", fontFamily: "inherit",
-                    background: verRelatorio ? "rgba(52,211,153,0.1)" : "transparent",
-                    border: `1px solid ${verRelatorio ? "#34d399" : theme.border}`,
-                    borderRadius: "5px",
-                    color: verRelatorio ? "#34d399" : theme.textMuted,
-                    fontSize: "12px", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: "5px",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => {
-                    if (!verRelatorio) {
-                      e.currentTarget.style.borderColor = "#34d399";
-                      e.currentTarget.style.color = "#34d399";
-                      e.currentTarget.style.background = "rgba(52,211,153,0.07)";
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!verRelatorio) {
-                      e.currentTarget.style.borderColor = theme.border;
-                      e.currentTarget.style.color = theme.textMuted;
-                      e.currentTarget.style.background = "transparent";
-                    }
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 20V10M12 20V4M6 20v-6"/>
-                  </svg>
-                  <span className="btn-label">Relatório</span>
-                </a>
-              )}
-
-              {podeEditar && (
-                <button
-                  onClick={() => setVerIndisponibilidade(v => !v)}
-                  style={{
-                    padding: "5px 10px", fontFamily: "inherit",
-                    background: verIndisponibilidade ? "rgba(251,146,60,0.12)" : "transparent",
-                    border: `1px solid ${verIndisponibilidade ? "rgba(251,146,60,0.4)" : theme.border}`,
-                    borderRadius: "5px",
-                    color: verIndisponibilidade ? "#fb923c" : theme.textMuted,
-                    fontSize: "12px", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: "5px",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => {
-                    if (!verIndisponibilidade) {
-                      e.currentTarget.style.borderColor = "#ef444466";
-                      e.currentTarget.style.color = "#ef4444";
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!verIndisponibilidade) {
-                      e.currentTarget.style.borderColor = theme.border;
-                      e.currentTarget.style.color = theme.textMuted;
-                    }
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                  </svg>
-                  <span className="btn-label">Indisponível</span>
-                </button>
-              )}
-
-              {podeEditar && (
-                <button onClick={handleLimparTudo} disabled={limpando}
-                  style={{ padding: "5px 10px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#38bdf866"; e.currentTarget.style.color = "#38bdf8"; e.currentTarget.style.background = "rgba(56,189,248,0.07)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-                  </svg>
-                  <span className="btn-label">{limpando ? "Limpando..." : "Limpar mês"}</span>
-                </button>
-              )}
-              </div>
-            </div>
-            )}
           </div>
 
-          {podeEditar && isTabletUp && (
-            <div className={`qa-bar-section${(verRelatorio || verOutrosMinisterios) ? " has-voltar" : ""}`}>
-              {(verRelatorio || verOutrosMinisterios) && (
-                <div className="qa-bar-voltar">
-                  <BotaoVoltar
-                    onClick={voltarParaPlanilha}
-                    title="Voltar para escala"
-                  />
-                </div>
-              )}
-
-              {/* Ações rápidas — barra fixa centralizada no topo */}
-              <div className="qa-bar">
-                {/* Filtro: destaca a pessoa digitada na planilha */}
-                <div className={`qa-filtro${filtroNome ? " is-active" : ""}${verRelatorio || verOutrosMinisterios ? " qa-filtro--hidden" : ""}`}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    type="text"
-                    className="qa-filtro-input"
-                    value={filtroNome}
-                    onChange={(e) => setFiltroNome(e.target.value)}
-                    placeholder="Filtrar pessoa..."
-                    aria-label="Filtrar pessoa na planilha"
-                  />
-                  {filtroNome && (
-                    <button
-                      type="button"
-                      className="qa-filtro-clear"
-                      onClick={() => setFiltroNome("")}
-                      title="Limpar filtro"
-                      aria-label="Limpar filtro"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-                {[
-                  {
-                    key: "outros-ministerios",
-                    label: "Outros Min.",
-                    active: verOutrosMinisterios,
-                    href: `#${HASH_SECTIONS.OUTROS_MINISTERIOS}`,
-                    onClick: toggleOutrosMinisterios,
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    key: "relatorio",
-                    label: "Relatório",
-                    active: verRelatorio,
-                    href: `#${HASH_SECTIONS.RELATORIO}`,
-                    onClick: toggleRelatorio,
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 20V10M12 20V4M6 20v-6" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    key: "indisponivel",
-                    label: "Indisponível",
-                    active: verIndisponibilidade,
-                    onClick: () => setVerIndisponibilidade(v => !v),
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    key: "baixar-planilha",
-                    label: "Planilha",
-                    onClick: () => handleDownload("planilha"),
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    key: "baixar-texto",
-                    label: "Texto",
-                    onClick: () => handleDownload("text"),
-                    icon: (
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="8" y1="13" x2="16" y2="13" />
-                        <line x1="8" y1="17" x2="13" y2="17" />
-                      </svg>
-                    ),
-                  },
-                  {
-                    key: "tema",
-                    label: isDark ? "Tema claro" : "Tema escuro",
-                    onClick: toggleTheme,
-                    icon: isDark
-                      ? <Sun size={15} color="#F5C542" />
-                      : <Moon size={15} color="#1a3a6b" />,
-                  },
-                  ...(ministerioSelecionado === "louvor"
-                    ? [{
-                        key: "organizar-louvor",
-                        label: "Organizar",
-                        onClick: handleOrganizarLouvor,
-                        icon: (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                          </svg>
-                        ),
-                      }]
-                    : []),
-                  ...(ministerioSelecionado === "recepcao"
-                    ? [{
-                        key: "organizar-recepcao",
-                        label: "Organizar",
-                        onClick: handleOrganizarRecepcao,
-                        icon: (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                          </svg>
-                        ),
-                      }]
-                    : []),
-                ].map(acao => {
-                  const className = `qa-bar-btn${acao.active ? " is-active" : ""}`;
-                  if (acao.href) {
-                    return (
-                      <a
-                        key={acao.key}
-                        href={acao.href}
-                        className={className}
-                        onClick={(e) => handleHashNavClick(e, acao.onClick)}
-                      >
-                        {acao.icon}
-                        <span>{acao.label}</span>
-                      </a>
-                    );
-                  }
-                  return (
-                  <button
-                    key={acao.key}
-                    type="button"
-                    className={className}
-                    onClick={acao.onClick}
-                    disabled={acao.disabled}
-                  >
-                    {acao.icon}
-                    <span>{acao.label}</span>
-                  </button>
-                  );
-                })}
-
-                {/* Menu de 3 pontinhos — ação destrutiva (Limpar) */}
-                <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
-                  <button
-                    type="button"
-                    className="acoes-kebab-btn"
-                    onClick={() => setShowAcoesMenu(v => !v)}
-                    title="Mais ações"
-                    aria-haspopup="true"
-                    aria-expanded={showAcoesMenu}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                      <circle cx="12" cy="5" r="1.7" />
-                      <circle cx="12" cy="12" r="1.7" />
-                      <circle cx="12" cy="19" r="1.7" />
-                    </svg>
-                  </button>
-                  {showAcoesMenu && (
-                    <div className="acoes-kebab-menu" role="menu">
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="acoes-kebab-item is-danger"
-                        onClick={() => { setShowAcoesMenu(false); handleLimparTudo(); }}
-                        disabled={limpando}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6" /><path d="M14 11v6" />
-                        </svg>
-                        <span>{limpando ? "Limpando..." : "Limpar escala"}</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          <QuickActionBar
+            filtroNome={filtroNome}
+            onFiltroChange={(e) => setFiltroNome(e.target.value)}
+            onClearFiltro={() => setFiltroNome("")}
+            naPlanilha={naPlanilha}
+            verRelatorio={verRelatorio}
+            verOutrosMinisterios={verOutrosMinisterios}
+            verIndisponibilidade={verIndisponibilidade}
+            onToggleIndisponibilidade={() => setVerIndisponibilidade((v) => !v)}
+            onVoltarPlanilha={voltarParaPlanilha}
+            onToggleRelatorio={toggleRelatorio}
+            onToggleOutrosMinisterios={toggleOutrosMinisterios}
+            onHashNavClick={handleHashNavClick}
+            onExportar={() => handleDownload("planilha")}
+            onTexto={() => handleDownload("text")}
+            onToggleTheme={toggleTheme}
+            isDark={isDark}
+            onOrganizar={handleOrganizar}
+            podeOrganizar={podeOrganizar}
+            podeEditar={podeEditar}
+            limpando={limpando}
+            onLimparMes={handleLimparTudo}
+            showAcoesMenu={showAcoesMenu}
+            setShowAcoesMenu={setShowAcoesMenu}
+            acoesMenuRef={acoesMenuRef}
+          />
 
           {/* Estado de erro */}
           {error && (

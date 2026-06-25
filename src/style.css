@@ -1418,6 +1418,10 @@ code {
   flex: 0 0 auto;
 }
 
+.qa-bar-btn--icon {
+  padding: 6px 9px;
+}
+
 .qa-bar-kebab {
   margin-left: 0;
 }

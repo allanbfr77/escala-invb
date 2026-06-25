@@ -1,9 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { Sun, Moon, LogOut, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
+import { LogOut, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
 import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
-import BotaoVoltar from "../components/BotaoVoltar";
+import QuickActionBar from "../components/QuickActionBar";
+import { HASH_SECTIONS, setAppHash } from "../utils/hashNavigation";
 import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
 import { IconeMinisterio } from "../utils/ministerioIcons";
@@ -408,6 +409,20 @@ export default function RelatorioUnificado({
   const { loading, error, dados } = useRelatorioUnificado(mes);
   const [expandidosCarga, setExpandidosCarga] = useState(new Set());
   const [secaoAberta, setSecaoAberta] = useState(null);
+  const [filtroNome, setFiltroNome] = useState("");
+  const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
+  const [showAcoesMenu, setShowAcoesMenu] = useState(false);
+  const acoesMenuRef = useRef(null);
+
+  const handleHashNavClick = useCallback((e, action) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
+    e.preventDefault();
+    action();
+  }, []);
+
+  const goPlanilha = useCallback(() => onVoltar(), [onVoltar]);
+  const goRelatorio = useCallback(() => setAppHash(HASH_SECTIONS.RELATORIO), []);
+  const goOutrosMin = useCallback(() => setAppHash(HASH_SECTIONS.OUTROS_MINISTERIOS), []);
 
   useEffect(() => {
     setSecaoAberta(null);
@@ -795,17 +810,7 @@ export default function RelatorioUnificado({
         </div>
 
         <div className="rel-header-aside">
-          <BotaoVoltar onClick={onVoltar} title="Voltar para escala" />
           <div className="rel-header-utilities">
-            <button
-              type="button"
-              className="rel-header-icon-btn"
-              onClick={toggleTheme}
-              aria-label={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
-              title={isDark ? "Tema claro" : "Tema escuro"}
-            >
-              {isDark ? <Sun size={15} color="#F5C542" /> : <Moon size={15} color="#1a3a6b" />}
-            </button>
             <button
               type="button"
               className="rel-header-icon-btn"
@@ -821,6 +826,32 @@ export default function RelatorioUnificado({
           </span>
         </div>
       </header>
+
+      <QuickActionBar
+        filtroNome={filtroNome}
+        onFiltroChange={(e) => setFiltroNome(e.target.value)}
+        onClearFiltro={() => setFiltroNome("")}
+        naPlanilha={false}
+        verRelatorio={false}
+        verOutrosMinisterios={false}
+        verIndisponibilidade={verIndisponibilidade}
+        onToggleIndisponibilidade={() => setVerIndisponibilidade((v) => !v)}
+        onVoltarPlanilha={goPlanilha}
+        onToggleRelatorio={goRelatorio}
+        onToggleOutrosMinisterios={goOutrosMin}
+        onHashNavClick={handleHashNavClick}
+        onExportar={() => goPlanilha()}
+        onTexto={() => goPlanilha()}
+        onToggleTheme={toggleTheme}
+        isDark={isDark}
+        onOrganizar={() => goPlanilha()}
+        podeOrganizar={false}
+        podeEditar={false}
+        onLimparMes={() => goPlanilha()}
+        showAcoesMenu={showAcoesMenu}
+        setShowAcoesMenu={setShowAcoesMenu}
+        acoesMenuRef={acoesMenuRef}
+      />
 
       <main className="rel-main-pad">
         <div className="rel-title-wrap" style={{ marginBottom: "24px" }}>
