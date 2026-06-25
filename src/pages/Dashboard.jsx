@@ -980,7 +980,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   );
 
   const current = ministerioConfig[ministerioSelecionado];
-  const showMinistryHeaderBlock = !isTabletUp || verRelatorio || verOutrosMinisterios;
+  const showMinistryHeaderBlock = !isTabletUp && !verRelatorio && !verOutrosMinisterios;
 
   return (
     <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
@@ -1878,14 +1878,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </p>
               </div>
             </div>
-              {!isTabletUp && (verRelatorio || verOutrosMinisterios) && (
-                <div className="page-header-voltar">
-                  <BotaoVoltar
-                    onClick={() => (verRelatorio ? setVerRelatorio(false) : setVerOutrosMinisterios(false))}
-                    title="Voltar para escala"
-                  />
-                </div>
-              )}
             </div>
             )}
 
