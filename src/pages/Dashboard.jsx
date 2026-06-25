@@ -1908,6 +1908,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onTexto={() => handleDownload("text")}
             onToggleTheme={toggleTheme}
             isDark={isDark}
+            isDark={isDark}
             onOrganizar={handleOrganizar}
             podeOrganizar={podeOrganizar}
             podeEditar={podeEditar}

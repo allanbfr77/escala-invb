@@ -1376,97 +1376,135 @@ code {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px 14px;
 }
 
-.qa-bar-btn {
+/* Itens do menu — texto solto, sem aparência de botão */
+.qa-bar-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  gap: 5px;
+  position: relative;
+  padding: 6px 4px 8px;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
   color: var(--text-muted);
   font-family: "Outfit", sans-serif;
   font-size: 12px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
   text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s;
 }
 
-.qa-bar-btn:hover:not(:disabled) {
-  border-color: var(--accent-border);
+.qa-bar-link::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.qa-bar-link:hover:not(:disabled):not(.is-active)::after {
+  background: #f59e0b;
+}
+
+.qa-bar-link:hover:not(:disabled):not(.is-active) {
   color: var(--text);
-  background: var(--surface-hover);
 }
 
-.qa-bar-btn:disabled {
-  opacity: 0.5;
+.qa-bar-link:disabled {
+  opacity: 0.38;
   cursor: not-allowed;
 }
 
-.qa-bar-btn.is-active {
-  border-color: #34d399;
-  color: #34d399;
-  background: rgba(52, 211, 153, 0.1);
+/* Badge âmbar na página aberta */
+.qa-bar-link.is-active {
+  color: var(--text);
+  padding: 5px 10px 7px;
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.08);
 }
 
-.qa-bar-btn svg {
-  flex: 0 0 auto;
+.qa-bar-link.is-active::after {
+  display: none;
 }
 
-.qa-bar-btn--icon {
-  padding: 6px 9px;
+.qa-bar-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.88;
+}
+
+.qa-bar-link.is-active .qa-bar-link-icon {
+  opacity: 1;
+}
+
+.qa-bar-link--kebab {
+  padding: 6px 4px 8px;
 }
 
 .qa-bar-kebab {
   margin-left: 0;
 }
 
-/* Campo de filtro de pessoa na barra de ações */
+/* Campo de filtro — alinhado ao menu textual */
 .qa-filtro {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  background: var(--surface-hover);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  padding: 6px 4px 8px;
   color: var(--text-muted);
-  transition: border-color 0.15s, color 0.15s;
 }
 
-.qa-filtro:focus-within {
-  border-color: var(--accent);
+.qa-filtro-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Outfit", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.qa-filtro.is-active .qa-filtro-label {
   color: var(--text);
 }
 
-.qa-filtro.is-active {
-  border-color: var(--accent);
-}
-
-.qa-filtro svg {
-  flex: 0 0 auto;
-}
-
 .qa-filtro-input {
-  width: 120px;
+  width: 88px;
   border: none;
+  border-bottom: 1px solid var(--border);
   outline: none;
   background: transparent;
   color: var(--text);
   font-family: "Outfit", sans-serif;
   font-size: 12px;
   font-weight: 600;
-  padding: 0;
+  padding: 0 0 2px;
+  transition: border-color 0.15s;
 }
 
 .qa-filtro-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-weight: 500;
+}
+
+.qa-filtro:focus-within .qa-filtro-input {
+  border-bottom-color: #f59e0b;
 }
 
 .qa-filtro-clear {
@@ -1475,19 +1513,20 @@ code {
   justify-content: center;
   width: 18px;
   height: 18px;
-  flex: 0 0 auto;
   padding: 0;
-  background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: 50%;
+  background: transparent;
   color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 
 .qa-filtro-clear:hover {
-  background: var(--surface);
   color: var(--text);
+  background: var(--surface-hover);
 }
 
 .dashboard-divider {
@@ -1678,31 +1717,21 @@ code {
 }
 
 .acoes-kebab-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin: -3px -4px -3px 0;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  padding: 6px 4px 8px;
+  background: none;
+  border: none;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.acoes-kebab-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-  border-color: var(--border);
 }
 
 .acoes-kebab-menu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 172px;
+  min-width: 140px;
   padding: 5px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1714,9 +1743,9 @@ code {
 .acoes-kebab-item {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 9px 12px;
   background: transparent;
   border: none;
   border-radius: 7px;
