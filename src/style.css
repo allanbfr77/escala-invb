@@ -1400,6 +1400,11 @@ code {
   display: contents;
 }
 
+/* Desktop: wrapper transparente — filhos participam do flex pai */
+.qa-bar-slot-duo {
+  display: contents;
+}
+
 /* Itens do menu — texto solto, sem aparência de botão */
 .qa-bar-link {
   display: inline-flex;
@@ -1712,6 +1717,104 @@ code {
     right: 50%;
     transform: translateX(50%);
     max-width: min(220px, calc(100vw - 24px));
+  }
+}
+
+/* Tablet/intermediário (768–1258px): ícones em 2 fileiras de 4 */
+@media (min-width: 768px) and (max-width: 1258px) {
+  .qa-bar-section {
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px;
+  }
+
+  .qa-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .qa-filtro {
+    flex: none;
+    width: 100%;
+    max-width: 340px;
+    justify-content: center;
+  }
+
+  .qa-bar-items {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px 8px;
+    width: 100%;
+    max-width: 500px;
+    justify-items: center;
+    align-items: start;
+  }
+
+  .qa-bar-slot-duo {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    max-width: 110px;
+  }
+
+  .qa-bar-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    width: 100%;
+    max-width: 100px;
+    min-height: 54px;
+    padding: 6px 2px 8px;
+    font-size: 11px;
+    gap: 5px;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .qa-bar-slot-duo .qa-bar-link {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .qa-bar-link.is-active {
+    padding: 5px 6px 7px;
+  }
+
+  .qa-bar-link-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .qa-bar-link-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .qa-bar-slot-duo .qa-bar-kebab {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .qa-bar-slot-duo .qa-bar-link--kebab {
+    flex-direction: column;
+    min-height: 48px;
+    max-width: 36px;
+    width: auto;
+    padding: 6px 2px 8px;
+    gap: 5px;
+  }
+
+  .qa-bar-slot-duo .qa-bar-kebab-label {
+    display: none;
   }
 }
 
