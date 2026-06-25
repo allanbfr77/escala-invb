@@ -26,6 +26,14 @@ import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelper
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
 import { pedirConfirmacao as pedirConfirmacaoAsync, cancelarConfirmacao } from "../utils/confirmacaoAsync";
+import {
+  HASH_SECTIONS,
+  parseAppHash,
+  setAppHash,
+  isDashboardHash,
+  dashboardFlagsFromSection,
+  useDashboardHashSync,
+} from "../utils/hashNavigation";
 
 import { Sun, Moon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
@@ -211,8 +219,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   useEffect(() => {
     localStorage.setItem(EXTERNAL_DETECTION_STORAGE_KEY, JSON.stringify(externalDetectionByMinisterio));
   }, [externalDetectionByMinisterio]);
-  const [verRelatorio, setVerRelatorio] = useState(false);
-  const [verOutrosMinisterios, setVerOutrosMinisterios] = useState(false);
+
+  const initialDashboardFlags = (() => {
+    const section = parseAppHash();
+    return isDashboardHash(section)
+      ? dashboardFlagsFromSection(section)
+      : { verRelatorio: false, verOutrosMinisterios: false };
+  })();
+
+  const [verRelatorio, setVerRelatorio] = useState(initialDashboardFlags.verRelatorio);
+  const [verOutrosMinisterios, setVerOutrosMinisterios] = useState(initialDashboardFlags.verOutrosMinisterios);
+  useDashboardHashSync(verRelatorio, verOutrosMinisterios, setVerRelatorio, setVerOutrosMinisterios);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -930,28 +947,35 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setMinisterioSelecionado(v);
     setVerRelatorio(false);
     setVerOutrosMinisterios(false);
+    setAppHash(HASH_SECTIONS.PLANILHA, { replace: true });
   };
 
+  const prevMesRef = useRef(mes);
   useEffect(() => {
+    if (prevMesRef.current === mes) return;
+    prevMesRef.current = mes;
     setVerRelatorio(false);
     setVerOutrosMinisterios(false);
+    setAppHash(HASH_SECTIONS.PLANILHA, { replace: true });
   }, [mes]);
 
-  const toggleRelatorio = useCallback(() => {
-    setVerRelatorio((v) => {
-      const next = !v;
-      if (next) setVerOutrosMinisterios(false);
-      return next;
-    });
+  const voltarParaPlanilha = useCallback(() => {
+    setAppHash(HASH_SECTIONS.PLANILHA);
   }, []);
 
-  const toggleOutrosMinisterios = useCallback(() => {
-    setVerOutrosMinisterios((v) => {
-      const next = !v;
-      if (next) setVerRelatorio(false);
-      return next;
-    });
+  const handleHashNavClick = useCallback((e, action) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
+    e.preventDefault();
+    action();
   }, []);
+
+  const toggleRelatorio = useCallback(() => {
+    setAppHash(verRelatorio ? HASH_SECTIONS.PLANILHA : HASH_SECTIONS.RELATORIO);
+  }, [verRelatorio]);
+
+  const toggleOutrosMinisterios = useCallback(() => {
+    setAppHash(verOutrosMinisterios ? HASH_SECTIONS.PLANILHA : HASH_SECTIONS.OUTROS_MINISTERIOS);
+  }, [verOutrosMinisterios]);
 
   const opcoesDownload = useMemo(
     () => [
@@ -1781,22 +1805,23 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             )}
           </h1>
           {onOpenRelatorio && (
-            <button
-              type="button"
+            <a
+              href={`#${HASH_SECTIONS.RELATORIO_GERAL}`}
               className="header-btn header-btn-relatorio"
-              onClick={onOpenRelatorio}
+              onClick={(e) => handleHashNavClick(e, onOpenRelatorio)}
               title="Relatório geral de todos os ministérios"
               style={{
                 padding: "4px 12px", background: theme.accentDim,
                 border: `1px solid var(--accent-border)`, borderRadius: "5px",
                 color: theme.accent, fontSize: "12px", fontWeight: 600,
                 cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                textDecoration: "none",
               }}
               onMouseEnter={e => { e.currentTarget.style.background = theme.accent; e.currentTarget.style.color = theme.accentOnAccent; }}
               onMouseLeave={e => { e.currentTarget.style.background = theme.accentDim; e.currentTarget.style.color = theme.accent; }}
             >
               Relatório Geral
-            </button>
+            </a>
           )}
           {/* Toggle de tema — só no header quando a barra de ações não está visível */}
           {podeEditar && !isTabletUp && (
@@ -1951,8 +1976,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               </div>
 
               {podeEditar && (
-                <button
-                  onClick={toggleOutrosMinisterios}
+                <a
+                  href={`#${HASH_SECTIONS.OUTROS_MINISTERIOS}`}
+                  onClick={(e) => handleHashNavClick(e, toggleOutrosMinisterios)}
                   style={{
                     padding: "5px 10px", fontFamily: "inherit",
                     background: verOutrosMinisterios ? "rgba(96,165,250,0.12)" : "transparent",
@@ -1985,12 +2011,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                   <span className="btn-label">Outros Min.</span>
-                </button>
+                </a>
               )}
 
               {podeEditar && (
-                <button
-                  onClick={toggleRelatorio}
+                <a
+                  href={`#${HASH_SECTIONS.RELATORIO}`}
+                  onClick={(e) => handleHashNavClick(e, toggleRelatorio)}
                   style={{
                     padding: "5px 10px", fontFamily: "inherit",
                     background: verRelatorio ? "rgba(52,211,153,0.1)" : "transparent",
@@ -2020,7 +2047,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     <path d="M18 20V10M12 20V4M6 20v-6"/>
                   </svg>
                   <span className="btn-label">Relatório</span>
-                </button>
+                </a>
               )}
 
               {podeEditar && (
@@ -2079,7 +2106,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               {(verRelatorio || verOutrosMinisterios) && (
                 <div className="qa-bar-voltar">
                   <BotaoVoltar
-                    onClick={() => (verRelatorio ? setVerRelatorio(false) : setVerOutrosMinisterios(false))}
+                    onClick={voltarParaPlanilha}
                     title="Voltar para escala"
                   />
                 </div>
@@ -2120,6 +2147,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     key: "outros-ministerios",
                     label: "Outros Min.",
                     active: verOutrosMinisterios,
+                    href: `#${HASH_SECTIONS.OUTROS_MINISTERIOS}`,
                     onClick: toggleOutrosMinisterios,
                     icon: (
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2134,6 +2162,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                     key: "relatorio",
                     label: "Relatório",
                     active: verRelatorio,
+                    href: `#${HASH_SECTIONS.RELATORIO}`,
                     onClick: toggleRelatorio,
                     icon: (
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2212,18 +2241,34 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                         ),
                       }]
                     : []),
-                ].map(acao => (
+                ].map(acao => {
+                  const className = `qa-bar-btn${acao.active ? " is-active" : ""}`;
+                  if (acao.href) {
+                    return (
+                      <a
+                        key={acao.key}
+                        href={acao.href}
+                        className={className}
+                        onClick={(e) => handleHashNavClick(e, acao.onClick)}
+                      >
+                        {acao.icon}
+                        <span>{acao.label}</span>
+                      </a>
+                    );
+                  }
+                  return (
                   <button
                     key={acao.key}
                     type="button"
-                    className={`qa-bar-btn${acao.active ? " is-active" : ""}`}
+                    className={className}
                     onClick={acao.onClick}
                     disabled={acao.disabled}
                   >
                     {acao.icon}
                     <span>{acao.label}</span>
                   </button>
-                ))}
+                  );
+                })}
 
                 {/* Menu de 3 pontinhos — ação destrutiva (Limpar) */}
                 <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
@@ -2328,14 +2373,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
                   ministerioId={ministerioSelecionado}
                   theme={theme}
-                  onVoltar={(isTabletUp && !podeEditar) ? () => setVerRelatorio(false) : undefined}
+                  onVoltar={(isTabletUp && !podeEditar) ? voltarParaPlanilha : undefined}
                 />
               ) : verOutrosMinisterios ? (
                 <CrossMinistryInfo
                   ministerioId={ministerioSelecionado}
                   mes={mes}
                   theme={theme}
-                  onVoltar={(isTabletUp && !podeEditar) ? () => setVerOutrosMinisterios(false) : undefined}
+                  onVoltar={(isTabletUp && !podeEditar) ? voltarParaPlanilha : undefined}
                 />
               ) : (
               <div className="planilha-layout__main">
@@ -2374,14 +2419,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
               ministerioId={ministerioSelecionado}
               theme={theme}
-              onVoltar={(isTabletUp && !podeEditar) ? () => setVerRelatorio(false) : undefined}
+              onVoltar={(isTabletUp && !podeEditar) ? voltarParaPlanilha : undefined}
             />
           ) : verOutrosMinisterios ? (
             <CrossMinistryInfo
               ministerioId={ministerioSelecionado}
               mes={mes}
               theme={theme}
-              onVoltar={(isTabletUp && !podeEditar) ? () => setVerOutrosMinisterios(false) : undefined}
+              onVoltar={(isTabletUp && !podeEditar) ? voltarParaPlanilha : undefined}
             />
           ) : (
             <div style={{

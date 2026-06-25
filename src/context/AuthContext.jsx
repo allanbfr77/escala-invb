@@ -4,7 +4,7 @@ import {
   onAuthStateChanged,
   signOut,
   setPersistence,
-  browserSessionPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 
@@ -15,15 +15,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // browserSessionPersistence usa sessionStorage:
-    // - sobrevive a F5 / recarregar página ✓
-    // - sobrevive a navegar em outra aba e voltar ✓
-    // - é apagado quando o usuário fecha a aba/janela ✓
+    // browserLocalPersistence compartilha login entre abas do mesmo navegador.
+    // A sessão permanece até logout explícito ou limpeza dos dados do site.
     let unsubscribe = () => {};
 
     let unsubProfile = () => {};
 
-    setPersistence(auth, browserSessionPersistence).then(() => {
+    setPersistence(auth, browserLocalPersistence).then(() => {
       unsubscribe = onAuthStateChanged(auth, (u) => {
         unsubProfile();
         if (u) {

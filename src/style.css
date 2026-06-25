@@ -1394,6 +1394,7 @@ code {
   line-height: 1;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
+  text-decoration: none;
 }
 
 .qa-bar-btn:hover:not(:disabled) {
