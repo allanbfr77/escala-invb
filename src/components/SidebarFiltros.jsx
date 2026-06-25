@@ -857,27 +857,53 @@ export default function SidebarFiltros({
 
       {/* Ministério — dropdown customizado */}
       {(() => {
-        const CORES_MIN = {
-          comunicacao: { color: "#60a5fa", bg: "rgba(96,165,250,0.09)",  border: "rgba(96,165,250,0.28)"  },
-          louvor:      { color: "#e8c766", bg: "rgba(232,199,102,0.09)", border: "rgba(232,199,102,0.28)" },
-          recepcao:    { color: "#34d399", bg: "rgba(52,211,153,0.09)",  border: "rgba(52,211,153,0.28)"  },
-          infantil:    { color: "#f472b6", bg: "rgba(244,114,182,0.09)", border: "rgba(244,114,182,0.28)" },
-        };
         const atual = ministerios.find(m => m.id === ministerioSelecionado);
-        const corAtual = CORES_MIN[ministerioSelecionado] || { color: t.accent, bg: t.accentDim, border: t.accent };
         const isMeuAtual = ministerioSelecionado === usuario?.ministerioId;
+        const optHoverBg = t.surfaceHover || t.accentDim;
+        const optSelectedBg = optHoverBg;
+        const badgeMeuStyle = {
+          fontSize: "9px", fontWeight: 700, color: t.textMuted,
+          background: optHoverBg, border: `1px solid ${t.border}`,
+          borderRadius: "8px", padding: "1px 6px", letterSpacing: "0.3px", flexShrink: 0,
+        };
+        const readOnlyLegend = (extraStyle = {}) => (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              display: "flex", alignItems: "center", gap: "5px",
+              color: t.textMuted, fontSize: "10px", fontWeight: 500,
+              letterSpacing: "0.15px", lineHeight: 1.2,
+              ...extraStyle,
+            }}
+          >
+            <svg
+              width="11" height="11" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Somente leitura</span>
+          </div>
+        );
 
         return (
           <div style={{ ...s.field, position: "relative" }} ref={minDropRef}>
-            <label style={s.label}>Ministério</label>
+            <label id="min-drop-label" style={s.label}>Ministério</label>
 
             {/* Trigger */}
             <button
+              type="button"
+              aria-labelledby="min-drop-label"
+              aria-haspopup="listbox"
+              aria-expanded={minDropAberto}
               onClick={() => setMinDropAberto(v => !v)}
               style={{
                 width: "100%", padding: "9px 12px",
                 borderRadius: minDropAberto ? "6px 6px 0 0" : "6px",
-                border: `1px solid ${minDropAberto ? corAtual.border : t.border}`,
+                border: `1px solid ${t.border}`,
                 background: t.bg, color: t.text,
                 fontSize: "13px", fontFamily: "inherit",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -885,25 +911,14 @@ export default function SidebarFiltros({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                {isMeuAtual && (
-                  <span style={{
-                    width: "6px", height: "6px", borderRadius: "50%",
-                    background: corAtual.color, flexShrink: 0,
-                  }} />
-                )}
                 <span>{atual?.nome}</span>
-                {isMeuAtual && (
-                  <span style={{
-                    fontSize: "9px", fontWeight: 700, color: corAtual.color,
-                    background: corAtual.bg, border: `1px solid ${corAtual.border}`,
-                    borderRadius: "8px", padding: "1px 6px", letterSpacing: "0.3px",
-                  }}>meu</span>
-                )}
+                {isMeuAtual && <span style={badgeMeuStyle}>meu</span>}
               </div>
               <svg
                 width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 style={{ transition: "transform 0.2s", transform: minDropAberto ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
+                aria-hidden="true"
               >
                 <path d="M6 9l6 6 6-6"/>
               </svg>
@@ -911,63 +926,73 @@ export default function SidebarFiltros({
 
             {/* Lista suspensa */}
             {minDropAberto && (
-              <div style={{
-                position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
-                background: t.surface,
-                border: `1px solid ${t.border}`, borderTop: "none",
-                borderRadius: "0 0 6px 6px",
-                overflow: "hidden",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-              }}>
+              <div
+                role="listbox"
+                aria-labelledby="min-drop-label"
+                style={{
+                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
+                  background: t.surface,
+                  border: `1px solid ${t.border}`, borderTop: "none",
+                  borderRadius: "0 0 6px 6px",
+                  overflow: "hidden",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                }}
+              >
+                {!podeEditar && readOnlyLegend({
+                  padding: "7px 12px 6px",
+                  borderBottom: `1px solid ${t.border}`,
+                })}
                 {ministerios.map((m, i) => {
                   const isMeu      = m.id === usuario?.ministerioId;
                   const isSelected = ministerioSelecionado === m.id;
-                  const cor        = CORES_MIN[m.id] || { color: t.accent, bg: t.accentDim, border: t.accent };
+                  const optBg = isSelected ? optSelectedBg : "transparent";
                   return (
                     <button
                       key={m.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
                       onClick={() => { setMinisterioSelecionado(m.id); onConflito?.(null); setMinDropAberto(false); }}
                       style={{
                         width: "100%", padding: "9px 12px",
                         borderBottom: i < ministerios.length - 1 ? `1px solid ${t.border}` : "none",
-                        background: isSelected ? cor.bg : "transparent",
-                        border: "none", borderLeft: `3px solid ${isMeu ? cor.color : "transparent"}`,
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        background: optBg,
+                        border: "none",
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px",
                         cursor: "pointer", fontFamily: "inherit", transition: "background 0.12s",
+                        color: t.text,
                       }}
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = cor.bg; }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                      onMouseEnter={e => { e.currentTarget.style.background = optHoverBg; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = optBg; }}
+                      onFocus={e => { e.currentTarget.style.background = optHoverBg; }}
+                      onBlur={e => { e.currentTarget.style.background = optBg; }}
                     >
                       <span style={{
                         fontSize: "13px",
-                        fontWeight: isSelected ? 700 : isMeu ? 600 : 400,
-                        color: isSelected ? cor.color : isMeu ? cor.color : t.text,
+                        fontWeight: isSelected ? 600 : 400,
+                        color: t.text,
                       }}>
                         {m.nome}
                       </span>
-                      {isMeu && (
-                        <span style={{
-                          fontSize: "9px", fontWeight: 700,
-                          color: cor.color, background: cor.bg,
-                          border: `1px solid ${cor.border}`,
-                          borderRadius: "8px", padding: "1px 6px",
-                          letterSpacing: "0.3px", flexShrink: 0,
-                        }}>meu</span>
-                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                        {isMeu && <span style={badgeMeuStyle}>meu</span>}
+                        {isSelected && (
+                          <svg
+                            width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke={t.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M20 6L9 17l-5-5"/>
+                          </svg>
+                        )}
+                      </div>
                     </button>
                   );
                 })}
               </div>
             )}
 
-            {!podeEditar && (
-              <div style={{ marginTop: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", display: "flex", alignItems: "center", gap: "7px" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 9V14M12 17.5V18M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 600, letterSpacing: "0.3px" }}>SOMENTE LEITURA</span>
-              </div>
-            )}
+            {!podeEditar && !minDropAberto && readOnlyLegend({ marginTop: "6px", padding: "0 2px" })}
           </div>
         );
       })()}

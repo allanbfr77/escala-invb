@@ -1,11 +1,74 @@
 // ===== src/components/IndisponibilidadeModal.jsx =====
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
-import { formatarData } from "../utils/dateHelper";
 import { accentAlpha } from "../constants/theme";
-import { chaveIndisponibilidadeColuna, contarIndisponibilidadesNoMes } from "../utils/indisponibilidadeHelpers";
+import {
+  chaveIndisponibilidadeColuna,
+  contarIndisponibilidadesNoMes,
+  codigoTurnoIndisponibilidade,
+  dataTurnoIndisponibilidadeCurta,
+  descricaoTurnoIndisponibilidade,
+  montarSemanasIndisponibilidade,
+  COLUNAS_SEMANA,
+} from "../utils/indisponibilidadeHelpers";
+
+const ROTULOS_COLUNA_SEMANA = [
+  { key: "quarta", lines: ["QUARTA"] },
+  { key: "manha", lines: ["DOM", "MANHÃ"] },
+  { key: "noite", lines: ["DOM", "NOITE"] },
+];
+
+const badgeNeutro = (t) => ({
+  fontSize: "10px",
+  fontWeight: 600,
+  color: t.textMuted,
+  background: accentAlpha(0.06),
+  borderRadius: "10px",
+  padding: "1px 7px",
+  border: `1px solid ${t.border}`,
+  whiteSpace: "nowrap",
+});
+
+const INDISP_SCROLL_OFFSET = 8;
+
+function ancestralScrollavel(el) {
+  let node = el?.parentElement;
+  while (node && node !== document.body) {
+    const { overflowY, overflow } = window.getComputedStyle(node);
+    const podeRolar = (v) => v === "auto" || v === "scroll" || v === "overlay";
+    if ((podeRolar(overflowY) || podeRolar(overflow)) && node.scrollHeight > node.clientHeight + 1) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return document.scrollingElement ?? document.documentElement;
+}
+
+/** Alinha o cabeçalho ao topo do ancestral scrollável, após reflow do painel expandido. */
+function scrollCabecalhoAoTopo(cabecalho, containerPreferido, offset = INDISP_SCROLL_OFFSET) {
+  if (!cabecalho) return;
+
+  const executar = () => {
+    const scrollParent = containerPreferido ?? ancestralScrollavel(cabecalho);
+    if (!scrollParent) return;
+
+    if (scrollParent === document.documentElement || scrollParent === document.body) {
+      const top = window.scrollY + cabecalho.getBoundingClientRect().top - offset;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      return;
+    }
+
+    const delta = cabecalho.getBoundingClientRect().top - scrollParent.getBoundingClientRect().top - offset;
+    scrollParent.scrollTo({
+      top: Math.max(0, scrollParent.scrollTop + delta),
+      behavior: "smooth",
+    });
+  };
+
+  requestAnimationFrame(() => requestAnimationFrame(executar));
+}
 
 export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOutrosMinisterios, ministerioId, datasDisponiveis, mes, theme: t }) {
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
@@ -14,8 +77,23 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
   const [loading, setLoading] = useState(true);
   const [importando, setImportando] = useState(false);
   const [importResult, setImportResult] = useState(null); // { adicionadas: number } | null
+  const listaRef = useRef(null);
 
   const pessoas = pessoasPorMinisterio[ministerioId] || [];
+  const semanas = useMemo(
+    () => montarSemanasIndisponibilidade(datasDisponiveis),
+    [datasDisponiveis]
+  );
+
+  const alternarExpansao = (pessoa, estaAberta) => {
+    setExpandida(estaAberta ? null : pessoa);
+  };
+
+  useEffect(() => {
+    if (!aberto || !expandida) return;
+    const cabecalho = document.getElementById(`indisp-trigger-${expandida.toLowerCase()}`);
+    scrollCabecalhoAoTopo(cabecalho, listaRef.current);
+  }, [expandida, aberto]);
 
   // Carrega indisponibilidades do ministério
   useEffect(() => {
@@ -343,7 +421,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 0" }}>
+        <div ref={listaRef} style={{ flex: 1, overflowY: "auto", padding: "12px 0" }}>
           {loading ? (
             <div style={{ padding: "32px 20px", textAlign: "center", color: t.textMuted, fontSize: "13px" }}>
               Carregando...
@@ -364,16 +442,21 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                 <div key={pessoa} style={{ borderBottom: `1px solid ${t.border}` }}>
                   {/* Person row */}
                   <button
-                    onClick={() => setExpandida(aberta ? null : pessoa)}
+                    type="button"
+                    onClick={() => alternarExpansao(pessoa, aberta)}
+                    aria-expanded={aberta}
+                    aria-controls={`indisp-panel-${key}`}
+                    id={`indisp-trigger-${key}`}
                     style={{
                       width: "100%", padding: "11px 20px",
                       background: aberta ? t.accentDim : "transparent",
                       border: "none", cursor: "pointer", fontFamily: "inherit",
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       transition: "background 0.15s",
+                      scrollMarginTop: `${INDISP_SCROLL_OFFSET}px`,
                     }}
                     onMouseEnter={e => { if (!aberta) e.currentTarget.style.background = accentAlpha(0.04); }}
-                    onMouseLeave={e => { if (!aberta) e.currentTarget.style.background = "transparent"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = aberta ? t.accentDim : "transparent"; }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <span style={{
@@ -396,12 +479,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
 
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       {qtd > 0 && (
-                        <span style={{
-                          fontSize: "10px", fontWeight: 700,
-                          color: "#f87171", background: "rgba(248,113,113,0.12)",
-                          borderRadius: "10px", padding: "1px 7px",
-                          border: "1px solid rgba(248,113,113,0.25)",
-                        }}>
+                        <span style={badgeNeutro(t)}>
                           {qtd} {qtd === 1 ? "indisponível" : "indisponíveis"}
                         </span>
                       )}
@@ -417,7 +495,11 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
 
                   {/* Date list */}
                   {aberta && (
-                    <div style={{
+                    <div
+                      id={`indisp-panel-${key}`}
+                      role="region"
+                      aria-labelledby={`indisp-trigger-${key}`}
+                      style={{
                       padding: "6px 20px 12px",
                       background: accentAlpha(0.03),
                     }}>
@@ -433,13 +515,48 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                             justifyContent: "space-between",
                             gap: "8px",
                             marginTop: "4px",
-                            marginBottom: "6px",
+                            marginBottom: 0,
                           }}>
                             <span style={{ fontSize: "10px", color: t.textMuted, fontWeight: 600 }}>
                               Ações rápidas
                             </span>
                             <div style={{ display: "flex", gap: "6px" }}>
                               <button
+                                type="button"
+                                onClick={() => limparSelecao(pessoa)}
+                                disabled={isSalvando}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "5px",
+                                  border: `1px solid ${t.border}`,
+                                  background: "transparent",
+                                  color: t.textMuted,
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  cursor: isSalvando ? "not-allowed" : "pointer",
+                                  opacity: isSalvando ? 0.6 : 1,
+                                  fontFamily: "inherit",
+                                  transition: "all 0.15s",
+                                }}
+                                onMouseEnter={e => {
+                                  if (!isSalvando) {
+                                    e.currentTarget.style.borderColor = "var(--indisp-neutro-border)";
+                                    e.currentTarget.style.background = "var(--indisp-neutro-bg)";
+                                    e.currentTarget.style.color = "var(--indisp-neutro-fg)";
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  if (!isSalvando) {
+                                    e.currentTarget.style.borderColor = t.border;
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.color = t.textMuted;
+                                  }
+                                }}
+                              >
+                                Limpar seleção
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => selecionarTodasDatas(pessoa)}
                                 disabled={isSalvando}
                                 style={{
@@ -449,7 +566,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                                   background: "transparent",
                                   color: t.textMuted,
                                   fontSize: "10px",
-                                  fontWeight: 700,
+                                  fontWeight: 600,
                                   cursor: isSalvando ? "not-allowed" : "pointer",
                                   opacity: isSalvando ? 0.6 : 1,
                                   fontFamily: "inherit",
@@ -457,9 +574,9 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                                 }}
                                 onMouseEnter={e => {
                                   if (!isSalvando) {
-                                    e.currentTarget.style.borderColor = "rgba(248,113,113,0.45)";
-                                    e.currentTarget.style.background = "rgba(248,113,113,0.1)";
-                                    e.currentTarget.style.color = "#f87171";
+                                    e.currentTarget.style.borderColor = "var(--indisp-bloqueado-border)";
+                                    e.currentTarget.style.background = "var(--indisp-bloqueado-bg)";
+                                    e.currentTarget.style.color = "var(--indisp-bloqueado-fg)";
                                   }
                                 }}
                                 onMouseLeave={e => {
@@ -472,81 +589,74 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                               >
                                 Selecionar todas
                               </button>
-                              <button
-                                onClick={() => limparSelecao(pessoa)}
-                                disabled={isSalvando}
-                                style={{
-                                  padding: "4px 8px",
-                                  borderRadius: "5px",
-                                  border: `1px solid ${t.border}`,
-                                  background: "transparent",
-                                  color: t.textMuted,
-                                  fontSize: "10px",
-                                  fontWeight: 700,
-                                  cursor: isSalvando ? "not-allowed" : "pointer",
-                                  opacity: isSalvando ? 0.6 : 1,
-                                  fontFamily: "inherit",
-                                  transition: "all 0.15s",
-                                }}
-                                onMouseEnter={e => {
-                                  if (!isSalvando) {
-                                    e.currentTarget.style.borderColor = "rgba(52,211,153,0.45)";
-                                    e.currentTarget.style.background = "rgba(52,211,153,0.1)";
-                                    e.currentTarget.style.color = "#34d399";
-                                  }
-                                }}
-                                onMouseLeave={e => {
-                                  if (!isSalvando) {
-                                    e.currentTarget.style.borderColor = t.border;
-                                    e.currentTarget.style.background = "transparent";
-                                    e.currentTarget.style.color = t.textMuted;
-                                  }
-                                }}
-                              >
-                                Limpar todas
-                              </button>
                             </div>
                           </div>
 
-                          <div style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr",
-                            gap: "4px",
-                            marginTop: "4px",
-                          }}>
-                            {datasDisponiveis.map(d => {
-                              const chave = chaveIndisponibilidadeColuna(d);
-                              const marcada = indisponiveis.has(chave);
-                              return (
-                                <button
-                                  key={d.id}
-                                  onClick={() => toggleData(pessoa, d.data, d.turno)}
-                                  style={{
-                                    padding: "6px 10px", borderRadius: "5px",
-                                    border: `1px solid ${marcada ? "rgba(248,113,113,0.4)" : t.border}`,
-                                    background: marcada ? "rgba(248,113,113,0.1)" : "transparent",
-                                    color: marcada ? "#f87171" : t.textMuted,
-                                    fontSize: "11px", fontWeight: marcada ? 600 : 400,
-                                    cursor: "pointer", fontFamily: "inherit",
-                                    display: "flex", alignItems: "center", gap: "5px",
-                                    transition: "all 0.15s", textAlign: "left",
-                                  }}
-                                  onMouseEnter={e => {
-                                    if (!marcada) e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)";
-                                  }}
-                                  onMouseLeave={e => {
-                                    if (!marcada) e.currentTarget.style.borderColor = t.border;
-                                  }}
-                                >
-                                  {marcada && (
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                                      <path d="M18 6L6 18M6 6l12 12" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round"/>
-                                    </svg>
-                                  )}
-                                  {formatarData(d.data, d.turno, d.descricao)}
-                                </button>
-                              );
-                            })}
+                          <div className="indisp-acoes-divider" aria-hidden />
+
+                          <div
+                            className="indisp-semanas"
+                            role="group"
+                            aria-label={`Turnos de ${pessoa} por semana`}
+                          >
+                            <div className="indisp-semanas-header" aria-hidden>
+                              {ROTULOS_COLUNA_SEMANA.map(({ key, lines }) => (
+                                <span key={key} className="indisp-semanas-header__col">
+                                  {lines.map((line) => (
+                                    <span key={line} className="indisp-semanas-header__line">{line}</span>
+                                  ))}
+                                </span>
+                              ))}
+                            </div>
+
+                            {semanas.map((semana) => (
+                              <div key={semana.key} className="indisp-semanas-row" role="row">
+                                {COLUNAS_SEMANA.map((coluna) => {
+                                  const d = semana[coluna];
+
+                                  if (!d) {
+                                    return (
+                                      <div
+                                        key={coluna}
+                                        className="indisp-bolinha indisp-bolinha--vazia"
+                                        role="presentation"
+                                        aria-label="Sem culto nesta posição"
+                                      >
+                                        —
+                                      </div>
+                                    );
+                                  }
+
+                                  const chave = chaveIndisponibilidadeColuna(d);
+                                  const bloqueado = indisponiveis.has(chave);
+                                  const descricao = descricaoTurnoIndisponibilidade(d);
+
+                                  return (
+                                    <button
+                                      key={d.id}
+                                      type="button"
+                                      role="gridcell"
+                                      className={`indisp-bolinha ${bloqueado ? "indisp-bolinha--bloqueado" : "indisp-bolinha--neutro"}`}
+                                      aria-pressed={bloqueado}
+                                      aria-label={
+                                        bloqueado
+                                          ? `${descricao}, bloqueado — clique para liberar`
+                                          : `${descricao}, disponível — clique para bloquear`
+                                      }
+                                      disabled={isSalvando}
+                                      onClick={() => toggleData(pessoa, d.data, d.turno)}
+                                    >
+                                      <span className="indisp-bolinha__codigo">
+                                        {codigoTurnoIndisponibilidade(d)}
+                                      </span>
+                                      <span className="indisp-bolinha__data">
+                                        {dataTurnoIndisponibilidadeCurta(d.data)}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ))}
                           </div>
                         </>
                       )}
@@ -567,6 +677,16 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
           <p style={{ margin: 0, fontSize: "11px", color: t.textMuted, textAlign: "center" }}>
             Alterações salvas automaticamente
           </p>
+          <div className="indisp-legenda" aria-label="Legenda de cores">
+            <span className="indisp-legenda__item">
+              <span className="indisp-legenda__dot indisp-legenda__dot--neutro" aria-hidden />
+              Disponível
+            </span>
+            <span className="indisp-legenda__item">
+              <span className="indisp-legenda__dot indisp-legenda__dot--bloqueado" aria-hidden />
+              Indisponível
+            </span>
+          </div>
         </div>
       </div>
     </>

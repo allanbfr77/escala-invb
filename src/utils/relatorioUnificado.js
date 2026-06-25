@@ -2,6 +2,7 @@ import { gerarDatasEscala } from "./dateHelper";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { chaveIndisponibilidadeColuna, estaIndisponivelTodoMes } from "./indisponibilidadeHelpers";
+import { turnoSalvoEscala } from "./escalaDisponibilidade";
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
 export const MINISTERIOS_IDS = ["comunicacao", "louvor", "recepcao", "infantil"];
@@ -122,7 +123,7 @@ function montarEscalasPorMinisterio(escalasDocs) {
   for (const d of escalasDocs) {
     const mid = d.ministerioId;
     if (!porMinisterio[mid]) continue;
-    const turnoKey = d.turno || "único";
+    const turnoKey = turnoSalvoEscala({ turno: d.turno });
     const pl = idPessoaRelatorio(d.pessoaNome);
     if (!pl) continue;
     porMinisterio[mid][`${d.data}-${turnoKey}-${d.funcao}`] = pl;
@@ -157,7 +158,38 @@ function montarIndisponibilidadesMap(indispDocs, mes) {
   return map;
 }
 
-function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
+function encontrarDataObj(datas, data, turnoKey) {
+  const exato = datas.find((dt) => dt.data === data && turnoSalvoEscala(dt) === turnoKey);
+  if (exato) return exato;
+  const porData = datas.filter((dt) => dt.data === data);
+  if (porData.length === 1) return porData[0];
+  return null;
+}
+
+function adicionarSlotPessoa(porPessoa, pl, dataObj, funcao) {
+  if (!porPessoa[pl]) porPessoa[pl] = [];
+  const turnoKey = turnoSalvoEscala(dataObj);
+  const jaExiste = porPessoa[pl].some(
+    (s) => s.data === dataObj.data && turnoSalvoEscala(s) === turnoKey && s.funcao === funcao
+  );
+  if (!jaExiste) {
+    porPessoa[pl].push({ ...dataObj, funcao });
+  }
+}
+
+/** Reforça contagens a partir dos documentos reais (evita falso "sem escala"). */
+function enriquecerPorPessoaComDocumentos(porPessoa, datas, escalasDocsMinisterio) {
+  for (const d of escalasDocsMinisterio || []) {
+    const pl = idPessoaRelatorio(d.pessoaNome);
+    if (!pl) continue;
+    const turnoKey = turnoSalvoEscala({ turno: d.turno });
+    const dataObj = encontrarDataObj(datas, d.data, turnoKey);
+    if (!dataObj) continue;
+    adicionarSlotPessoa(porPessoa, pl, dataObj, d.funcao);
+  }
+}
+
+function calcularRelatorioMinisterio(ministerioId, datas, escalasMap, escalasDocsMinisterio) {
   const funcoes = funcoesPorMinisterio[ministerioId] || [];
   const todasPessoas = (pessoasPorMinisterio[ministerioId] || []).filter(
     (p) => !isExcluidaRelatorioGeral(p)
@@ -179,7 +211,7 @@ function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
   });
 
   datas.forEach((dataObj) => {
-    const turnoKey = dataObj.turno ?? "único";
+    const turnoKey = turnoSalvoEscala(dataObj);
     funcoes.forEach((f) => {
       totalSlots++;
       const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
@@ -187,13 +219,14 @@ function calcularRelatorioMinisterio(ministerioId, datas, escalasMap) {
         preenchidos++;
         const pl = idPessoaRelatorio(pessoa);
         if (!pl) return;
-        if (!porPessoa[pl]) porPessoa[pl] = [];
-        porPessoa[pl].push({ ...dataObj, funcao: f });
+        adicionarSlotPessoa(porPessoa, pl, dataObj, f);
       } else {
         slotsVazios.push({ dataObj, funcao: f });
       }
     });
   });
+
+  enriquecerPorPessoaComDocumentos(porPessoa, datas, escalasDocsMinisterio);
 
   const relatorioPessoas = Object.entries(porPessoa).map(([pessoa, slots]) => {
     const porFuncao = {};
@@ -264,7 +297,7 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
     const funcoes = funcoesPorMinisterio[mid] || [];
 
     datas.forEach((dataObj) => {
-      const turnoKey = dataObj.turno ?? "único";
+      const turnoKey = turnoSalvoEscala(dataObj);
       funcoes.forEach((f) => {
         const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
         const pl = idPessoaRelatorio(pessoa);
@@ -472,6 +505,11 @@ function agruparAlertasTurnoDia(alertas) {
 export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, indispDocs) {
   const escalasPorMinisterio = montarEscalasPorMinisterio(escalasDocs);
 
+  const escalasDocsPorMinisterio = {};
+  for (const mid of MINISTERIOS_IDS) {
+    escalasDocsPorMinisterio[mid] = (escalasDocs || []).filter((d) => d.ministerioId === mid);
+  }
+
   const extrasPorMinisterio = {};
   for (const mid of MINISTERIOS_IDS) {
     extrasPorMinisterio[mid] = (cultosExtrasDocs || []).filter((e) => e.ministerioId === mid);
@@ -485,7 +523,8 @@ export function calcularRelatorioUnificado(mes, escalasDocs, cultosExtrasDocs, i
     porMinisterio[mid] = calcularRelatorioMinisterio(
       mid,
       datasPorMinisterio[mid],
-      escalasPorMinisterio[mid] || {}
+      escalasPorMinisterio[mid] || {},
+      escalasDocsPorMinisterio[mid]
     );
   }
 

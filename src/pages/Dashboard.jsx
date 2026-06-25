@@ -21,7 +21,7 @@ import { podeEditarMinisterio } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
 import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
 import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
-import { estaIndisponivelTodoMesFromSet, contarIndisponibilidadesNoMes } from "../utils/indisponibilidadeHelpers";
+import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
 import { pedirConfirmacao as pedirConfirmacaoAsync, cancelarConfirmacao } from "../utils/confirmacaoAsync";
@@ -957,164 +957,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
   const current = ministerioConfig[ministerioSelecionado];
 
-  // ── Resumo do mês para o painel lateral ──────────────────────────────
-  const resumoCobertura = useMemo(() => {
-    const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
-    let total = 0;
-    let preenchidos = 0;
-    const contagem = new Map();
-    (datas || []).forEach((d) => {
-      const turnoKey = d.turno ?? "único";
-      funcoes.forEach((f) => {
-        total += 1;
-        const v = escalas[`${d.data}-${turnoKey}-${f}`];
-        if (!v) return;
-        if (ministerioSelecionado === "louvor" && v.toLowerCase() === "disponível") return;
-        preenchidos += 1;
-        const nome = nomeParaExibicao(v);
-        contagem.set(nome, (contagem.get(nome) || 0) + 1);
-      });
-    });
-    const ranking = [...contagem.entries()]
-      .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd || a.nome.localeCompare(b.nome));
-    const pct = total ? Math.round((preenchidos / total) * 100) : 0;
-
-    // ── Membros do ministério × quem foi (ou não) escalado ───────────────
-    const membrosCanon = [
-      ...new Set(
-        (pessoasPorMinisterio[ministerioSelecionado] || [])
-          .map((p) => normalizarNomePessoa(p))
-          .filter((p) => p && p !== "disponível")
-      ),
-    ];
-    const escaladosSet = new Set(contagem.keys());
-    const naoEscalados = membrosCanon
-      .filter((p) => !escaladosSet.has(p))
-      .sort((a, b) => a.localeCompare(b, "pt"));
-    const totalMembros = membrosCanon.length;
-    const escaladosCount = membrosCanon.filter((p) => escaladosSet.has(p)).length;
-    const vagasAbertas = total - preenchidos;
-    const mediaPorEscalado = escaladosCount
-      ? (preenchidos / escaladosCount)
-      : 0;
-
-    return {
-      total, preenchidos, pct, ranking,
-      totalMembros, escaladosCount, naoEscalados, vagasAbertas, mediaPorEscalado,
-    };
-  }, [datas, escalas, ministerioSelecionado]);
-
-  const [indispResumo, setIndispResumo] = useState([]);
-  useEffect(() => {
-    if (!ministerioSelecionado) return;
-    let cancelled = false;
-    getDocs(
-      query(
-        collection(db, "indisponibilidades"),
-        where("ministerioId", "==", ministerioSelecionado)
-      )
-    )
-      .then((snap) => {
-        if (cancelled) return;
-        const lista = [];
-        snap.docs.forEach((docSnap) => {
-          const { pessoaNome, datas: datasIndisp = [] } = docSnap.data();
-          if (!pessoaNome) return;
-          const qtd = contarIndisponibilidadesNoMes(new Set(datasIndisp), datas);
-          if (qtd > 0) lista.push({ nome: nomeParaExibicao(pessoaNome), qtd });
-        });
-        lista.sort((a, b) => b.qtd - a.qtd || a.nome.localeCompare(b.nome));
-        setIndispResumo(lista);
-      })
-      .catch(() => {
-        if (!cancelled) setIndispResumo([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ministerioSelecionado, datas, indispRefreshKey]);
-
-  // Cards do dashboard (resumo do mês) — exibidos dentro do Relatório
-  const dashboardResumo = (
-    <div className="dashboard-cards-section">
-      <div className="dashboard-cards">
-        <section className="painel-card painel-card--kpis">
-          <div className="painel-card-titulo">Visão geral do mês</div>
-          <div className="kpi-grid">
-            <div className="kpi-tile">
-              <div className="kpi-num">{resumoCobertura.pct}<span className="kpi-unit">%</span></div>
-              <div className="kpi-label">Cobertura</div>
-              <div className="kpi-barra">
-                <div className="kpi-barra-fill" style={{ width: `${resumoCobertura.pct}%` }} />
-              </div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-num">
-                {resumoCobertura.preenchidos}<span className="kpi-unit">/{resumoCobertura.total}</span>
-              </div>
-              <div className="kpi-label">Escalas preenchidas</div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-num">
-                {resumoCobertura.escaladosCount}<span className="kpi-unit">/{resumoCobertura.totalMembros}</span>
-              </div>
-              <div className="kpi-label">Membros escalados</div>
-            </div>
-            <div className="kpi-tile">
-              <div className="kpi-num">{resumoCobertura.vagasAbertas}</div>
-              <div className="kpi-label">Vagas em aberto</div>
-            </div>
-          </div>
-        </section>
-
-        <section className="painel-card">
-          <div className="painel-card-titulo">
-            Membros não escalados
-            <span className="painel-card-badge">{resumoCobertura.naoEscalados.length}</span>
-          </div>
-          <div className="painel-card-sub">sem nenhuma escala neste mês</div>
-          {resumoCobertura.naoEscalados.length === 0 ? (
-            <div className="painel-vazio">Todos os membros foram escalados</div>
-          ) : (
-            <div className="chips-wrap">
-              {resumoCobertura.naoEscalados.map((nome) => (
-                <span key={nome} className="chip-membro">{formatarNomeTexto(nome)}</span>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {resumoCobertura.ranking.length > 0 && (
-          <section className="painel-card">
-            <div className="painel-card-titulo">Escalas por pessoa</div>
-            <div className="painel-card-sub">escalas no mês</div>
-            <ul className="painel-lista painel-lista--barras">
-              {resumoCobertura.ranking.slice(0, 6).map((p) => {
-                const max = resumoCobertura.ranking[0]?.qtd || 1;
-                const pct = Math.round((p.qtd / max) * 100);
-                return (
-                  <li key={p.nome}>
-                    <div className="painel-lista-linha">
-                      <span className="painel-lista-nome">{p.nome}</span>
-                      <span className="painel-lista-qtd">{p.qtd}</span>
-                    </div>
-                    <div className="painel-mini-barra">
-                      <div
-                        className="painel-mini-barra-fill"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
       <style>{`
@@ -1790,8 +1632,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
         {/* Bloco direito: ocupa a área da planilha; nome do ministério centralizado, ações à direita */}
         <div className="header-pad__end" style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", padding: "0 24px" }}>
-          {!verRelatorio && (
-            <h1 className="header-ministerio-titulo" style={{
+          <h1 className="header-ministerio-titulo" style={{
               position: "absolute", left: "50%", top: "50%",
               transform: "translate(-50%, -50%)",
               margin: 0, pointerEvents: "none", whiteSpace: "nowrap",
@@ -1801,20 +1642,19 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               fontWeight: 700, letterSpacing: "-0.3px",
               color: theme.text, lineHeight: 1.1,
             }}>
-              {current.nome}
-              {!podeEditar && (
-                <span style={{
-                  fontSize: "10px", fontWeight: 700, letterSpacing: "0.3px",
-                  padding: "2px 8px", borderRadius: "20px",
-                  background: "rgba(248,113,113,0.1)", color: "#f87171",
-                  border: "1px solid rgba(248,113,113,0.3)",
-                  whiteSpace: "nowrap", lineHeight: 1.4,
-                }}>
-                  LEITURA
-                </span>
-              )}
-            </h1>
-          )}
+            {verRelatorio ? "RELATÓRIO" : current.nome}
+            {!verRelatorio && !podeEditar && (
+              <span style={{
+                fontSize: "10px", fontWeight: 700, letterSpacing: "0.3px",
+                padding: "2px 8px", borderRadius: "20px",
+                background: "rgba(248,113,113,0.1)", color: "#f87171",
+                border: "1px solid rgba(248,113,113,0.3)",
+                whiteSpace: "nowrap", lineHeight: 1.4,
+              }}>
+                LEITURA
+              </span>
+            )}
+          </h1>
           {onOpenRelatorio && (
             <button
               type="button"
@@ -2146,19 +1986,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           )}
 
           {/* Grid ou Relatório */}
-          {verRelatorio ? (
-            <>
-              {podeEditar && isTabletUp && dashboardResumo}
-              <RelatorioMinisterio
-                escalas={escalas}
-                datas={datas}
-                funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
-                ministerioId={ministerioSelecionado}
-                theme={theme}
-                onVoltar={() => setVerRelatorio(false)}
-              />
-            </>
-          ) : loading && Object.keys(escalas).length === 0 ? (
+          {loading && !verRelatorio && Object.keys(escalas).length === 0 ? (
             <SkeletonGrid
               theme={theme}
               colunas={
@@ -2167,7 +1995,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 ministerioSelecionado === "recepcao"    ? 3 : 3
               }
             />
-          ) : !loading && !error && datas.length === 0 ? (
+          ) : !verRelatorio && !loading && !error && datas.length === 0 ? (
             <div style={{
               padding: "48px 24px", textAlign: "center",
               borderRadius: "10px", border: `1px solid ${theme.border}`,
@@ -2352,6 +2180,16 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </div>
               )}
 
+              {verRelatorio ? (
+                <RelatorioMinisterio
+                  escalas={escalas}
+                  datas={datas}
+                  funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
+                  ministerioId={ministerioSelecionado}
+                  theme={theme}
+                  onVoltar={() => setVerRelatorio(false)}
+                />
+              ) : (
               <div className="planilha-layout__main">
                 {/* Confirmação — apenas o texto, no canto inferior direito (ao lado de "Salvando...") */}
                 {mensagem.texto && (
@@ -2386,7 +2224,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   />
                 )}
               </div>
+              )}
             </div>
+          ) : verRelatorio ? (
+            <RelatorioMinisterio
+              escalas={escalas}
+              datas={datas}
+              funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
+              ministerioId={ministerioSelecionado}
+              theme={theme}
+              onVoltar={() => setVerRelatorio(false)}
+            />
           ) : (
             <div style={{
               padding: "48px 24px", textAlign: "center",

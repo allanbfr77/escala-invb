@@ -256,56 +256,55 @@ function CelulaSelect({
       document.body
     );
 
+  const toggleMenu = () => {
+    if (desabilitado) return;
+    if (aberto) fecharMenu();
+    else abrirMenu();
+  };
+
+  const celulaClassFinal = [
+    celulaClass,
+    desabilitado ? "planilha-louvor-celula--disabled" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <td
-      className={celulaClass}
+      ref={triggerRef}
+      className={celulaClassFinal}
       data-label={funcao}
       data-faixa={faixaId || undefined}
+      role="button"
+      tabIndex={desabilitado ? -1 : 0}
+      aria-expanded={aberto}
+      aria-haspopup="listbox"
+      aria-disabled={desabilitado}
+      aria-label={`${funcao} em ${labelCulto}`}
+      onClick={toggleMenu}
+      onKeyDown={(e) => {
+        if (desabilitado) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleMenu();
+        }
+      }}
     >
       <div className="planilha-louvor-select-wrap">
         <div
-          ref={triggerRef}
-          role="button"
-          tabIndex={desabilitado ? -1 : 0}
           className={[
             "planilha-louvor-select-trigger",
-            aberto && menuPos?.placement === "above"
-              ? "planilha-louvor-select-trigger--dropup"
-              : "",
-            desabilitado ? "planilha-louvor-select-trigger--disabled" : "",
             valor ? "planilha-louvor-select-trigger--com-valor" : "",
           ]
             .filter(Boolean)
             .join(" ")}
-          aria-expanded={aberto}
-          aria-haspopup="listbox"
-          aria-disabled={desabilitado}
-          aria-label={`${funcao} em ${labelCulto}`}
-          onClick={() => {
-            if (desabilitado) return;
-            if (aberto) fecharMenu();
-            else abrirMenu();
-          }}
-          onKeyDown={(e) => {
-            if (desabilitado) return;
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              if (aberto) fecharMenu();
-              else abrirMenu();
-            }
-          }}
         >
-          <div className="planilha-louvor-select-leading">
-            <span
-              className={`planilha-louvor-select-valor ${valorClass}`}
-              title={valor || undefined}
-            >
-              {valor || "—"}
-            </span>
-            <span className="planilha-louvor-select-chevron" aria-hidden>
-              ▾
-            </span>
-          </div>
+          <span
+            className={`planilha-louvor-select-valor ${valorClass}`}
+            title={valor || undefined}
+          >
+            {valor || "—"}
+          </span>
           {exibirRemover && (
             <button
               type="button"

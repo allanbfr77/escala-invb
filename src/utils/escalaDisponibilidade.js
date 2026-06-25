@@ -2,10 +2,21 @@ import { funcoesPorMinisterio } from "../data/funcoes";
 import { ministerioPermiteEscalaFlexivel } from "./regrasMinisterio";
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
+/** Normaliza turno gravado ou exibido para a chave do mapa de escalas. */
+function normalizarTurnoCanonico(turno) {
+  if (turno == null || turno === "" || turno === "único") return "único";
+  const folded = String(turno)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  if (folded === "manha") return "manhã";
+  if (folded === "noite") return "noite";
+  return turno;
+}
+
 /** Turno persistido no mapa de escalas (alinhado a PlanilhaMinisterio / Sidebar). */
 export function turnoSalvoEscala(dataObj) {
-  const t = dataObj?.turno ?? "único";
-  return t === "único" ? "único" : t;
+  return normalizarTurnoCanonico(dataObj?.turno);
 }
 
 export function chaveSlotEscala(dataObj, funcao) {
