@@ -278,7 +278,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
       <style>{`@keyframes indispSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
       {/* Panel */}
-      <div style={{
+      <div className="indisp-panel" style={{
         position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 301,
         width: "380px", maxWidth: "100vw",
         background: t.surface,
@@ -499,6 +499,7 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                       id={`indisp-panel-${key}`}
                       role="region"
                       aria-labelledby={`indisp-trigger-${key}`}
+                      className="indisp-person-panel"
                       style={{
                       padding: "6px 20px 12px",
                       background: accentAlpha(0.03),

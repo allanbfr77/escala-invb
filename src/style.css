@@ -2796,7 +2796,7 @@ code {
 .indisp-semanas-header,
 .indisp-semanas-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: 14px;
 }
 
@@ -2829,9 +2829,11 @@ code {
 
 .indisp-bolinha {
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 1;
   height: auto;
   margin: 0;
+  justify-self: center;
   box-sizing: border-box;
   border-radius: 50%;
   border: 1.5px solid;
@@ -2936,4 +2938,53 @@ code {
 .indisp-legenda__dot--bloqueado {
   background: var(--indisp-bloqueado-bg);
   border-color: var(--indisp-bloqueado-border);
+}
+
+@media (max-width: 767px) {
+  .indisp-panel {
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  .indisp-person-panel {
+    padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box;
+  }
+
+  .indisp-semanas {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .indisp-semanas-header,
+  .indisp-semanas-row {
+    column-gap: clamp(6px, 2.5vw, 10px);
+  }
+
+  .indisp-semanas-header__col {
+    padding-inline: 2px;
+  }
+
+  .indisp-semanas-header {
+    font-size: 8px;
+  }
+
+  .indisp-bolinha {
+    width: min(100%, clamp(68px, 22vw, 88px));
+  }
+
+  .indisp-bolinha__codigo {
+    font-size: clamp(11px, 3.2vw, 13px);
+  }
+
+  .indisp-bolinha__data {
+    font-size: clamp(9px, 2.6vw, 10px);
+  }
+
+  .indisp-bolinha--vazia {
+    font-size: clamp(11px, 3vw, 13px);
+  }
 }
