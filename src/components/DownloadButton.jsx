@@ -13,13 +13,7 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
       }}
     >
       <button
-        onClick={() => {
-          if (window.innerWidth <= 768) {
-            onDownload("mobile");
-          } else {
-            setShowMenu(v => !v);
-          }
-        }}
+        onClick={() => setShowMenu(v => !v)}
         disabled={baixando || !podeEditar}
         title={!podeEditar ? "Disponível apenas no modo de edição" : "Baixar escala"}
         style={{
@@ -67,8 +61,8 @@ export default function DownloadButton({ baixando, podeEditar, onDownload }) {
             Formato de download
           </div>
           {[
-            { label: "Tabela (Web)",   icon: "▤", layout: "web",    desc: "linhas e colunas" },
-            { label: "Cards (Mobile)", icon: "⊞", layout: "mobile", desc: "cards por culto"  },
+            { label: "Planilha", icon: "▤", layout: "planilha", desc: "faixas por culto" },
+            { label: "Tabela (Web)", icon: "▥", layout: "web", desc: "linhas e colunas" },
           ].map(opt => (
             <button
               key={opt.layout}

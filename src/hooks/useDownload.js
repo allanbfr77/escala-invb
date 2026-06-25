@@ -37,7 +37,6 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
         .toUpperCase();
 
       const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
-      const isMobile = layout !== undefined ? layout === "mobile" : window.innerWidth <= 768;
 
       const headerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;
@@ -61,103 +60,52 @@ export function useDownload({ ministerioSelecionado, mes, escalas, datas, mostra
       wrapper.style.background = LT.bg;
       wrapper.style.display    = "inline-block";
 
-      if (isMobile) {
-        const cols = 3;
-        wrapper.style.padding = "16px";
-        wrapper.style.width   = "900px";
+      const thStyle = `padding:9px 14px;text-align:left;font-weight:600;
+        color:${LT.textMuted};font-size:10px;text-transform:uppercase;
+        letter-spacing:0.8px;white-space:nowrap;font-family:'Outfit',sans-serif;`;
 
-        let cardsHTML = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px;">`;
+      let theadHTML = `<tr style="border-bottom:1px solid ${LT.border};">
+        <th style="${thStyle}border-right:1px solid ${LT.border};">Data</th>`;
+      funcoes.forEach(f => {
+        theadHTML += `<th style="${thStyle}">${f}</th>`;
+      });
+      theadHTML += "</tr>";
 
-        datas.forEach(dataObj => {
-          const turnoKey  = dataObj.turno ?? "único";
-          const dataLabel = formatarData(dataObj.data, dataObj.turno, dataObj.descricao);
-
-          let rowsHTML = "";
-          funcoes.forEach(f => {
-            const pessoa      = escalas[`${dataObj.data}-${turnoKey}-${f}`];
-            const isDisponivel = pessoa === "disponível";
-            rowsHTML += `
-              <div style="display:flex;justify-content:space-between;align-items:baseline;
-                gap:4px;padding:2px 0;border-bottom:1px solid ${LT.border};">
-                <span style="font-size:8px;color:${LT.textMuted};font-weight:500;
-                  text-transform:uppercase;letter-spacing:0.2px;
-                  font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
-                  overflow:hidden;text-overflow:ellipsis;">${f}</span>
-                <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
-                  color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
-                  font-family:'Outfit',sans-serif;white-space:nowrap;">
-                  ${pessoa ? nomeParaExibicao(pessoa) : "—"}
-                </span>
-              </div>
-            `;
-          });
-
-          cardsHTML += `
-            <div style="background:${LT.surface};border:1px solid ${LT.border};
-              border-radius:8px;overflow:hidden;">
-              <div style="background:#F1F5F9;border-bottom:1px solid ${LT.border};
-                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.textMuted};
-                font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:0.3px;">
-                ${dataLabel}
-              </div>
-              <div style="padding:6px 10px;display:flex;flex-direction:column;gap:0px;">
-                ${rowsHTML}
-              </div>
-            </div>
-          `;
-        });
-
-        cardsHTML += "</div>";
-        wrapper.innerHTML = headerHTML + cardsHTML;
-
-      } else {
-        const thStyle = `padding:9px 14px;text-align:left;font-weight:600;
-          color:${LT.textMuted};font-size:10px;text-transform:uppercase;
-          letter-spacing:0.8px;white-space:nowrap;font-family:'Outfit',sans-serif;`;
-
-        let theadHTML = `<tr style="border-bottom:1px solid ${LT.border};">
-          <th style="${thStyle}border-right:1px solid ${LT.border};">Data</th>`;
+      let tbodyHTML = "";
+      datas.forEach((dataObj, idx) => {
+        const turnoKey = dataObj.turno ?? "único";
+        const rowBg    = idx % 2 === 0 ? LT.surface : LT.zebra;
+        tbodyHTML += `<tr style="background:${rowBg};">
+          <td style="padding:9px 14px;font-weight:500;color:${LT.textMuted};
+            font-size:11px;font-family:'Outfit',sans-serif;white-space:nowrap;
+            border-right:1px solid ${LT.border};">
+            ${formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+          </td>`;
         funcoes.forEach(f => {
-          theadHTML += `<th style="${thStyle}">${f}</th>`;
+          const pessoa      = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+          const isDisponivel = pessoa === "disponível";
+          tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
+            <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
+              color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
+              font-family:'Outfit',sans-serif;">
+              ${pessoa ? nomeParaExibicao(pessoa) : "—"}
+            </span>
+          </td>`;
         });
-        theadHTML += "</tr>";
+        tbodyHTML += "</tr>";
+      });
 
-        let tbodyHTML = "";
-        datas.forEach((dataObj, idx) => {
-          const turnoKey = dataObj.turno ?? "único";
-          const rowBg    = idx % 2 === 0 ? LT.surface : LT.zebra;
-          tbodyHTML += `<tr style="background:${rowBg};">
-            <td style="padding:9px 14px;font-weight:500;color:${LT.textMuted};
-              font-size:11px;font-family:'Outfit',sans-serif;white-space:nowrap;
-              border-right:1px solid ${LT.border};">
-              ${formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
-            </td>`;
-          funcoes.forEach(f => {
-            const pessoa      = escalas[`${dataObj.data}-${turnoKey}-${f}`];
-            const isDisponivel = pessoa === "disponível";
-            tbodyHTML += `<td style="padding:6px 14px;white-space:nowrap;">
-              <span style="font-size:12px;font-weight:${pessoa ? 500 : 400};
-                color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
-                font-family:'Outfit',sans-serif;">
-                ${pessoa ? nomeParaExibicao(pessoa) : "—"}
-              </span>
-            </td>`;
-          });
-          tbodyHTML += "</tr>";
-        });
-
-        const tableHTML = `
-          <div style="border-radius:10px;border:1px solid ${LT.border};
-            background:${LT.surface};overflow:hidden;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
-              <thead>${theadHTML}</thead>
-              <tbody>${tbodyHTML}</tbody>
-            </table>
-          </div>
-        `;
-        wrapper.style.padding  = "20px 24px 24px";
-        wrapper.innerHTML = headerHTML + tableHTML;
-      }
+      const tableHTML = `
+        <div style="border-radius:10px;border:1px solid ${LT.border};
+          background:${LT.surface};overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>${theadHTML}</thead>
+            <tbody>${tbodyHTML}</tbody>
+          </table>
+        </div>
+      `;
+      wrapper.style.padding  = "20px 24px 24px";
+      wrapper.innerHTML = headerHTML + tableHTML;
 
       wrapper.style.position = "fixed";
       wrapper.style.top      = "-99999px";

@@ -361,7 +361,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       return;
     }
 
-    if (layout === "planilha" && !ministerioTemConfigPlanilhaFaixas(ministerioSelecionado)) {
+    const isPlanilha = layout === "planilha" || layout === "mobile";
+
+    if (isPlanilha && !ministerioTemConfigPlanilhaFaixas(ministerioSelecionado)) {
       mostrarMensagem("Exportação de planilha indisponível nesta visualização", "erro");
       return;
     }
@@ -374,8 +376,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .toUpperCase();
 
       const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
-      const isPlanilha = layout === "planilha";
-      const isMobile = layout === "mobile";
+      const EXPORT_PLANILHA_WIDTH = 760;
 
       // ── Paleta light ──────────────────────────────────────────────────────
       const LT = {
@@ -427,61 +428,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           LT,
         });
         wrapper.style.padding = "20px 24px 24px";
-        wrapper.style.minWidth = "320px";
-        wrapper.style.maxWidth = "760px";
+        wrapper.style.width = `${EXPORT_PLANILHA_WIDTH}px`;
+        wrapper.style.minWidth = `${EXPORT_PLANILHA_WIDTH}px`;
+        wrapper.style.maxWidth = `${EXPORT_PLANILHA_WIDTH}px`;
+        wrapper.style.boxSizing = "border-box";
         wrapper.innerHTML = headerHTML + tableHTML;
-      } else if (isMobile) {
-        // ── MOBILE: cards lado a lado (3 colunas) ─────────────────────────
-        const cols = 3;
-        wrapper.style.padding = "16px";
-        wrapper.style.width   = "900px";
-
-        let cardsHTML = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px;">`;
-
-        datas.forEach(dataObj => {
-          const turnoKey = dataObj.turno ?? "único";
-          const dataLabel = formatarDataExport(dataObj, LT.accent);
-
-          let rowsHTML = "";
-          funcoes.forEach(f => {
-            const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
-            const isDisponivel = pessoa === "disponível";
-            rowsHTML += `
-              <div style="display:flex;justify-content:space-between;align-items:baseline;
-                gap:4px;padding:2px 0;border-bottom:1px solid ${LT.border};">
-                <span style="font-size:8px;color:${LT.textMuted};font-weight:500;
-                  text-transform:uppercase;letter-spacing:0.2px;
-                  font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
-                  overflow:hidden;text-overflow:ellipsis;">${f}</span>
-                <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
-                  color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
-                  font-family:'Outfit',sans-serif;white-space:nowrap;">
-                  ${pessoa ? nomeParaExibicao(pessoa) : "—"}
-                </span>
-              </div>
-            `;
-          });
-
-          cardsHTML += `
-            <div style="background:${LT.surface};border:1px solid ${LT.border};
-              border-radius:8px;overflow:hidden;">
-              <div style="background:#F1F5F9;border-bottom:1px solid ${LT.border};
-                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.textMuted};
-                font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:0.3px;">
-                ${dataLabel}
-              </div>
-              <div style="padding:6px 10px;display:flex;flex-direction:column;gap:0px;">
-                ${rowsHTML}
-              </div>
-            </div>
-          `;
-        });
-
-        cardsHTML += "</div>";
-        wrapper.innerHTML = headerHTML + cardsHTML;
-
       } else {
-        // ── DESKTOP: tabela light ──────────────────────────────────────────
+        // ── Tabela web (legado) ────────────────────────────────────────────
         const thStyle = `padding:10px 20px;text-align:left;font-weight:600;
           color:${LT.textMuted};font-size:10px;text-transform:uppercase;
           letter-spacing:0.8px;white-space:nowrap;font-family:'Outfit',sans-serif;`;
@@ -538,15 +491,18 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       wrapper.style.zIndex   = "-1";
       document.body.appendChild(wrapper);
 
+      const exportWidth = wrapper.scrollWidth;
+      const exportHeight = wrapper.scrollHeight;
+
       const canvas = await html2canvas(wrapper, {
         backgroundColor: LT.bg,
         scale: 2,
         useCORS: true,
         logging: false,
-        width:  wrapper.scrollWidth,
-        height: wrapper.scrollHeight,
-        windowWidth:  wrapper.scrollWidth,
-        windowHeight: wrapper.scrollHeight,
+        width: exportWidth,
+        height: exportHeight,
+        windowWidth: isPlanilha ? EXPORT_PLANILHA_WIDTH : exportWidth,
+        windowHeight: exportHeight,
         scrollX: 0,
         scrollY: 0,
       });
