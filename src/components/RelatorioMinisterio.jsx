@@ -1,6 +1,7 @@
 // ===== src/components/RelatorioMinisterio.jsx =====
 import { useState, useMemo, useCallback } from "react";
 import { AlertTriangle, ChevronDown, ArrowLeft, Calendar } from "lucide-react";
+import BotaoVoltar from "./BotaoVoltar";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
 import { turnoSalvoEscala } from "../utils/escalaDisponibilidade";
@@ -868,10 +869,7 @@ export default function RelatorioMinisterio({
             )}
           </p>
         </div>
-        <button type="button" className="rel-mes-voltar" onClick={onVoltar}>
-          <ArrowLeft size={14} aria-hidden />
-          Voltar para escala
-        </button>
+        {onVoltar && <BotaoVoltar onClick={onVoltar} title="Voltar para escala" />}
       </header>
 
       <div className="rel-mes-cards">

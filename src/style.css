@@ -458,11 +458,65 @@ code {
   }
 }
 
-/* Tablet/desktop only (≥768px): modo planilha e seção cross-ministry */
+/* Tablet/desktop only (≥768px): modo planilha */
 @media (max-width: 767px) {
   .view-mode-btn--planilha-desktop-only,
   .cross-ministry-desktop-only {
     display: none !important;
+  }
+
+  .main-pad {
+    padding-top: 12px !important;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .page-header-top {
+    order: 1;
+    width: 100%;
+  }
+
+  .page-header-ministry {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .page-header-alert-slot {
+    display: none;
+  }
+
+  .page-header-actions {
+    order: 2;
+    position: sticky;
+    top: 68px;
+    z-index: 39;
+    background: var(--bg);
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Tablet: bloco do ministério nas abas Relatório / Outros Ministérios */
+@media (min-width: 768px) {
+  .page-header--with-ministry {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-header--with-ministry .page-header-alert-slot {
+    display: none;
   }
 }
 
@@ -571,13 +625,24 @@ code {
   .page-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .page-header-ministry {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .page-header-top {
+    order: 1;
+    width: 100%;
   }
 
   .page-header-alert-slot {
-    flex: none;
-    width: 100%;
-    padding: 0;
-    order: 2;
+    display: none;
   }
 
   .page-header-actions {
@@ -585,7 +650,14 @@ code {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    order: 3;
+    order: 2;
+    position: sticky;
+    top: 68px;
+    z-index: 39;
+    background: var(--bg);
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
   }
 
   .page-toolbar {
@@ -920,6 +992,250 @@ code {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ===== Botão de voltar padrão (círculo + rótulo "VOLTAR") ===== */
+.btn-voltar {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: "Outfit", sans-serif;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+.btn-voltar:hover:not(:disabled) {
+  color: var(--text);
+}
+.btn-voltar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-voltar-circulo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.btn-voltar:hover:not(:disabled) .btn-voltar-circulo {
+  border-color: var(--accent-border);
+  background: var(--surface-hover);
+}
+.btn-voltar:focus-visible .btn-voltar-circulo {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-focus-ring);
+}
+.btn-voltar-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  line-height: 1;
+}
+
+/* Botão "Voltar para escala" — idêntico ao do Relatório, reutilizável */
+.cross-voltar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cross-voltar-btn:hover {
+  border-color: var(--border-light);
+  color: var(--text);
+}
+
+/* Título da aba "Outros ministérios" */
+.cross-ministry-titulo {
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-family: "Outfit", sans-serif;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+@media (max-width: 639px) {
+  .cross-ministry-titulo {
+    white-space: normal;
+    font-size: 13px;
+    letter-spacing: 0.4px;
+  }
+}
+.cross-titulo-br {
+  display: none;
+}
+@media (max-width: 639px) {
+  .cross-titulo-br {
+    display: inline;
+  }
+}
+
+/* ===== Planilha mobile (cards por data, < 768px) ===== */
+.planilha-mobile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding-top: 4px;
+  font-family: "Outfit", sans-serif;
+}
+.planilha-mobile-faixa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.planilha-mobile-faixa-titulo {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.planilha-mobile-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.planilha-mobile-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.planilha-mobile-card-data {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 0;
+  word-break: break-word;
+}
+.planilha-mobile-card-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.planilha-mobile-card-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.planilha-mobile-card.is-aberto .planilha-mobile-card-chevron {
+  transform: rotate(180deg);
+}
+.planilha-mobile-card-body {
+  border-top: 1px solid var(--border);
+  padding: 4px 14px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.planilha-mobile-funcao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.planilha-mobile-funcao:last-child {
+  border-bottom: none;
+}
+.planilha-mobile-funcao-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  flex: 0 0 38%;
+  min-width: 0;
+  word-break: break-word;
+}
+.planilha-mobile-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  min-height: 42px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+.planilha-mobile-select.is-disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+.planilha-mobile-select.is-preenchida,
+.planilha-mobile-select.is-ativa {
+  border-color: var(--accent-border);
+}
+.planilha-mobile-select.is-destaque {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+.planilha-mobile-select.is-esmaecida {
+  opacity: 0.4;
+}
+.planilha-mobile-select .planilha-louvor-select-valor {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planilha-mobile-select .planilha-louvor-select-valor--vazio {
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-weight: 500;
+}
+.planilha-mobile-select .planilha-louvor-select-valor--preenchido {
+  color: var(--text);
+  font-weight: 600;
+}
+.planilha-mobile-select .planilha-louvor-remover-btn {
+  opacity: 1;
+  flex-shrink: 0;
+}
+.planilha-mobile-select-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 /* Layout centralizado: botões no topo (fixos), planilha, dashboard abaixo */
 .escala-stack {
   display: flex;
@@ -936,10 +1252,40 @@ code {
   z-index: 40;
   width: 100%;
   display: flex;
+  align-items: center;
   justify-content: center;
   padding: 10px 8px;
+  margin-bottom: 14px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+}
+/* Voltar fixo no canto direito da barra de botões (desktop) */
+.qa-bar-section.has-voltar {
+  min-height: 66px;
+}
+.qa-bar-voltar {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.page-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.page-header-voltar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.qa-filtro--hidden {
+  display: none !important;
 }
 
 /* Planilha centralizada */

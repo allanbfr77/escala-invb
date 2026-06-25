@@ -21,6 +21,7 @@ import {
   mensagemLimiteInfantil,
   precisaConfirmarLimiteInfantil,
 } from "../utils/limiteEscalasInfantil";
+import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 
 function turnoSalvo(dataObj) {
   return dataObj?.turno === "único" ? "único" : dataObj?.turno;
@@ -105,6 +106,7 @@ function CelulaSelect({
   onChange,
   destacar = false,
   filtroAtivo = false,
+  variant = "table",
 }) {
   const [aberto, setAberto] = useState(false);
   const [menuPos, setMenuPos] = useState(null);
@@ -269,6 +271,68 @@ function CelulaSelect({
     .filter(Boolean)
     .join(" ");
 
+  if (variant === "card") {
+    const cardClass = [
+      "planilha-mobile-select",
+      aberto ? "is-ativa" : "",
+      valor ? "is-preenchida" : "",
+      destacar ? "is-destaque" : "",
+      filtroAtivo && valor && !destacar ? "is-esmaecida" : "",
+      desabilitado ? "is-disabled" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return (
+      <div
+        ref={triggerRef}
+        className={cardClass}
+        role="button"
+        tabIndex={desabilitado ? -1 : 0}
+        aria-expanded={aberto}
+        aria-haspopup="listbox"
+        aria-disabled={desabilitado}
+        aria-label={`${funcao} em ${labelCulto}`}
+        onClick={toggleMenu}
+        onKeyDown={(e) => {
+          if (desabilitado) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleMenu();
+          }
+        }}
+      >
+        <span
+          className={`planilha-louvor-select-valor ${valorClass}`}
+          title={valor || undefined}
+        >
+          {valor || "—"}
+        </span>
+        {exibirRemover && (
+          <button
+            type="button"
+            className="planilha-louvor-remover-btn"
+            disabled={salvando}
+            aria-label={`Remover ${valor} de ${funcao}`}
+            title="Remover escala"
+            onClick={removerRapido}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        {!desabilitado && (
+          <svg className="planilha-mobile-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        )}
+        {listaPortal}
+      </div>
+    );
+  }
+
   return (
     <td
       ref={triggerRef}
@@ -356,6 +420,8 @@ export default function PlanilhaMinisterio({
   const filtroAtivo = termoFiltro.length > 0;
   const [salvando, setSalvando] = useState(false);
   const [indispMap, setIndispMap] = useState({});
+  const isTabletUp = useMediaQuery(TABLET_MIN_QUERY);
+  const [abertos, setAbertos] = useState(() => new Set());
 
   const { faixas } = useMemo(() => montarFaixasPlanilha(datas), [datas]);
 
@@ -564,6 +630,111 @@ export default function PlanilhaMinisterio({
     return (
       <div className="planilha-louvor-loading">
         Nenhuma data disponível para este mês
+      </div>
+    );
+  }
+
+  if (!isTabletUp) {
+    return (
+      <div className="planilha-mobile">
+        {faixas.map((faixa) => {
+          const cultos = faixa.colunas.filter(Boolean);
+          if (cultos.length === 0) return null;
+          return (
+            <section className="planilha-mobile-faixa" data-faixa={faixa.id} key={faixa.id}>
+              <h3 className="planilha-mobile-faixa-titulo">{faixa.titulo}</h3>
+              {cultos.map((dataObj) => {
+                const cardKey = `${faixa.id}::${dataObj.data}::${dataObj.turno}`;
+                const aberto = abertos.has(cardKey);
+                const stats = contarSlotsCulto(dataObj, funcoes, escalas, ministerioId);
+                const completo = stats && stats.preenchidos === stats.total && stats.total > 0;
+                return (
+                  <div
+                    className={`planilha-mobile-card${aberto ? " is-aberto" : ""}`}
+                    data-faixa={faixa.id}
+                    key={cardKey}
+                  >
+                    <button
+                      type="button"
+                      className="planilha-mobile-card-header"
+                      aria-expanded={aberto}
+                      onClick={() =>
+                        setAbertos((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(cardKey)) next.delete(cardKey);
+                          else next.add(cardKey);
+                          return next;
+                        })
+                      }
+                    >
+                      <span className="planilha-mobile-card-data">
+                        {formatarData(dataObj.data, dataObj.turno, dataObj.descricao)}
+                      </span>
+                      <span className="planilha-mobile-card-meta">
+                        {stats && (
+                          <span
+                            className={`planilha-louvor-preenchimento-badge ${completo ? "is-completo" : "is-incompleto"}`}
+                          >
+                            {stats.preenchidos}/{stats.total}
+                          </span>
+                        )}
+                        <svg
+                          className="planilha-mobile-card-chevron"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </span>
+                    </button>
+                    {aberto && (
+                      <div className="planilha-mobile-card-body">
+                        {funcoes.map((funcao) => {
+                          const valorRaw = escalas[escalaKey(dataObj, funcao)];
+                          const valor = valorRaw ? nomeParaExibicao(valorRaw) : "";
+                          const destacar =
+                            filtroAtivo &&
+                            valor &&
+                            valor.toLowerCase().includes(termoFiltro);
+                          return (
+                            <div className="planilha-mobile-funcao" key={funcao}>
+                              <span className="planilha-mobile-funcao-label">{funcao}</span>
+                              <CelulaSelect
+                                variant="card"
+                                faixaId={faixa.id}
+                                dataObj={dataObj}
+                                funcao={funcao}
+                                valor={valor}
+                                opcoes={getOpcoesSelect(dataObj, funcao)}
+                                podeEditar={podeEditar}
+                                salvando={salvando}
+                                onChange={salvarCelula}
+                                destacar={destacar}
+                                filtroAtivo={filtroAtivo}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+          );
+        })}
+        {salvando && (
+          <div className="planilha-louvor-salvando" aria-live="polite">
+            Salvando...
+          </div>
+        )}
       </div>
     );
   }

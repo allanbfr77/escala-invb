@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon, LogOut, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, CalendarDays } from "lucide-react";
 import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
+import BotaoVoltar from "../components/BotaoVoltar";
 import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
 import { IconeMinisterio } from "../utils/ministerioIcons";
@@ -794,14 +795,7 @@ export default function RelatorioUnificado({
         </div>
 
         <div className="rel-header-aside">
-          <button
-            type="button"
-            className="rel-header-nav-btn"
-            onClick={onVoltar}
-            title="Voltar para escala"
-          >
-            <span className="rel-header-nav-label">← Escala</span>
-          </button>
+          <BotaoVoltar onClick={onVoltar} title="Voltar para escala" />
           <div className="rel-header-utilities">
             <button
               type="button"

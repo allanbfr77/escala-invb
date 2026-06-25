@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
+import BotaoVoltar from "../components/BotaoVoltar";
 import { hasMasterAccess } from "../utils/permissions";
 
 /** Fundos dos cards na login — neutros quentes (evita cinza/azulado do surface global) */
@@ -453,14 +454,7 @@ export default function Login() {
                   </span>
                 </p>
                 {formAtiva && (
-                  <button
-                    type="button"
-                    className="login-btn-voltar"
-                    disabled={carregando}
-                    onClick={fecharFormularioLogin}
-                  >
-                    Voltar
-                  </button>
+                  <BotaoVoltar onClick={fecharFormularioLogin} disabled={carregando} title="Voltar" />
                 )}
               </div>
 

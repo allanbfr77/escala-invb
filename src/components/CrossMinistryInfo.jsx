@@ -6,6 +6,7 @@ import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { ACCENT_RGB, accentAlpha } from "../constants/theme";
 import { nomeParaExibicao } from "../utils/nomeExibicao";
+import BotaoVoltar from "./BotaoVoltar";
 
 const MINISTERIOS = {
   comunicacao: { label: "COMUNICAÇÕES", color: "#60a5fa", rgb: "96,165,250", bg: "rgba(96,165,250,0.09)", border: "rgba(96,165,250,0.22)", glow: "rgba(96,165,250,0.35)" },
@@ -14,10 +15,9 @@ const MINISTERIOS = {
   infantil:    { label: "INFANTIL",     color: "#f472b6", rgb: "244,114,182", bg: "rgba(244,114,182,0.09)", border: "rgba(244,114,182,0.22)", glow: "rgba(244,114,182,0.35)" },
 };
 
-export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
-  const [dados, setDados]         = useState({});
-  const [loading, setLoading]     = useState(true);
-  const [visivel, setVisivel]     = useState(false);
+export default function CrossMinistryInfo({ ministerioId, mes, theme: t, onVoltar }) {
+  const [dados, setDados] = useState({});
+  const [loading, setLoading] = useState(true);
   const [hoveredCard, setHovered] = useState(null);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
     const pessoasLower = new Set(pessoas.map(p => p.toLowerCase()));
     const [ano, mesNum] = mes.split("-");
     const inicio = `${ano}-${mesNum}-01`;
-    const fim    = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
+    const fim = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
 
     let cancelled = false;
     setLoading(true);
@@ -71,246 +71,196 @@ export default function CrossMinistryInfo({ ministerioId, mes, theme: t }) {
   }, [ministerioId, mes]);
 
   const pessoas = Object.keys(dados).sort();
-  if (loading || pessoas.length === 0) return null;
+
+  if (loading) {
+    return (
+      <div style={{ padding: "48px 24px", textAlign: "center" }}>
+        <p style={{ fontSize: "13px", color: t.textMuted, fontFamily: "'Outfit', sans-serif" }}>
+          Carregando escalas em outros ministérios...
+        </p>
+      </div>
+    );
+  }
+
+  if (pessoas.length === 0) {
+    return (
+      <div style={{
+        padding: "48px 24px", textAlign: "center",
+        borderRadius: "10px", border: `1px solid ${t.border}`,
+        background: "var(--surface)",
+      }}>
+        <p style={{ fontSize: "13px", color: t.textMuted, fontFamily: "'Outfit', sans-serif" }}>
+          Nenhum membro deste ministério está escalado em outros ministérios neste mês.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="cross-ministry-desktop-only"
-      style={{ marginTop: "24px", minWidth: 0, maxWidth: "100%" }}
-    >
+    <div style={{ width: "100%", maxWidth: "1080px", margin: "0 auto", minWidth: 0 }}>
 
-      {/* Header */}
+      {onVoltar && (
+        <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "8px" }}>
+          <BotaoVoltar onClick={onVoltar} title="Voltar para escala" />
+        </div>
+      )}
+
       <div
         className="cross-ministry-header"
         style={{
           display: "flex",
-          flexWrap: "wrap",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "flex-start",
-          gap: "8px",
-          marginBottom: visivel ? "12px" : "0",
+          justifyContent: "center",
+          gap: "10px",
+          marginBottom: "18px",
+          textAlign: "center",
         }}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-          <circle cx="12" cy="12" r="9" stroke={t.textMuted} strokeWidth="1.8"/>
-          <path d="M12 8v4M12 16h.01" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-        <span style={{
-          fontSize: "10px", fontWeight: 600, color: t.textMuted,
-          textTransform: "uppercase", letterSpacing: "0.7px",
+        <div style={{
+          width: "60px",
+          height: "60px",
+          borderRadius: "50%",
+          border: `2px solid ${t.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "28px",
+          fontWeight: 800,
+          color: t.text,
+          lineHeight: 1,
           fontFamily: "'Outfit', sans-serif",
-          lineHeight: 1.35,
-          minWidth: 0,
-          wordBreak: "break-word",
         }}>
-          Membros escalados em outros ministérios este mês
-        </span>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "2px",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: "10px",
-              fontWeight: 700,
-              color: t.accent,
-              background: t.accentDim,
-              borderRadius: "10px",
-              padding: "1px 7px",
-              flexShrink: 0,
-            }}
-          >
-            {pessoas.length}
-          </span>
-
-            <button
-              type="button"
-              className="cross-ministry-toggle-btn"
-              onClick={() => setVisivel(v => !v)}
-              title={visivel ? "Ocultar" : "Mostrar"}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: visivel ? t.accent : t.textMuted,
-                padding: "8px",
-                minWidth: "44px",
-                minHeight: "44px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "color 0.15s",
-                flexShrink: 0,
-                WebkitTapHighlightColor: "transparent",
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = t.accent}
-              onMouseLeave={e => e.currentTarget.style.color = visivel ? t.accent : t.textMuted}
-            >
-              {visivel ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/>
-                </svg>
-              )}
-            </button>
+          {pessoas.length}
         </div>
+        <span className="cross-ministry-titulo" style={{ color: t.text }}>
+          Membros escalados em <br className="cross-titulo-br" />outros ministérios este mês
+        </span>
       </div>
 
-      {/* Cards grid */}
-      <div style={{
-        overflow: "hidden",
-        maxHeight: visivel ? "9999px" : "0",
-        opacity: visivel ? 1 : 0,
-        transition: "max-height 0.3s ease, opacity 0.2s ease",
-      }}>
-        <div
-          className="cross-ministry-grid"
-          style={{
-            /* grid definido em Dashboard (breakpoint mobile/desktop) */
-            minWidth: 0,
-          }}
-        >
-          {pessoas.map(nome => {
-            const grupos = dados[nome];
-            const ministeriosIds = Object.keys(grupos);
-            const totalEscalas = ministeriosIds.reduce((acc, mid) => acc + grupos[mid].length, 0);
+      <div className="cross-ministry-grid" style={{ minWidth: 0 }}>
+        {pessoas.map(nome => {
+          const grupos = dados[nome];
+          const ministeriosIds = Object.keys(grupos);
+          const totalEscalas = ministeriosIds.reduce((acc, mid) => acc + grupos[mid].length, 0);
 
-            // Cor dominante para o hover (primeiro ministério)
-            const cfgPrimary = MINISTERIOS[ministeriosIds[0]] || {
-              color: t.accent,
-              rgb: ACCENT_RGB.replace(/\s/g, ""),
-              glow: accentAlpha(0.35),
-              border: t.accent,
-            };
-            const isHovered = hoveredCard === nome;
+          const cfgPrimary = MINISTERIOS[ministeriosIds[0]] || {
+            color: t.accent,
+            rgb: ACCENT_RGB.replace(/\s/g, ""),
+            glow: accentAlpha(0.35),
+            border: t.accent,
+          };
+          const isHovered = hoveredCard === nome;
 
-            return (
-              <div
-                key={nome}
-                className="cross-ministry-card"
-                onMouseEnter={() => setHovered(nome)}
-                onMouseLeave={() => setHovered(null)}
-                style={{
-                  borderRadius: "8px",
-                  border: `1px solid ${isHovered ? cfgPrimary.color : cfgPrimary.border}`,
-                  background: t.surface,
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  width: "100%",
-                  minHeight: 0,
-                  transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
-                  transform: isHovered ? "translateY(-2px)" : "translateY(0)",
-                  boxShadow: isHovered
-                    ? `0 6px 20px ${cfgPrimary.glow}`
-                    : "none",
-                  cursor: "default",
-                }}
-              >
-                {/* Card header */}
-                <div style={{
-                  padding: "10px 14px",
-                  borderBottom: `1px solid ${t.border}`,
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
+          return (
+            <div
+              key={nome}
+              className="cross-ministry-card"
+              onMouseEnter={() => setHovered(nome)}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                borderRadius: "8px",
+                border: `1px solid ${isHovered ? cfgPrimary.color : cfgPrimary.border}`,
+                background: t.surface,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+                minHeight: 0,
+                transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
+                transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+                boxShadow: isHovered ? `0 6px 20px ${cfgPrimary.glow}` : "none",
+                cursor: "default",
+              }}
+            >
+              <div style={{
+                padding: "10px 14px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                flexShrink: 0,
+              }}>
+                <span style={{
+                  fontSize: "13px", fontWeight: 700, color: t.text,
+                  letterSpacing: "0.3px", fontFamily: "'Outfit', sans-serif",
+                  wordBreak: "break-word", minWidth: 0,
+                }}>
+                  {nome}
+                </span>
+                <span style={{
+                  fontSize: "10px", fontWeight: 700,
+                  color: cfgPrimary.color,
+                  background: `rgba(${cfgPrimary.rgb}, 0.15)`,
+                  borderRadius: "10px", padding: "2px 8px",
+                  border: `1px solid ${cfgPrimary.border || t.border}`,
                   flexShrink: 0,
                 }}>
-                  <span style={{
-                    fontSize: "13px", fontWeight: 700, color: t.text,
-                    letterSpacing: "0.3px", fontFamily: "'Outfit', sans-serif",
-                    wordBreak: "break-word", minWidth: 0,
-                  }}>
-                    {nome}
-                  </span>
-                  {/* Badge com contraste melhorado */}
-                  <span style={{
-                    fontSize: "10px", fontWeight: 700,
-                    color: cfgPrimary.color,
-                    background: `rgba(${cfgPrimary.rgb}, 0.15)`,
-                    borderRadius: "10px", padding: "2px 8px",
-                    border: `1px solid ${cfgPrimary.border || t.border}`,
-                    flexShrink: 0,
-                  }}>
-                    {totalEscalas} {totalEscalas === 1 ? "escala" : "escalas"}
-                  </span>
-                </div>
-
-                {/* Lista de escalas — scroll interno quando excede a altura do card */}
-                <div
-                  className="cross-ministry-scroll"
-                  style={{
-                    padding: "10px 14px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                  }}
-                >
-                  {ministeriosIds.map(mid => {
-                    const cfg = MINISTERIOS[mid] || {
-                      label: mid.toUpperCase(), color: t.accent,
-                      bg: t.accentDim, border: t.border, glow: t.accentDim,
-                    };
-                    return (
-                      <div key={mid}>
-                        {/* Ministry badge */}
-                        <div style={{
-                          display: "inline-flex", alignItems: "center", gap: "5px",
-                          background: cfg.bg, border: `1px solid ${cfg.border}`,
-                          borderRadius: "4px", padding: "2px 8px", marginBottom: "8px",
-                        }}>
-                          <span style={{
-                            width: "5px", height: "5px", borderRadius: "50%",
-                            background: cfg.color, flexShrink: 0,
-                          }} />
-                          <span style={{
-                            fontSize: "10px", fontWeight: 700, color: cfg.color,
-                            textTransform: "uppercase", letterSpacing: "0.5px",
-                            fontFamily: "'Outfit', sans-serif",
-                          }}>
-                            {cfg.label}
-                          </span>
-                        </div>
-
-                        {/* Dates list */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                          {grupos[mid].map((item, i) => (
-                            <div key={i} style={{ paddingLeft: "4px" }}>
-                              {/* Data em negrito — linha própria */}
-                              <div style={{
-                                fontSize: "12px", color: t.text,
-                                fontWeight: 700, fontFamily: "'Outfit', sans-serif",
-                                lineHeight: "1.4",
-                              }}>
-                                {formatarData(item.data, item.turno)}
-                              </div>
-                              {/* Função abaixo, menor e muted */}
-                              {item.funcao && (
-                                <div style={{
-                                  fontSize: "10px", color: t.textMuted,
-                                  fontWeight: 400, lineHeight: "1.3",
-                                  marginTop: "1px",
-                                }}>
-                                  {item.funcao}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                  {totalEscalas} {totalEscalas === 1 ? "escala" : "escalas"}
+                </span>
               </div>
-            );
-          })}
-        </div>
+
+              <div
+                className="cross-ministry-scroll"
+                style={{
+                  padding: "10px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                {ministeriosIds.map(mid => {
+                  const cfg = MINISTERIOS[mid] || {
+                    label: mid.toUpperCase(), color: t.accent,
+                    bg: t.accentDim, border: t.border, glow: t.accentDim,
+                  };
+                  return (
+                    <div key={mid}>
+                      <div style={{
+                        display: "inline-flex", alignItems: "center", gap: "5px",
+                        background: cfg.bg, border: `1px solid ${cfg.border}`,
+                        borderRadius: "4px", padding: "2px 8px", marginBottom: "8px",
+                      }}>
+                        <span style={{
+                          width: "5px", height: "5px", borderRadius: "50%",
+                          background: cfg.color, flexShrink: 0,
+                        }} />
+                        <span style={{
+                          fontSize: "10px", fontWeight: 700, color: cfg.color,
+                          textTransform: "uppercase", letterSpacing: "0.5px",
+                          fontFamily: "'Outfit', sans-serif",
+                        }}>
+                          {cfg.label}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        {grupos[mid].map((item, i) => (
+                          <div key={i} style={{ paddingLeft: "4px" }}>
+                            <div style={{
+                              fontSize: "12px", color: t.text,
+                              fontWeight: 700, fontFamily: "'Outfit', sans-serif",
+                              lineHeight: "1.4",
+                            }}>
+                              {formatarData(item.data, item.turno)}
+                            </div>
+                            {item.funcao && (
+                              <div style={{
+                                fontSize: "10px", color: t.textMuted,
+                                fontWeight: 400, lineHeight: "1.3",
+                                marginTop: "1px",
+                              }}>
+                                {item.funcao}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

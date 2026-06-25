@@ -8,6 +8,7 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 import html2canvas from "html2canvas";
 
+import BotaoVoltar from "../components/BotaoVoltar";
 import RelatorioMinisterio from "../components/RelatorioMinisterio";
 import SkeletonGrid from "../components/SkeletonGrid";
 import ConfirmModal from "../components/ConfirmModal";
@@ -211,6 +212,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     localStorage.setItem(EXTERNAL_DETECTION_STORAGE_KEY, JSON.stringify(externalDetectionByMinisterio));
   }, [externalDetectionByMinisterio]);
   const [verRelatorio, setVerRelatorio] = useState(false);
+  const [verOutrosMinisterios, setVerOutrosMinisterios] = useState(false);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -927,7 +929,29 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const handleSetMinisterio = (v) => {
     setMinisterioSelecionado(v);
     setVerRelatorio(false);
+    setVerOutrosMinisterios(false);
   };
+
+  useEffect(() => {
+    setVerRelatorio(false);
+    setVerOutrosMinisterios(false);
+  }, [mes]);
+
+  const toggleRelatorio = useCallback(() => {
+    setVerRelatorio((v) => {
+      const next = !v;
+      if (next) setVerOutrosMinisterios(false);
+      return next;
+    });
+  }, []);
+
+  const toggleOutrosMinisterios = useCallback(() => {
+    setVerOutrosMinisterios((v) => {
+      const next = !v;
+      if (next) setVerRelatorio(false);
+      return next;
+    });
+  }, []);
 
   const opcoesDownload = useMemo(
     () => [
@@ -956,6 +980,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   );
 
   const current = ministerioConfig[ministerioSelecionado];
+  const showMinistryHeaderBlock = !isTabletUp || verRelatorio || verOutrosMinisterios;
 
   return (
     <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
@@ -1005,6 +1030,57 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .page-header { flex-wrap: wrap; align-items: flex-start !important; row-gap: 10px !important; }
           .page-header-actions { flex-wrap: wrap; }
         }
+
+        /* Mobile (<768px): título no topo, respiro do header, divisor e menu fixo */
+        @media (max-width: 767px) {
+          .main-pad { padding-top: 12px !important; }
+          .page-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+            border-bottom: none !important;
+          }
+          .page-header-top { order: 1; width: 100%; }
+          .page-header-ministry { flex: 1; min-width: 0; }
+          .page-header-alert-slot { display: none !important; }
+          .page-header-actions {
+            order: 2 !important;
+            position: sticky !important;
+            top: 68px !important;
+            z-index: 39 !important;
+            background: var(--bg) !important;
+            margin-bottom: 14px !important;
+            padding-bottom: 12px !important;
+            border-bottom: 1px solid var(--border) !important;
+          }
+        }
+        @media (min-width: 768px) {
+          .page-header--with-ministry {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            margin-bottom: 14px !important;
+            padding-bottom: 12px !important;
+            border-bottom: 1px solid var(--border) !important;
+          }
+          .page-header--with-ministry .page-header-alert-slot { display: none !important; }
+        }
+
+        .page-header-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+        }
+        .page-header-voltar {
+          flex-shrink: 0;
+          display: flex;
+          justify-content: flex-end;
+        }
+        .qa-filtro--hidden { display: none !important; }
 
         /* Tablet + mobile: cards em vez de tabela */
         @media (max-width: 900px) {
@@ -1293,25 +1369,30 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           }
         }
 
-        /* Membros em outros ministérios: grade responsiva com cards de altura uniforme */
+        /* Membros em outros ministérios: grade responsiva, cards no tamanho do conteúdo */
         .cross-ministry-grid {
           display: grid;
-          gap: 16px;
+          gap: 14px;
           align-items: stretch;
           padding-top: 4px;
           grid-template-columns: minmax(0, 1fr);
         }
-        @media (min-width: 560px) {
+        @media (min-width: 480px) {
           .cross-ministry-grid {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
           }
         }
+        @media (min-width: 1100px) {
+          .cross-ministry-grid {
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          }
+        }
+        /* Sem altura fixa: cada card ocupa só o necessário; cap com scroll só se exceder */
         .cross-ministry-card {
-          height: 320px;
-          max-height: 320px;
+          max-height: 360px;
         }
         .cross-ministry-scroll {
-          flex: 1;
+          flex: 1 1 auto;
           min-height: 0;
           overflow-y: auto;
           overflow-x: hidden;
@@ -1360,31 +1441,74 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             min-width: 0;
             flex-direction: column !important;
             align-items: stretch !important;
+            gap: 8px !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+            border-bottom: none !important;
+          }
+          .page-header-top {
+            order: 1;
+            width: 100%;
+          }
+          .page-header-ministry {
+            flex: 1;
+            min-width: 0;
           }
           .page-header-alert-slot {
-            flex: none !important;
-            width: 100% !important;
-            padding: 0 !important;
-            order: 2;
+            display: none !important;
           }
           .page-header-actions {
             width: 100% !important;
             max-width: 100% !important;
             min-width: 0;
-            flex-direction: column !important;
-            align-items: stretch !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            flex-wrap: wrap !important;
             gap: 8px !important;
-            order: 3;
+            order: 2 !important;
+            position: sticky !important;
+            top: 68px !important;
+            z-index: 39 !important;
+            background: var(--bg) !important;
+            margin-bottom: 14px !important;
+            padding-bottom: 12px !important;
+            border-bottom: 1px solid var(--border) !important;
           }
           .page-header-actions__view {
             width: 100%;
             justify-content: center;
           }
+          /* Toolbar mobile: grade de botões iguais e alinhados (ícone + rótulo) */
           .page-toolbar {
-            flex-direction: column !important;
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
             width: 100% !important;
             gap: 8px !important;
-            align-items: stretch !important;
+          }
+          .page-toolbar > div {
+            width: 100% !important;
+            display: flex !important;
+          }
+          .page-toolbar > button,
+          .page-toolbar > div > button {
+            width: 100% !important;
+            height: 40px !important;
+            padding: 0 8px !important;
+            gap: 5px !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+          }
+          .page-toolbar .btn-label {
+            display: inline !important;
+            font-size: 11px !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .page-toolbar .download-chevron {
+            display: none !important;
           }
           .page-toolbar__search {
             width: 100% !important;
@@ -1642,8 +1766,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               fontWeight: 700, letterSpacing: "-0.3px",
               color: theme.text, lineHeight: 1.1,
             }}>
-            {verRelatorio ? "RELATÓRIO" : current.nome}
-            {!verRelatorio && !podeEditar && (
+            {verRelatorio ? "RELATÓRIO" : verOutrosMinisterios ? "OUTROS MINISTÉRIOS" : current.nome}
+            {!verRelatorio && !verOutrosMinisterios && !podeEditar && (
               <span style={{
                 fontSize: "10px", fontWeight: 700, letterSpacing: "0.3px",
                 padding: "2px 8px", borderRadius: "20px",
@@ -1674,7 +1798,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </button>
           )}
           {/* Toggle de tema — só no header quando a barra de ações não está visível */}
-          {!(isTabletUp && podeEditar) && (
+          {podeEditar && !isTabletUp && (
             <button
               className="header-btn header-btn-theme"
               onClick={toggleTheme}
@@ -1728,9 +1852,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "0 24px", overflowX: "clip", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
 
           {/* Page header */}
-          <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px", gap: "10px" }}>
-            {!isTabletUp && (
-            <div style={{ order: 3, display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+          <div className={`page-header${showMinistryHeaderBlock ? " page-header--with-ministry" : ""}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px", gap: "10px" }}>
+            {showMinistryHeaderBlock && (
+            <div className="page-header-top">
+              <div className="page-header-ministry" style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
               <div style={{
                 color: theme.accent, flexShrink: 0, opacity: 0.85,
                 background: theme.accentDim, borderRadius: "8px",
@@ -1751,6 +1876,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   {datas.length} datas · {Object.keys(escalas).length} escalas
                 </p>
               </div>
+            </div>
+              {!isTabletUp && (verRelatorio || verOutrosMinisterios) && (
+                <div className="page-header-voltar">
+                  <BotaoVoltar
+                    onClick={() => (verRelatorio ? setVerRelatorio(false) : setVerOutrosMinisterios(false))}
+                    title="Voltar para escala"
+                  />
+                </div>
+              )}
             </div>
             )}
 
@@ -1825,7 +1959,45 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
               {podeEditar && (
                 <button
-                  onClick={() => setVerRelatorio(v => !v)}
+                  onClick={toggleOutrosMinisterios}
+                  style={{
+                    padding: "5px 10px", fontFamily: "inherit",
+                    background: verOutrosMinisterios ? "rgba(96,165,250,0.12)" : "transparent",
+                    border: `1px solid ${verOutrosMinisterios ? "#60a5fa" : theme.border}`,
+                    borderRadius: "5px",
+                    color: verOutrosMinisterios ? "#60a5fa" : theme.textMuted,
+                    fontSize: "12px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: "5px",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={e => {
+                    if (!verOutrosMinisterios) {
+                      e.currentTarget.style.borderColor = "#60a5fa";
+                      e.currentTarget.style.color = "#60a5fa";
+                      e.currentTarget.style.background = "rgba(96,165,250,0.07)";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!verOutrosMinisterios) {
+                      e.currentTarget.style.borderColor = theme.border;
+                      e.currentTarget.style.color = theme.textMuted;
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  <span className="btn-label">Outros Min.</span>
+                </button>
+              )}
+
+              {podeEditar && (
+                <button
+                  onClick={toggleRelatorio}
                   style={{
                     padding: "5px 10px", fontFamily: "inherit",
                     background: verRelatorio ? "rgba(52,211,153,0.1)" : "transparent",
@@ -1892,52 +2064,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 </button>
               )}
 
-              {podeEditar && ministerioSelecionado === "recepcao" && (
-                <button
-                  onClick={handleOrganizarRecepcao}
-                  title="Organizar introdutores por coluna"
-                  style={{
-                    padding: "5px 10px", background: "transparent",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: "5px", color: theme.textMuted,
-                    fontSize: "12px", cursor: "pointer",
-                    fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(0.45); e.currentTarget.style.color = theme.accentBright; e.currentTarget.style.background = alpha(0.07); }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                  </svg>
-                  <span className="btn-label">Organizar</span>
-                </button>
-              )}
-
-              {podeEditar && ministerioSelecionado === "louvor" && (
-                <button
-                  onClick={handleOrganizarLouvor}
-                  title="Organizar BVocais e Músicos por coluna"
-                  style={{
-                    padding: "5px 10px", background: "transparent",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: "5px", color: theme.textMuted,
-                    fontSize: "12px", cursor: "pointer",
-                    fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(0.45); e.currentTarget.style.color = theme.accentBright; e.currentTarget.style.background = alpha(0.07); }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.background = "transparent"; }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                  </svg>
-                  <span className="btn-label">Organizar</span>
-                </button>
-              )}
-
               {podeEditar && (
                 <button onClick={handleLimparTudo} disabled={limpando}
                   style={{ padding: "5px 10px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: "5px", color: theme.textMuted, fontSize: "12px", cursor: limpando ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}
@@ -1954,6 +2080,195 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
             )}
           </div>
+
+          {podeEditar && isTabletUp && (
+            <div className={`qa-bar-section${(verRelatorio || verOutrosMinisterios) ? " has-voltar" : ""}`}>
+              {(verRelatorio || verOutrosMinisterios) && (
+                <div className="qa-bar-voltar">
+                  <BotaoVoltar
+                    onClick={() => (verRelatorio ? setVerRelatorio(false) : setVerOutrosMinisterios(false))}
+                    title="Voltar para escala"
+                  />
+                </div>
+              )}
+
+              {/* Ações rápidas — barra fixa centralizada no topo */}
+              <div className="qa-bar">
+                {/* Filtro: destaca a pessoa digitada na planilha */}
+                <div className={`qa-filtro${filtroNome ? " is-active" : ""}${verRelatorio || verOutrosMinisterios ? " qa-filtro--hidden" : ""}`}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    className="qa-filtro-input"
+                    value={filtroNome}
+                    onChange={(e) => setFiltroNome(e.target.value)}
+                    placeholder="Filtrar pessoa..."
+                    aria-label="Filtrar pessoa na planilha"
+                  />
+                  {filtroNome && (
+                    <button
+                      type="button"
+                      className="qa-filtro-clear"
+                      onClick={() => setFiltroNome("")}
+                      title="Limpar filtro"
+                      aria-label="Limpar filtro"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {[
+                  {
+                    key: "outros-ministerios",
+                    label: "Outros Min.",
+                    active: verOutrosMinisterios,
+                    onClick: toggleOutrosMinisterios,
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    key: "relatorio",
+                    label: "Relatório",
+                    active: verRelatorio,
+                    onClick: toggleRelatorio,
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 20V10M12 20V4M6 20v-6" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    key: "indisponivel",
+                    label: "Indisponível",
+                    active: verIndisponibilidade,
+                    onClick: () => setVerIndisponibilidade(v => !v),
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    key: "baixar-planilha",
+                    label: "Planilha",
+                    onClick: () => handleDownload("planilha"),
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    key: "baixar-texto",
+                    label: "Texto",
+                    onClick: () => handleDownload("text"),
+                    icon: (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="8" y1="13" x2="16" y2="13" />
+                        <line x1="8" y1="17" x2="13" y2="17" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    key: "tema",
+                    label: isDark ? "Tema claro" : "Tema escuro",
+                    onClick: toggleTheme,
+                    icon: isDark
+                      ? <Sun size={15} color="#F5C542" />
+                      : <Moon size={15} color="#1a3a6b" />,
+                  },
+                  ...(ministerioSelecionado === "louvor"
+                    ? [{
+                        key: "organizar-louvor",
+                        label: "Organizar",
+                        onClick: handleOrganizarLouvor,
+                        icon: (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                          </svg>
+                        ),
+                      }]
+                    : []),
+                  ...(ministerioSelecionado === "recepcao"
+                    ? [{
+                        key: "organizar-recepcao",
+                        label: "Organizar",
+                        onClick: handleOrganizarRecepcao,
+                        icon: (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                          </svg>
+                        ),
+                      }]
+                    : []),
+                ].map(acao => (
+                  <button
+                    key={acao.key}
+                    type="button"
+                    className={`qa-bar-btn${acao.active ? " is-active" : ""}`}
+                    onClick={acao.onClick}
+                    disabled={acao.disabled}
+                  >
+                    {acao.icon}
+                    <span>{acao.label}</span>
+                  </button>
+                ))}
+
+                {/* Menu de 3 pontinhos — ação destrutiva (Limpar) */}
+                <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
+                  <button
+                    type="button"
+                    className="acoes-kebab-btn"
+                    onClick={() => setShowAcoesMenu(v => !v)}
+                    title="Mais ações"
+                    aria-haspopup="true"
+                    aria-expanded={showAcoesMenu}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                      <circle cx="12" cy="5" r="1.7" />
+                      <circle cx="12" cy="12" r="1.7" />
+                      <circle cx="12" cy="19" r="1.7" />
+                    </svg>
+                  </button>
+                  {showAcoesMenu && (
+                    <div className="acoes-kebab-menu" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="acoes-kebab-item is-danger"
+                        onClick={() => { setShowAcoesMenu(false); handleLimparTudo(); }}
+                        disabled={limpando}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6" /><path d="M14 11v6" />
+                        </svg>
+                        <span>{limpando ? "Limpando..." : "Limpar escala"}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Estado de erro */}
           {error && (
@@ -1986,7 +2301,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           )}
 
           {/* Grid ou Relatório */}
-          {loading && !verRelatorio && Object.keys(escalas).length === 0 ? (
+          {loading && !verRelatorio && !verOutrosMinisterios && Object.keys(escalas).length === 0 ? (
             <SkeletonGrid
               theme={theme}
               colunas={
@@ -1995,7 +2310,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                 ministerioSelecionado === "recepcao"    ? 3 : 3
               }
             />
-          ) : !verRelatorio && !loading && !error && datas.length === 0 ? (
+          ) : !verRelatorio && !verOutrosMinisterios && !loading && !error && datas.length === 0 ? (
             <div style={{
               padding: "48px 24px", textAlign: "center",
               borderRadius: "10px", border: `1px solid ${theme.border}`,
@@ -2013,173 +2328,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
           ) : ministerioTemConfigPlanilhaFaixas(ministerioSelecionado) ? (
             <div className="escala-stack">
-              {podeEditar && isTabletUp && (
-                <div className="qa-bar-section">
-
-                  {/* Ações rápidas — barra fixa centralizada no topo */}
-                  <div className="qa-bar">
-                    {/* Filtro: destaca a pessoa digitada na planilha */}
-                    <div className={`qa-filtro${filtroNome ? " is-active" : ""}`}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                      </svg>
-                      <input
-                        type="text"
-                        className="qa-filtro-input"
-                        value={filtroNome}
-                        onChange={(e) => setFiltroNome(e.target.value)}
-                        placeholder="Filtrar pessoa..."
-                        aria-label="Filtrar pessoa na planilha"
-                      />
-                      {filtroNome && (
-                        <button
-                          type="button"
-                          className="qa-filtro-clear"
-                          onClick={() => setFiltroNome("")}
-                          title="Limpar filtro"
-                          aria-label="Limpar filtro"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                    {[
-                      {
-                        key: "relatorio",
-                        label: "Relatório",
-                        active: verRelatorio,
-                        onClick: () => setVerRelatorio(v => !v),
-                        icon: (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 20V10M12 20V4M6 20v-6" />
-                          </svg>
-                        ),
-                      },
-                      {
-                        key: "indisponivel",
-                        label: "Indisponível",
-                        active: verIndisponibilidade,
-                        onClick: () => setVerIndisponibilidade(v => !v),
-                        icon: (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                          </svg>
-                        ),
-                      },
-                      {
-                        key: "baixar-planilha",
-                        label: "Planilha",
-                        onClick: () => handleDownload("planilha"),
-                        icon: (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                        ),
-                      },
-                      {
-                        key: "baixar-texto",
-                        label: "Texto",
-                        onClick: () => handleDownload("text"),
-                        icon: (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="8" y1="13" x2="16" y2="13" />
-                            <line x1="8" y1="17" x2="13" y2="17" />
-                          </svg>
-                        ),
-                      },
-                      {
-                        key: "tema",
-                        label: isDark ? "Tema claro" : "Tema escuro",
-                        onClick: toggleTheme,
-                        icon: isDark
-                          ? <Sun size={15} color="#F5C542" />
-                          : <Moon size={15} color="#1a3a6b" />,
-                      },
-                      ...(ministerioSelecionado === "louvor"
-                        ? [{
-                            key: "organizar-louvor",
-                            label: "Organizar",
-                            onClick: handleOrganizarLouvor,
-                            icon: (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                              </svg>
-                            ),
-                          }]
-                        : []),
-                      ...(ministerioSelecionado === "recepcao"
-                        ? [{
-                            key: "organizar-recepcao",
-                            label: "Organizar",
-                            onClick: handleOrganizarRecepcao,
-                            icon: (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                              </svg>
-                            ),
-                          }]
-                        : []),
-                    ].map(acao => (
-                      <button
-                        key={acao.key}
-                        type="button"
-                        className={`qa-bar-btn${acao.active ? " is-active" : ""}`}
-                        onClick={acao.onClick}
-                        disabled={acao.disabled}
-                      >
-                        {acao.icon}
-                        <span>{acao.label}</span>
-                      </button>
-                    ))}
-
-                    {/* Menu de 3 pontinhos — ação destrutiva (Limpar) */}
-                    <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
-                      <button
-                        type="button"
-                        className="acoes-kebab-btn"
-                        onClick={() => setShowAcoesMenu(v => !v)}
-                        title="Mais ações"
-                        aria-haspopup="true"
-                        aria-expanded={showAcoesMenu}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                          <circle cx="12" cy="5" r="1.7" />
-                          <circle cx="12" cy="12" r="1.7" />
-                          <circle cx="12" cy="19" r="1.7" />
-                        </svg>
-                      </button>
-                      {showAcoesMenu && (
-                        <div className="acoes-kebab-menu" role="menu">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="acoes-kebab-item is-danger"
-                            onClick={() => { setShowAcoesMenu(false); handleLimparTudo(); }}
-                            disabled={limpando}
-                          >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                              <path d="M10 11v6" /><path d="M14 11v6" />
-                            </svg>
-                            <span>{limpando ? "Limpando..." : "Limpar escala"}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {verRelatorio ? (
                 <RelatorioMinisterio
                   escalas={escalas}
@@ -2187,7 +2335,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
                   ministerioId={ministerioSelecionado}
                   theme={theme}
-                  onVoltar={() => setVerRelatorio(false)}
+                  onVoltar={(isTabletUp && !podeEditar) ? () => setVerRelatorio(false) : undefined}
+                />
+              ) : verOutrosMinisterios ? (
+                <CrossMinistryInfo
+                  ministerioId={ministerioSelecionado}
+                  mes={mes}
+                  theme={theme}
+                  onVoltar={(isTabletUp && !podeEditar) ? () => setVerOutrosMinisterios(false) : undefined}
                 />
               ) : (
               <div className="planilha-layout__main">
@@ -2216,13 +2371,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
                   ministerioId={ministerioSelecionado}
                   {...planilhaMinisterioProps}
                 />
-                {podeEditar && isTabletUp && (
-                  <CrossMinistryInfo
-                    ministerioId={ministerioSelecionado}
-                    mes={mes}
-                    theme={theme}
-                  />
-                )}
               </div>
               )}
             </div>
@@ -2233,7 +2381,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               funcoes={funcoesPorMinisterio[ministerioSelecionado] || []}
               ministerioId={ministerioSelecionado}
               theme={theme}
-              onVoltar={() => setVerRelatorio(false)}
+              onVoltar={(isTabletUp && !podeEditar) ? () => setVerRelatorio(false) : undefined}
+            />
+          ) : verOutrosMinisterios ? (
+            <CrossMinistryInfo
+              ministerioId={ministerioSelecionado}
+              mes={mes}
+              theme={theme}
+              onVoltar={(isTabletUp && !podeEditar) ? () => setVerOutrosMinisterios(false) : undefined}
             />
           ) : (
             <div style={{
