@@ -43,8 +43,8 @@
   --grid-cell-blocked: var(--surface);
   --grid-cell-indisponivel: #2A1F1F;
   --indisp-neutro-bg: transparent;
-  --indisp-neutro-border: #3a3a3a;
-  --indisp-neutro-fg: #9ca3af;
+  --indisp-neutro-border: var(--success);
+  --indisp-neutro-fg: var(--text-muted);
   --indisp-bloqueado-bg: #3d2629;
   --indisp-bloqueado-border: #a07070;
   --indisp-bloqueado-fg: #e0b0b0;
@@ -158,8 +158,8 @@
   --grid-cell-blocked: #ffffff;
   --grid-cell-indisponivel: #FFE0E0;
   --indisp-neutro-bg: transparent;
-  --indisp-neutro-border: #d1d5db;
-  --indisp-neutro-fg: #6b7280;
+  --indisp-neutro-border: var(--success);
+  --indisp-neutro-fg: var(--text-muted);
   --indisp-bloqueado-bg: #fce8e8;
   --indisp-bloqueado-border: #c89090;
   --indisp-bloqueado-fg: #7a3838;
@@ -2623,10 +2623,15 @@ code {
 }
 
 .indisp-bolinha--neutro {
-  background: var(--indisp-neutro-bg);
+  background: transparent;
   border-color: var(--indisp-neutro-border);
   color: var(--indisp-neutro-fg);
   border-width: 1.5px;
+}
+
+.indisp-bolinha--neutro:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--indisp-neutro-border);
 }
 
 .indisp-bolinha--bloqueado {
@@ -2678,7 +2683,7 @@ code {
 }
 
 .indisp-legenda__dot--neutro {
-  background: var(--indisp-neutro-bg);
+  background: transparent;
   border-color: var(--indisp-neutro-border);
 }
 
