@@ -142,36 +142,33 @@ function SecaoSemEscala({ pessoas }) {
         </span>
       </div>
       <div className="rel-mes-sem-escala-divisor" aria-hidden />
-      <div className="rel-mes-sem-escala-lista">
+      <div className="rel-mes-sem-escala-nomes">
         {visiveis.map(({ pessoa }) => (
-          <div key={pessoa} className="rel-mes-sem-escala-item">
-            <span className="rel-mes-avatar rel-mes-avatar--sem-escala" aria-hidden>
-              {iniciaisObreiro(pessoa)}
-            </span>
-            <span className="rel-mes-sem-escala-nome">{nomeParaExibicao(pessoa)}</span>
-          </div>
+          <span key={pessoa} className="rel-mes-sem-escala-nome">
+            {nomeParaExibicao(pessoa)}
+          </span>
         ))}
-        {temMais && !expandido && (
-          <button
-            type="button"
-            className="rel-mes-sem-escala-mais"
-            onClick={() => setExpandido(true)}
-            aria-expanded={false}
-          >
-            +{restantes} mais
-          </button>
-        )}
-        {temMais && expandido && (
-          <button
-            type="button"
-            className="rel-mes-sem-escala-mais"
-            onClick={() => setExpandido(false)}
-            aria-expanded
-          >
-            Ver menos
-          </button>
-        )}
       </div>
+      {temMais && !expandido && (
+        <button
+          type="button"
+          className="rel-mes-sem-escala-mais"
+          onClick={() => setExpandido(true)}
+          aria-expanded={false}
+        >
+          +{restantes} mais
+        </button>
+      )}
+      {temMais && expandido && (
+        <button
+          type="button"
+          className="rel-mes-sem-escala-mais"
+          onClick={() => setExpandido(false)}
+          aria-expanded
+        >
+          Ver menos
+        </button>
+      )}
     </section>
   );
 }
@@ -718,20 +715,36 @@ export default function RelatorioMinisterio({
           margin-top: 16px;
           margin-bottom: 4px;
           display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 12px 16px;
+          flex-wrap: nowrap;
+          align-items: flex-start;
+          gap: 16px;
           padding: 12px 14px;
           border-radius: 8px;
           background: var(--surface-hover);
           border: 1px solid var(--border);
         }
 
+        @media (max-width: 520px) {
+          .rel-mes-sem-escala-faixa {
+            flex-wrap: wrap;
+            row-gap: 10px;
+          }
+          .rel-mes-sem-escala-nomes {
+            flex: 1 1 100%;
+            order: 3;
+          }
+          .rel-mes-sem-escala-mais {
+            order: 4;
+          }
+        }
+
         .rel-mes-sem-escala-cabecalho {
           display: flex;
           align-items: baseline;
           gap: 4px;
-          flex-shrink: 0;
+          flex: 0 0 auto;
+          align-self: center;
+          white-space: nowrap;
         }
 
         .rel-mes-sem-escala-rotulo {
@@ -752,43 +765,93 @@ export default function RelatorioMinisterio({
         .rel-mes-sem-escala-divisor {
           width: 1px;
           align-self: stretch;
+          flex: 0 0 1px;
           min-height: 24px;
           background: var(--border);
-          flex-shrink: 0;
         }
 
-        .rel-mes-sem-escala-lista {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 8px 14px;
-          flex: 1;
+        .rel-mes-sem-escala-nomes {
+          flex: 1 1 0;
           min-width: 0;
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px 0;
         }
 
-        .rel-mes-sem-escala-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
+        @media (max-width: 640px) {
+          .rel-mes-sem-escala-nomes {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .rel-mes-sem-escala-nome:nth-child(4n + 1) {
+            padding-left: 12px;
+          }
+          .rel-mes-sem-escala-nome:nth-child(3n + 1) {
+            padding-left: 0;
+          }
         }
 
-        .rel-mes-avatar--sem-escala {
-          width: 28px;
-          height: 28px;
-          font-size: 10px;
-          color: var(--text-dim);
-          background: var(--bg);
+        @media (max-width: 420px) {
+          .rel-mes-sem-escala-nomes {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .rel-mes-sem-escala-nome:nth-child(3n + 1) {
+            padding-left: 12px;
+          }
+          .rel-mes-sem-escala-nome:nth-child(2n + 1) {
+            padding-left: 0;
+          }
         }
 
         .rel-mes-sem-escala-nome {
+          position: relative;
           font-size: 12px;
           font-weight: 500;
           color: var(--text-muted);
+          line-height: 1.5;
+          padding: 0 12px;
+          text-align: left;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .rel-mes-sem-escala-nome:nth-child(4n + 1) {
+          padding-left: 0;
+        }
+
+        .rel-mes-sem-escala-nome:not(:nth-child(4n)):not(:last-child)::after {
+          content: "|";
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-dim);
+          font-weight: 300;
+          font-size: 11px;
+        }
+
+        @media (max-width: 640px) {
+          .rel-mes-sem-escala-nome:not(:nth-child(4n)):not(:last-child)::after {
+            content: none;
+          }
+          .rel-mes-sem-escala-nome:not(:nth-child(3n)):not(:last-child)::after {
+            content: "|";
+          }
+        }
+
+        @media (max-width: 420px) {
+          .rel-mes-sem-escala-nome:not(:nth-child(3n)):not(:last-child)::after {
+            content: none;
+          }
+          .rel-mes-sem-escala-nome:not(:nth-child(2n)):not(:last-child)::after {
+            content: "|";
+          }
         }
 
         .rel-mes-sem-escala-mais {
+          flex: 0 0 auto;
+          align-self: center;
+          white-space: nowrap;
           background: transparent;
           border: 1px solid var(--border);
           border-radius: 6px;
