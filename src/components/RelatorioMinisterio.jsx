@@ -4,7 +4,8 @@ import { AlertTriangle, ChevronDown, ArrowLeft, Calendar } from "lucide-react";
 import BotaoVoltar from "./BotaoVoltar";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
-import { turnoSalvoEscala } from "../utils/escalaDisponibilidade";
+import { turnoSalvoEscala, chaveSlotEscala, parseChaveEscala, encontrarDataObjNasDatas } from "../utils/escalaDisponibilidade";
+import { montarFaixasPlanilha } from "../utils/planilhaFaixasLayout";
 import {
   funcaoParaAbrev,
   getCorAbrev,
@@ -60,6 +61,83 @@ function rotuloTurnoPill(turno) {
   return turno;
 }
 
+function rotuloFuncaoExibicao(ministerioId, funcao) {
+  const abrev = funcaoParaAbrev(ministerioId, funcao);
+  return getTooltipAbrev(ministerioId, abrev) || obterGrupoFuncaoExibicao(funcao);
+}
+
+function TextoFuncao({ ministerioId, funcao }) {
+  const estilo = estiloTom(ministerioId, funcao);
+  return (
+    <span className="rel-mes-funcao-texto" style={{ color: estilo.fg }}>
+      {rotuloFuncaoExibicao(ministerioId, funcao)}
+    </span>
+  );
+}
+
+function buildPosicaoPorFaixa(datas) {
+  const map = new Map();
+  const { faixas } = montarFaixasPlanilha(datas);
+  for (const faixa of faixas) {
+    faixa.colunas.forEach((dataObj, colIdx) => {
+      if (dataObj) map.set(dataObj.id, { faixaId: faixa.id, colIdx });
+    });
+  }
+  return map;
+}
+
+function calcularConsecutivas(slots, posicaoPorFaixa) {
+  const porFaixa = {};
+  for (const slot of slots) {
+    const pos = posicaoPorFaixa.get(slot.id);
+    if (!pos) continue;
+    if (!porFaixa[pos.faixaId]) porFaixa[pos.faixaId] = [];
+    porFaixa[pos.faixaId].push({ slot, colIdx: pos.colIdx });
+  }
+
+  const consecutivas = [];
+  for (const grupo of Object.values(porFaixa)) {
+    grupo.sort((a, b) => a.colIdx - b.colIdx);
+    for (let i = 0; i < grupo.length - 1; i++) {
+      if (grupo[i + 1].colIdx - grupo[i].colIdx === 1) {
+        consecutivas.push([grupo[i].slot, grupo[i + 1].slot]);
+      }
+    }
+  }
+  return consecutivas;
+}
+
+function registrarSlot(porPessoa, vistos, pl, dataObj, funcao) {
+  if (!pl || pl === "disponível" || !dataObj || !funcao) return;
+  const turnoKey = turnoSalvoEscala(dataObj);
+  const chave = `${pl}|${dataObj.data}|${turnoKey}|${funcao}`;
+  if (vistos.has(chave)) return;
+  vistos.add(chave);
+  if (!porPessoa[pl]) porPessoa[pl] = [];
+  porPessoa[pl].push({ ...dataObj, funcao });
+}
+
+function coletarSlotsPorPessoa(escalas, datas, funcoes, ministerioId, porPessoa) {
+  const vistos = new Set();
+
+  datas.forEach((dataObj) => {
+    funcoes.forEach((f) => {
+      const pessoa = escalas[chaveSlotEscala(dataObj, f)];
+      if (!pessoa || pessoa === "disponível") return;
+      registrarSlot(porPessoa, vistos, pessoaNomeFirestore(pessoa), dataObj, f);
+    });
+  });
+
+  for (const [chave, pessoaValor] of Object.entries(escalas || {})) {
+    if (!pessoaValor || pessoaValor === "disponível") continue;
+    const parsed = parseChaveEscala(chave, ministerioId);
+    if (!parsed || !funcoes.includes(parsed.funcao)) continue;
+    const dataObj = encontrarDataObjNasDatas(datas, parsed.data, parsed.turno);
+    if (!dataObj) continue;
+    registrarSlot(porPessoa, vistos, pessoaNomeFirestore(pessoaValor), dataObj, parsed.funcao);
+  }
+}
+
 function iniciaisObreiro(nome) {
   const partes = nomeParaExibicao(nome).split(/\s+/).filter(Boolean);
   if (partes.length === 0) return "?";
@@ -79,23 +157,6 @@ function estiloTom(ministerioId, funcao) {
   };
 }
 
-function obterTurmaPrincipal(ministerioId, porFuncao, funcoes) {
-  const grupos = agruparContagensPorFuncao(funcoes, porFuncao);
-  if (!grupos.length) return null;
-
-  const principal = grupos.reduce((a, b) => (b.count > a.count ? b : a));
-  const funcaoRef = funcoes.find(
-    (f) => obterGrupoFuncaoExibicao(f) === principal.funcao && porFuncao[f] > 0
-  );
-  if (!funcaoRef) return null;
-
-  const abrev = funcaoParaAbrev(ministerioId, funcaoRef);
-  const estilo = estiloTom(ministerioId, funcaoRef);
-  const label = getTooltipAbrev(ministerioId, abrev) || principal.funcao;
-
-  return { label, grupo: principal.funcao, ...estilo };
-}
-
 function PainelTurnosSeguidos({ consecutivas }) {
   return (
     <div
@@ -104,23 +165,36 @@ function PainelTurnosSeguidos({ consecutivas }) {
       role="region"
       aria-label="Detalhes dos turnos seguidos"
     >
+      <div className="rel-mes-alerta-linha rel-mes-alerta-linha--cabecalho">
+        <Calendar size={14} strokeWidth={2} aria-hidden className="rel-mes-alerta-icone" />
+        <span className="rel-mes-alerta-rotulo">Turnos seguidos</span>
+      </div>
       {consecutivas.map(([a, b], i) => {
-        const turno = rotuloTurnoPill(b.turno);
+        const turno = rotuloTurnoPill(a.turno) || rotuloTurnoPill(b.turno);
         return (
           <div key={i} className="rel-mes-alerta-linha">
-            {i === 0 ? (
-              <>
-                <Calendar size={14} strokeWidth={2} aria-hidden className="rel-mes-alerta-icone" />
-                <span className="rel-mes-alerta-rotulo">Turnos seguidos</span>
-              </>
-            ) : (
-              <span className="rel-mes-alerta-indent" aria-hidden />
-            )}
             <span className="rel-mes-alerta-periodo">{formatarPeriodoConsecutivo([a, b])}</span>
             {turno && <span className="rel-mes-alerta-turno-pill">{turno}</span>}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function PainelEscalasDetalhe({ slots, ministerioId }) {
+  const ordenados = [...slots].sort((a, b) => a.data.localeCompare(b.data));
+  return (
+    <div className="rel-mes-detalhe-faixa" role="region" aria-label="Datas escaladas no mês">
+      <div className="rel-mes-detalhe-cabecalho">Datas escaladas</div>
+      <ul className="rel-mes-detalhe-lista">
+        {ordenados.map((slot) => (
+          <li key={`${slot.id}-${slot.funcao}`} className="rel-mes-detalhe-item">
+            <span className="rel-mes-detalhe-data">{formatarDataCompacta(slot.data)}</span>
+            <TextoFuncao ministerioId={ministerioId} funcao={slot.funcao} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -202,6 +276,7 @@ function CardResumo({ label, valor, destaque, theme }) {
 function LinhaObreiro({
   pessoa,
   total,
+  slots,
   porFuncao,
   consecutivas,
   ministerioId,
@@ -210,37 +285,38 @@ function LinhaObreiro({
   expandido,
   onToggle,
 }) {
-  const turma = obterTurmaPrincipal(ministerioId, porFuncao, funcoes);
+  const turmas = agruparContagensPorFuncao(funcoes, porFuncao);
   const temAlerta = consecutivas.length > 0;
+  const podeExpandir = total > 0;
   const nome = nomeParaExibicao(pessoa);
 
   const handleToggle = useCallback(() => {
-    if (temAlerta) onToggle(pessoa);
-  }, [temAlerta, onToggle, pessoa]);
+    if (podeExpandir) onToggle(pessoa);
+  }, [podeExpandir, onToggle, pessoa]);
 
   const handleKeyDown = useCallback(
     (e) => {
-      if (!temAlerta) return;
+      if (!podeExpandir) return;
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         onToggle(pessoa);
       }
     },
-    [temAlerta, onToggle, pessoa]
+    [podeExpandir, onToggle, pessoa]
   );
 
   return (
     <>
       <tr
-        className={`rel-mes-row${temAlerta ? " rel-mes-row--alerta" : ""}${expandido ? " rel-mes-row--aberta" : ""}`}
-        onClick={temAlerta ? handleToggle : undefined}
-        onKeyDown={temAlerta ? handleKeyDown : undefined}
-        role={temAlerta ? "button" : undefined}
-        tabIndex={temAlerta ? 0 : undefined}
-        aria-expanded={temAlerta ? expandido : undefined}
+        className={`rel-mes-row${temAlerta ? " rel-mes-row--alerta" : ""}${podeExpandir ? " rel-mes-row--expansivel" : ""}${expandido ? " rel-mes-row--aberta" : ""}`}
+        onClick={podeExpandir ? handleToggle : undefined}
+        onKeyDown={podeExpandir ? handleKeyDown : undefined}
+        role={podeExpandir ? "button" : undefined}
+        tabIndex={podeExpandir ? 0 : undefined}
+        aria-expanded={podeExpandir ? expandido : undefined}
         aria-label={
-          temAlerta
-            ? `${nome}, ${total} escalas, ${consecutivas.length} turno${consecutivas.length !== 1 ? "s" : ""} seguido${consecutivas.length !== 1 ? "s" : ""}. Clique para ${expandido ? "recolher" : "expandir"}`
+          podeExpandir
+            ? `${nome}, ${total} escalas${temAlerta ? `, ${consecutivas.length} turno${consecutivas.length !== 1 ? "s" : ""} seguido${consecutivas.length !== 1 ? "s" : ""}` : ""}. Clique para ${expandido ? "recolher" : "expandir"}`
             : undefined
         }
       >
@@ -255,13 +331,25 @@ function LinhaObreiro({
           </div>
         </td>
         <td className="rel-mes-cell rel-mes-cell--turma">
-          {turma ? (
-            <span
-              className="rel-mes-turma-badge"
-              style={{ color: turma.fg, background: turma.bg }}
-            >
-              {turma.label}
-            </span>
+          {turmas.length > 0 ? (
+            <div className="rel-mes-turmas">
+              {turmas.map(({ funcao: grupoFuncao, count }) => {
+                const funcaoRef =
+                  funcoes.find(
+                    (f) => obterGrupoFuncaoExibicao(f) === grupoFuncao && porFuncao[f] > 0
+                  ) || grupoFuncao;
+                return (
+                  <span key={grupoFuncao} className="rel-mes-turma-chip">
+                    <TextoFuncao ministerioId={ministerioId} funcao={funcaoRef} />
+                    {count > 1 && (
+                      <span className="rel-mes-turma-count" style={{ color: theme.textMuted }}>
+                        ×{count}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
           ) : (
             <span className="rel-mes-turma-vazia" style={{ color: theme.textDim }}>
               —
@@ -274,13 +362,15 @@ function LinhaObreiro({
           </span>
         </td>
         <td className="rel-mes-cell rel-mes-cell--indicador">
-          {temAlerta ? (
+          {podeExpandir ? (
             <span className="rel-mes-indicador">
-              <AlertTriangle
-                size={15}
-                color={ALERTA.fg}
-                aria-label="Alerta de turnos seguidos"
-              />
+              {temAlerta && (
+                <AlertTriangle
+                  size={15}
+                  color={ALERTA.fg}
+                  aria-label="Alerta de turnos seguidos"
+                />
+              )}
               <ChevronDown
                 size={14}
                 color={theme.textMuted}
@@ -292,10 +382,13 @@ function LinhaObreiro({
         </td>
       </tr>
 
-      {temAlerta && expandido && (
+      {podeExpandir && expandido && (
         <tr className="rel-mes-expandida">
           <td colSpan={4}>
-            <PainelTurnosSeguidos consecutivas={consecutivas} />
+            <PainelEscalasDetalhe slots={slots} ministerioId={ministerioId} />
+            {temAlerta && (
+              <PainelTurnosSeguidos consecutivas={consecutivas} />
+            )}
           </td>
         </tr>
       )}
@@ -329,23 +422,9 @@ export default function RelatorioMinisterio({
     if (pl && pl !== "disponível") porPessoa[pl] = [];
   });
 
-  datas.forEach((dataObj) => {
-    const turnoKey = turnoSalvoEscala(dataObj);
-    funcoes.forEach((f) => {
-      const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
-      if (pessoa && pessoa !== "disponível") {
-        const pl = pessoaNomeFirestore(pessoa);
-        if (!pl || pl === "disponível") return;
-        if (!porPessoa[pl]) porPessoa[pl] = [];
-        porPessoa[pl].push({ ...dataObj, funcao: f });
-      }
-    });
-  });
+  coletarSlotsPorPessoa(escalas, datas, funcoes, ministerioId, porPessoa);
 
-  const posicao = {};
-  datas.forEach((d, i) => {
-    posicao[d.id] = i;
-  });
+  const posicaoPorFaixa = buildPosicaoPorFaixa(datas);
 
   const relatorio = Object.entries(porPessoa).map(([pessoa, slots]) => {
     const porFuncao = {};
@@ -356,17 +435,9 @@ export default function RelatorioMinisterio({
       porFuncao[s.funcao] = (porFuncao[s.funcao] || 0) + 1;
     });
 
-    const slotsSorted = [...slots].sort((a, b) => posicao[a.id] - posicao[b.id]);
-    const consecutivas = [];
-    for (let i = 0; i < slotsSorted.length - 1; i++) {
-      const posA = posicao[slotsSorted[i].id];
-      const posB = posicao[slotsSorted[i + 1].id];
-      if (posB - posA === 1) {
-        consecutivas.push([slotsSorted[i], slotsSorted[i + 1]]);
-      }
-    }
+    const consecutivas = calcularConsecutivas(slots, posicaoPorFaixa);
 
-    return { pessoa, total: slots.length, porFuncao, consecutivas };
+    return { pessoa, total: slots.length, slots, porFuncao, consecutivas };
   });
 
   relatorio.sort((a, b) => b.total - a.total || a.pessoa.localeCompare(b.pessoa));
@@ -509,19 +580,19 @@ export default function RelatorioMinisterio({
         }
 
         .rel-mes-col-obreiro {
-          width: auto;
+          width: 26%;
         }
 
         .rel-mes-col-turma {
-          width: 32%;
+          width: auto;
         }
 
         .rel-mes-col-escalas {
-          width: 68px;
+          width: 84px;
         }
 
         .rel-mes-col-indicador {
-          width: 60px;
+          width: 64px;
         }
 
         .rel-mes-table thead th {
@@ -536,11 +607,33 @@ export default function RelatorioMinisterio({
           background: var(--bg);
         }
 
-        .rel-mes-table thead th.rel-mes-th--escalas,
+        .rel-mes-table thead th.rel-mes-th--escalas {
+          text-align: center;
+          padding-left: 12px;
+          padding-right: 12px;
+          border-left: 1px solid var(--border);
+          background: var(--bg);
+          color: var(--text-muted);
+        }
+
         .rel-mes-cell--escalas {
           text-align: center;
-          padding-left: 8px;
-          padding-right: 8px;
+          padding-left: 12px;
+          padding-right: 12px;
+          border-left: 1px solid var(--border);
+          background: var(--surface);
+        }
+
+        .rel-mes-cell--turma {
+          max-width: 0;
+          width: 42%;
+          overflow: hidden;
+          padding-right: 12px;
+        }
+
+        .rel-mes-cell--obreiro {
+          max-width: 0;
+          overflow: hidden;
         }
 
         .rel-mes-table thead th.rel-mes-th--indicador,
@@ -567,7 +660,12 @@ export default function RelatorioMinisterio({
           cursor: pointer;
         }
 
-        .rel-mes-row--alerta:focus-visible {
+        .rel-mes-row--expansivel {
+          cursor: pointer;
+        }
+
+        .rel-mes-row--alerta:focus-visible,
+        .rel-mes-row--expansivel:focus-visible {
           outline: 2px solid var(--accent-focus-ring);
           outline-offset: -2px;
         }
@@ -575,10 +673,6 @@ export default function RelatorioMinisterio({
         .rel-mes-cell {
           padding: 10px 14px;
           vertical-align: middle;
-        }
-
-        .rel-mes-cell--escalas {
-          text-align: center;
         }
 
         .rel-mes-obreiro {
@@ -612,18 +706,44 @@ export default function RelatorioMinisterio({
           text-overflow: ellipsis;
         }
 
-        .rel-mes-turma-badge {
-          display: inline-block;
+        .rel-mes-funcao-texto {
           font-size: 11px;
           font-weight: 600;
-          border-radius: 4px;
-          padding: 3px 8px;
-          white-space: nowrap;
-          max-width: 140px;
-          overflow: hidden;
-          text-overflow: ellipsis;
           text-transform: uppercase;
           letter-spacing: 0.3px;
+        }
+
+        .rel-mes-turmas {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          row-gap: 4px;
+          max-width: 100%;
+          font-size: 11px;
+          line-height: 1.45;
+        }
+
+        .rel-mes-turma-chip {
+          display: inline-flex;
+          align-items: baseline;
+          gap: 0.15em;
+          white-space: nowrap;
+          flex-shrink: 0;
+          max-width: 100%;
+        }
+
+        .rel-mes-turma-chip:not(:last-child)::after {
+          content: ",";
+          margin-left: 0.1em;
+          margin-right: 0.55em;
+          color: var(--text-muted);
+          font-weight: 400;
+        }
+
+        .rel-mes-turma-count {
+          font-size: 12px;
+          font-weight: 700;
+          font-family: 'JetBrains Mono', monospace;
         }
 
         .rel-mes-turma-vazia {
@@ -631,8 +751,8 @@ export default function RelatorioMinisterio({
         }
 
         .rel-mes-escalas-num {
-          display: block;
-          width: 100%;
+          display: inline-block;
+          min-width: 1.5em;
           text-align: center;
           font-size: 14px;
           font-weight: 700;
@@ -680,6 +800,50 @@ export default function RelatorioMinisterio({
           gap: 8px;
           font-size: 11px;
           line-height: 1.4;
+          justify-content: flex-start;
+        }
+
+        .rel-mes-alerta-linha--cabecalho {
+          margin-bottom: 2px;
+        }
+
+        .rel-mes-detalhe-faixa {
+          padding: 10px 14px;
+          border-bottom: 1px solid var(--border);
+          background: var(--surface);
+        }
+
+        .rel-mes-detalhe-cabecalho {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.35px;
+          color: var(--text-muted);
+          margin-bottom: 8px;
+        }
+
+        .rel-mes-detalhe-lista {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .rel-mes-detalhe-item {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .rel-mes-detalhe-data {
+          font-weight: 500;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text);
+          min-width: 72px;
         }
 
         .rel-mes-alerta-icone {
@@ -693,11 +857,6 @@ export default function RelatorioMinisterio({
           text-transform: uppercase;
           letter-spacing: 0.35px;
           flex-shrink: 0;
-        }
-
-        .rel-mes-alerta-indent {
-          flex-shrink: 0;
-          width: calc(14px + 8px + 7.2rem);
         }
 
         .rel-mes-alerta-periodo {
@@ -723,7 +882,7 @@ export default function RelatorioMinisterio({
           margin-bottom: 4px;
           display: flex;
           flex-wrap: nowrap;
-          align-items: flex-start;
+          align-items: center;
           gap: 16px;
           padding: 12px 14px;
           border-radius: 8px;
@@ -747,33 +906,36 @@ export default function RelatorioMinisterio({
 
         .rel-mes-sem-escala-cabecalho {
           display: flex;
-          align-items: baseline;
+          align-items: center;
           gap: 4px;
           flex: 0 0 auto;
-          align-self: center;
           white-space: nowrap;
+          line-height: 1.5;
+        }
+
+        .rel-mes-sem-escala-rotulo,
+        .rel-mes-sem-escala-contador,
+        .rel-mes-sem-escala-nome {
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.5;
+          color: var(--text-muted);
         }
 
         .rel-mes-sem-escala-rotulo {
-          font-size: 10px;
-          font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.45px;
-          color: var(--text-muted);
+          letter-spacing: 0.35px;
         }
 
         .rel-mes-sem-escala-contador {
-          font-size: 11px;
-          font-weight: 600;
-          color: var(--text-muted);
-          font-family: 'JetBrains Mono', monospace;
+          font-family: inherit;
         }
 
         .rel-mes-sem-escala-divisor {
           width: 1px;
           align-self: stretch;
           flex: 0 0 1px;
-          min-height: 24px;
+          min-height: 1em;
           background: var(--border);
         }
 
@@ -783,6 +945,7 @@ export default function RelatorioMinisterio({
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 10px 0;
+          align-items: center;
         }
 
         @media (max-width: 640px) {
@@ -811,10 +974,6 @@ export default function RelatorioMinisterio({
 
         .rel-mes-sem-escala-nome {
           position: relative;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--text-muted);
-          line-height: 1.5;
           padding: 0 12px;
           text-align: left;
           white-space: nowrap;
@@ -892,10 +1051,15 @@ export default function RelatorioMinisterio({
           display: flex;
           align-items: center;
           justify-content: flex-start;
+          flex-wrap: wrap;
           gap: 6px;
           font-size: 11px;
           color: var(--text-muted);
           text-align: left;
+        }
+
+        .rel-mes-legenda-sep {
+          opacity: 0.5;
         }
 
         .rel-mes-vazio {
@@ -940,15 +1104,20 @@ export default function RelatorioMinisterio({
           }
 
           .rel-mes-col-turma {
-            width: 30%;
+            width: auto;
           }
 
           .rel-mes-col-escalas {
-            width: 48px;
+            width: 60px;
           }
 
           .rel-mes-col-indicador {
             width: 40px;
+          }
+
+          .rel-mes-cell--turma {
+            width: 38%;
+            padding-right: 8px;
           }
 
           .rel-mes-table thead th,
@@ -956,10 +1125,14 @@ export default function RelatorioMinisterio({
             padding: 8px 6px;
           }
 
-          .rel-mes-table thead th.rel-mes-th--escalas,
+          .rel-mes-table thead th.rel-mes-th--escalas {
+            padding-left: 10px;
+            padding-right: 8px;
+          }
+
           .rel-mes-cell--escalas {
-            padding-left: 4px;
-            padding-right: 4px;
+            padding-left: 10px;
+            padding-right: 8px;
           }
 
           .rel-mes-table thead th.rel-mes-th--indicador,
@@ -982,10 +1155,12 @@ export default function RelatorioMinisterio({
             font-size: 12px;
           }
 
-          .rel-mes-turma-badge {
-            max-width: 88px;
+          .rel-mes-turmas {
             font-size: 10px;
-            padding: 2px 6px;
+          }
+
+          .rel-mes-turma-count {
+            font-size: 11px;
           }
 
           .rel-mes-escalas-num {
@@ -1050,10 +1225,10 @@ export default function RelatorioMinisterio({
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">Obreiro</th>
-                  <th scope="col">Turma</th>
+                  <th scope="col">Obreiro(a)</th>
+                  <th scope="col">Função</th>
                   <th scope="col" className="rel-mes-th--escalas">
-                    Escalas
+                    Escala
                   </th>
                   <th scope="col" className="rel-mes-th--indicador" aria-label="Alertas">
                     <span className="rel-mes-th-indicador-vazio" aria-hidden="true">
@@ -1063,11 +1238,12 @@ export default function RelatorioMinisterio({
                 </tr>
               </thead>
               <tbody>
-                {escalados.map(({ pessoa, total, porFuncao, consecutivas }) => (
+                {escalados.map(({ pessoa, total, slots, porFuncao, consecutivas }) => (
                   <LinhaObreiro
                     key={pessoa}
                     pessoa={pessoa}
                     total={total}
+                    slots={slots}
                     porFuncao={porFuncao}
                     consecutivas={consecutivas}
                     ministerioId={ministerioId}
@@ -1081,11 +1257,18 @@ export default function RelatorioMinisterio({
             </table>
           )}
         </div>
-        {escalados.some((r) => r.consecutivas.length > 0) && (
+        {escalados.some((r) => r.total > 0) && (
           <div className="rel-mes-table-footer">
             <footer className="rel-mes-legenda">
-              <AlertTriangle size={13} color={ALERTA.fg} aria-hidden />
-              <span>Indica turnos em dias consecutivos no mês</span>
+              <ChevronDown size={13} color={theme.textMuted} aria-hidden />
+              <span>Clique na linha para ver todas as datas escaladas</span>
+              {escalados.some((r) => r.consecutivas.length > 0) && (
+                <>
+                  <span className="rel-mes-legenda-sep" aria-hidden>·</span>
+                  <AlertTriangle size={13} color={ALERTA.fg} aria-hidden />
+                  <span>Indica turnos seguidos na mesma faixa</span>
+                </>
+              )}
             </footer>
           </div>
         )}

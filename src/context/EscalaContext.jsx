@@ -4,6 +4,8 @@ import { db } from "../firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { gerarDatasEscala } from "../utils/dateHelper";
 import { normalizarMapaEscalas } from "../utils/nomeExibicao";
+import { turnoSalvoEscala } from "../utils/escalaDisponibilidade";
+import { canonicalizarFuncaoEscala } from "../utils/gridAbreviacoes";
 
 const EscalaContext = createContext();
 
@@ -104,8 +106,9 @@ export function EscalaProvider({ children, ministerioId, mes }) {
         const mapa = {};
         snapshot.forEach(doc => {
           const d = doc.data();
-          const turnoKey = d.turno || "único";
-          mapa[`${d.data}-${turnoKey}-${d.funcao}`] = d.pessoaNome;
+          const turnoKey = turnoSalvoEscala({ turno: d.turno });
+          const funcaoKey = canonicalizarFuncaoEscala(ministerioId, d.funcao);
+          mapa[`${d.data}-${turnoKey}-${funcaoKey}`] = d.pessoaNome;
         });
         setEscalas(normalizarMapaEscalas(mapa));
         setLoading(false);

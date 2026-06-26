@@ -1,4 +1,5 @@
 import { funcoesPorMinisterio } from "../data/funcoes";
+import { canonicalizarFuncaoEscala } from "./gridAbreviacoes";
 import { ministerioPermiteEscalaFlexivel } from "./regrasMinisterio";
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
@@ -22,6 +23,48 @@ export function turnoSalvoEscala(dataObj) {
 export function chaveSlotEscala(dataObj, funcao) {
   const turno = turnoSalvoEscala(dataObj);
   return `${dataObj.data}-${turno}-${funcao}`;
+}
+
+/** Interpreta chave do mapa de escalas (data-turno-funcao). */
+export function parseChaveEscala(chave, ministerioId) {
+  if (!chave || chave.length < 12) return null;
+  const data = chave.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return null;
+
+  const funcoes = funcoesPorMinisterio[ministerioId] || [];
+  const rest = chave.slice(11);
+  const ordenadas = [...funcoes].sort((a, b) => b.length - a.length);
+
+  for (const funcao of ordenadas) {
+    const sufixo = `-${funcao}`;
+    if (!rest.endsWith(sufixo)) continue;
+    const turno = rest.slice(0, -sufixo.length);
+    return {
+      data,
+      turno: normalizarTurnoCanonico(turno),
+      funcao,
+    };
+  }
+
+  const separador = rest.indexOf("-");
+  if (separador === -1) return null;
+  const turno = rest.slice(0, separador);
+  const funcaoRaw = rest.slice(separador + 1);
+  if (!funcaoRaw) return null;
+
+  return {
+    data,
+    turno: normalizarTurnoCanonico(turno),
+    funcao: canonicalizarFuncaoEscala(ministerioId, funcaoRaw),
+  };
+}
+
+export function encontrarDataObjNasDatas(datas, data, turnoKey) {
+  const exato = datas.find((dt) => dt.data === data && turnoSalvoEscala(dt) === turnoKey);
+  if (exato) return exato;
+  const porData = datas.filter((dt) => dt.data === data);
+  if (porData.length === 1) return porData[0];
+  return null;
 }
 
 /**

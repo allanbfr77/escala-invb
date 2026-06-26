@@ -3,6 +3,7 @@ import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { chaveIndisponibilidadeColuna, estaIndisponivelTodoMes } from "./indisponibilidadeHelpers";
 import { turnoSalvoEscala } from "./escalaDisponibilidade";
+import { canonicalizarFuncaoEscala } from "./gridAbreviacoes";
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
 export const MINISTERIOS_IDS = ["comunicacao", "louvor", "recepcao", "infantil"];
@@ -124,9 +125,10 @@ function montarEscalasPorMinisterio(escalasDocs) {
     const mid = d.ministerioId;
     if (!porMinisterio[mid]) continue;
     const turnoKey = turnoSalvoEscala({ turno: d.turno });
+    const funcaoKey = canonicalizarFuncaoEscala(mid, d.funcao);
     const pl = idPessoaRelatorio(d.pessoaNome);
     if (!pl) continue;
-    porMinisterio[mid][`${d.data}-${turnoKey}-${d.funcao}`] = pl;
+    porMinisterio[mid][`${d.data}-${turnoKey}-${funcaoKey}`] = pl;
   }
 
   return porMinisterio;

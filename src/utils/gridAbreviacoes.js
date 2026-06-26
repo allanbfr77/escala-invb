@@ -126,6 +126,25 @@ export function abrevParaFuncao(ministerioId, abrev) {
   return MAPA[ministerioId]?.[normalizado] ?? null;
 }
 
+function chaveFuncaoComparacao(funcao) {
+  return String(funcao)
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+}
+
+/** Normaliza função gravada no Firestore (abreviação ou variação de acento) para o nome canônico. */
+export function canonicalizarFuncaoEscala(ministerioId, funcao) {
+  if (!funcao || !ministerioId) return funcao;
+  const fromAbrev = abrevParaFuncao(ministerioId, funcao);
+  if (fromAbrev) return fromAbrev;
+  const funcoes = funcoesPorMinisterio[ministerioId] || [];
+  const alvo = chaveFuncaoComparacao(funcao);
+  const match = funcoes.find((f) => chaveFuncaoComparacao(f) === alvo);
+  return match || String(funcao).trim();
+}
+
 export function funcaoParaAbrev(ministerioId, funcao) {
   if (!funcao || !ministerioId) return "";
   const mapa = MAPA[ministerioId];
