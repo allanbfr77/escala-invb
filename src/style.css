@@ -2090,6 +2090,40 @@ code {
   flex: 0 0 auto;
 }
 
+.qa-export-wrap {
+  position: relative;
+}
+
+.qa-export-menu {
+  min-width: 200px;
+}
+
+.qa-export-menu-title {
+  padding: 6px 12px 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.qa-export-menu-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.qa-export-menu-item-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.qa-export-menu-item-desc {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 .quick-actions-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

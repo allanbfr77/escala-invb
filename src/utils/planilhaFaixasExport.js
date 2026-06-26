@@ -42,11 +42,24 @@ function escalaKey(dataObj, funcao) {
   return `${dataObj.data}-${turnoSalvo(dataObj)}-${funcao}`;
 }
 
-function valorCelulaExport(escalas, dataObj, funcao, LT) {
+const COR_DISPONIVEL_LOUVOR_EXPORT = "#DC2626";
+
+function corDisponivelExport(ministerioId, LT) {
+  if (ministerioId === "louvor") return COR_DISPONIVEL_LOUVOR_EXPORT;
+  return LT.slotDisponivel;
+}
+
+function valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId) {
   const raw = escalas[escalaKey(dataObj, funcao)];
-  if (!raw || raw === "disponível") {
-    const cor = raw === "disponível" ? LT.slotDisponivel : LT.textDim;
-    return { html: "—", bg: LT.cellEmpty, color: cor };
+  if (!raw) {
+    return { html: "—", bg: LT.cellEmpty, color: LT.textDim };
+  }
+  if (raw === "disponível") {
+    return {
+      html: nomeParaExibicao(raw),
+      bg: LT.surface,
+      color: corDisponivelExport(ministerioId, LT),
+    };
   }
   return { html: nomeParaExibicao(raw), bg: LT.surface, color: LT.text };
 }
@@ -69,9 +82,9 @@ function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase
     tbody += `<td style="${cellBorder}padding:7px 8px;text-align:center;vertical-align:middle;font-size:9px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;white-space:nowrap;background:${LT.surface};">${funcao}</td>`;
 
     for (const dataObj of colunasAtivas) {
-      const cel = valorCelulaExport(escalas, dataObj, funcao, LT);
-      tbody += `<td style="${cellBorder}padding:6px 8px;text-align:center;vertical-align:middle;background:${LT.surface};">
-        <span style="font-size:10px;font-weight:500;color:${LT.text};font-family:'Outfit',sans-serif;white-space:nowrap;">${cel.html}</span>
+      const cel = valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId);
+      tbody += `<td style="${cellBorder}padding:6px 8px;text-align:center;vertical-align:middle;background:${cel.bg};">
+        <span style="font-size:10px;font-weight:500;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;">${cel.html}</span>
       </td>`;
     }
     tbody += "</tr>";

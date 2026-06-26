@@ -361,7 +361,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       return;
     }
 
-    const isPlanilha = layout === "planilha" || layout === "mobile";
+    const isPlanilha = layout === "planilha";
+    const isCard = layout === "card" || layout === "mobile";
 
     if (isPlanilha && !ministerioTemConfigPlanilhaFaixas(ministerioSelecionado)) {
       mostrarMensagem("Exportação de planilha indisponível nesta visualização", "erro");
@@ -433,8 +434,58 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         wrapper.style.maxWidth = `${EXPORT_PLANILHA_WIDTH}px`;
         wrapper.style.boxSizing = "border-box";
         wrapper.innerHTML = headerHTML + tableHTML;
+      } else if (isCard) {
+        downloadSuffix = "-card";
+        const cols = 3;
+        wrapper.style.padding = "16px";
+        wrapper.style.width = "900px";
+
+        let cardsHTML = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px;">`;
+
+        datas.forEach((dataObj) => {
+          const turnoKey = dataObj.turno ?? "único";
+          const dataLabel = formatarDataExport(dataObj, LT.accent);
+
+          let rowsHTML = "";
+          funcoes.forEach((f) => {
+            const pessoa = escalas[`${dataObj.data}-${turnoKey}-${f}`];
+            const isDisponivel = pessoa === "disponível";
+            rowsHTML += `
+              <div style="display:flex;justify-content:space-between;align-items:baseline;
+                gap:4px;padding:2px 0;border-bottom:1px solid ${LT.border};">
+                <span style="font-size:8px;color:${LT.textMuted};font-weight:500;
+                  text-transform:uppercase;letter-spacing:0.2px;
+                  font-family:'Outfit',sans-serif;flex:1;white-space:nowrap;
+                  overflow:hidden;text-overflow:ellipsis;">${f}</span>
+                <span style="font-size:9px;font-weight:${pessoa ? 600 : 400};
+                  color:${isDisponivel ? LT.slotDisponivel : pessoa ? LT.text : LT.textDim};
+                  font-family:'Outfit',sans-serif;white-space:nowrap;">
+                  ${pessoa ? nomeParaExibicao(pessoa) : "—"}
+                </span>
+              </div>
+            `;
+          });
+
+          cardsHTML += `
+            <div style="background:${LT.surface};border:1px solid ${LT.border};
+              border-radius:8px;overflow:hidden;">
+              <div style="background:#F1F5F9;border-bottom:1px solid ${LT.border};
+                padding:6px 10px;font-size:9px;font-weight:700;color:${LT.textMuted};
+                font-family:'Outfit',sans-serif;text-transform:uppercase;letter-spacing:0.3px;">
+                ${dataLabel}
+              </div>
+              <div style="padding:6px 10px;display:flex;flex-direction:column;gap:0px;">
+                ${rowsHTML}
+              </div>
+            </div>
+          `;
+        });
+
+        cardsHTML += "</div>";
+        wrapper.innerHTML = headerHTML + cardsHTML;
       } else {
-        // ── Tabela web (legado) ────────────────────────────────────────────
+        downloadSuffix = "-tabela";
+        // ── Tabela web ─────────────────────────────────────────────────────
         const thStyle = `padding:10px 20px;text-align:left;font-weight:600;
           color:${LT.textMuted};font-size:10px;text-transform:uppercase;
           letter-spacing:0.8px;white-space:nowrap;font-family:'Outfit',sans-serif;`;
@@ -953,6 +1004,22 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     }),
     [escalas, datas, mes, loading, user, podeEditar, indispRefreshKey, pedirConfirmacao, filtroNome]
   );
+
+  const opcoesExportacao = useMemo(() => {
+    const planilha = {
+      layout: "planilha",
+      label: "Modelo 1 (Planilha)",
+      desc: "faixas por culto",
+    };
+    const tabela = {
+      layout: "tabela",
+      label: "Modelo 2 (Tabela)",
+      desc: "linhas e colunas",
+    };
+
+    if (ministerioSelecionado === "louvor") return [planilha];
+    return [planilha, tabela];
+  }, [ministerioSelecionado]);
 
   const current = ministerioConfig[ministerioSelecionado];
   const showMinistryHeaderBlock = !isTabletUp;
@@ -1776,7 +1843,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onToggleRelatorio={toggleRelatorio}
             onToggleOutrosMinisterios={toggleOutrosMinisterios}
             onHashNavClick={handleHashNavClick}
-            onExportar={() => handleDownload("planilha")}
+            onExportarModelo={handleDownload}
+            opcoesExportacao={opcoesExportacao}
+            baixando={baixando}
             onTexto={() => handleDownload("text")}
             onToggleTheme={toggleTheme}
             isDark={isDark}

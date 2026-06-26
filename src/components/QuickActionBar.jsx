@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
 import { HASH_SECTIONS } from "../utils/hashNavigation";
 
@@ -71,6 +72,79 @@ const ICONS = {
   ),
 };
 
+function ExportButton({ disabled, baixando, opcoes, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const downloadDireto = opcoes.length === 1;
+
+  useEffect(() => {
+    if (downloadDireto || !open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open, downloadDireto]);
+
+  const handleClick = () => {
+    if (downloadDireto) {
+      onSelect(opcoes[0].layout);
+      return;
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <div
+      className={downloadDireto ? "qa-export-wrap" : "acoes-kebab-wrap qa-export-wrap"}
+      ref={downloadDireto ? undefined : ref}
+    >
+      <button
+        type="button"
+        className="qa-bar-link"
+        onClick={handleClick}
+        disabled={disabled || baixando}
+        title={
+          disabled
+            ? "Disponível apenas no modo de edição"
+            : downloadDireto
+              ? "Baixar planilha"
+              : "Exportar escala como imagem"
+        }
+        aria-haspopup={downloadDireto ? undefined : "menu"}
+        aria-expanded={downloadDireto ? undefined : open}
+        aria-label="Exportar"
+      >
+        <span className="qa-bar-link-icon">{ICONS.exportar}</span>
+        <span className="qa-bar-link-label">{baixando ? "Gerando..." : "Exportar"}</span>
+      </button>
+      {!downloadDireto && open && (
+        <div className="acoes-kebab-menu qa-export-menu" role="menu">
+          <div className="qa-export-menu-title">Formato da imagem</div>
+          {opcoes.map((opt) => (
+            <button
+              key={opt.layout}
+              type="button"
+              role="menuitem"
+              className="acoes-kebab-item qa-export-menu-item"
+              onClick={() => {
+                setOpen(false);
+                onSelect(opt.layout);
+              }}
+              disabled={baixando}
+            >
+              <div>
+                <div className="qa-export-menu-item-label">{opt.label}</div>
+                <div className="qa-export-menu-item-desc">{opt.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MenuItem({ item, onHashNavClick }) {
   const className = `qa-bar-link${item.active ? " is-active" : ""}${item.danger ? " is-danger" : ""}`;
 
@@ -124,7 +198,9 @@ export default function QuickActionBar({
   onToggleRelatorio,
   onToggleOutrosMinisterios,
   onHashNavClick,
-  onExportar,
+  onExportarModelo,
+  opcoesExportacao = [],
+  baixando = false,
   onTexto,
   onToggleTheme,
   isDark,
@@ -168,13 +244,6 @@ export default function QuickActionBar({
       icon: ICONS.indisponivel,
       active: verIndisponibilidade,
       onClick: onToggleIndisponibilidade,
-      disabled: !podeEditar,
-    },
-    {
-      key: "exportar",
-      label: "Exportar",
-      icon: ICONS.exportar,
-      onClick: onExportar,
       disabled: !podeEditar,
     },
     {
@@ -231,12 +300,23 @@ export default function QuickActionBar({
         </div>
 
         <div className="qa-bar-items">
-          {itens.slice(0, 7).map((item) => (
+          {itens.slice(0, 4).map((item) => (
+            <MenuItem key={item.key} item={item} onHashNavClick={onHashNavClick} />
+          ))}
+
+          <ExportButton
+            disabled={!podeEditar}
+            baixando={baixando}
+            opcoes={opcoesExportacao}
+            onSelect={onExportarModelo}
+          />
+
+          {itens.slice(4, 6).map((item) => (
             <MenuItem key={item.key} item={item} onHashNavClick={onHashNavClick} />
           ))}
 
           <div className="qa-bar-slot-duo">
-            <MenuItem key={itens[7].key} item={itens[7]} onHashNavClick={onHashNavClick} />
+            <MenuItem key="organizar" item={itens[6]} onHashNavClick={onHashNavClick} />
 
           <div className="acoes-kebab-wrap qa-bar-kebab" ref={acoesMenuRef}>
           <button
