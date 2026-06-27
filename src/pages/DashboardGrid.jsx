@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/f
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
 import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
+import { useIndisponibilidadesMinisterio } from "../hooks/useIndisponibilidadesMinisterio";
 import {
   pessoaEscaladaEmOutroMinisterioNoCulto,
   getEscalaExterna,
@@ -170,42 +171,26 @@ export default function DashboardGrid({
   );
 
   const [cells, setCells] = useState({});
-  const [indispMap, setIndispMap] = useState(() => new Set());
+  const { indisponiveisMap: indispMapRaw } = useIndisponibilidadesMinisterio(
+    ministerioId,
+    !!ministerioId
+  );
+  const indispMap = useMemo(() => {
+    const set = new Set();
+    Object.entries(indispMapRaw).forEach(([pessoaNome, datasIndisp]) => {
+      datasIndisp?.forEach((chave) => {
+        const [data, turno = "único"] = chave.split("|");
+        if (data) set.add(`${pessoaNome}|${data}|${turno}`);
+      });
+    });
+    return set;
+  }, [indispMapRaw]);
   const [editingKey, setEditingKey] = useState(null);
   const [celulaAtiva, setCelulaAtiva] = useState(null);
   const [draft, setDraft] = useState("");
   const [salvando, setSalvando] = useState(false);
   const editingRef = useRef(null);
   const skipBlurRef = useRef(false);
-
-  useEffect(() => {
-    if (!ministerioId) return;
-    let cancelled = false;
-
-    getDocs(query(
-      collection(db, "indisponibilidades"),
-      where("ministerioId", "==", ministerioId)
-    ))
-      .then((indispSnap) => {
-        if (cancelled) return;
-
-        const indisp = new Set();
-        indispSnap.docs.forEach((docSnap) => {
-          const { pessoaNome, datas: datasIndisp = [] } = docSnap.data();
-          if (!pessoaNome) return;
-          const pl = pessoaNome.toLowerCase();
-          datasIndisp.forEach((chave) => {
-            const [data, turno = "único"] = chave.split("|");
-            if (data) indisp.add(`${pl}|${data}|${turno}`);
-          });
-        });
-
-        setIndispMap(indisp);
-      })
-      .catch((err) => console.error("Erro ao carregar indisponibilidades da planilha:", err));
-
-    return () => { cancelled = true; };
-  }, [ministerioId, indispRefreshKey]);
 
   const isIndisponivel = useCallback(
     (pessoa, dataObj) => indispMap.has(lookupCelula(pessoa, dataObj)),

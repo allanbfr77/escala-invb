@@ -23,6 +23,7 @@ import { formatarData } from "../utils/dateHelper";
 import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
 import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
+import { useLimpezaIndispEspelhadas } from "../hooks/useLimpezaIndispEspelhadas";
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
 import { pedirConfirmacao as pedirConfirmacaoAsync, cancelarConfirmacao } from "../utils/confirmacaoAsync";
@@ -224,6 +225,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     successDim: "var(--success-dim)",
   };
   const { escalas, datas, loading, error, retry } = useEscalas();
+  useLimpezaIndispEspelhadas(mes, !!ministerioSelecionado);
   // ── refreshKey dispara re-fetch no Sidebar quando uma escala é removida
   const [refreshKey, setRefreshKey] = useState(0);
   // ── indispRefreshKey dispara re-fetch das indisponibilidades quando o modal fecha

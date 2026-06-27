@@ -1,10 +1,11 @@
 // ===== src/components/IndisponibilidadeModal.jsx =====
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, setDoc, doc, deleteDoc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { accentAlpha } from "../constants/theme";
 import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
+import { useIndisponibilidadesMinisterio } from "../hooks/useIndisponibilidadesMinisterio";
 import { IconeMinisterio } from "../utils/ministerioIcons";
 import {
   contarResumoBloqueiosIndisponibilidade,
@@ -90,16 +91,18 @@ function scrollCabecalhoAoTopo(cabecalho, containerPreferido, offset = INDISP_SC
 }
 
 export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId, datasDisponiveis, mes, theme: t }) {
-  const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [salvando, setSalvando] = useState({});
   const [expandida, setExpandida] = useState(null);
-  const [loading, setLoading] = useState(true);
   const listaRef = useRef(null);
 
   const pessoas = pessoasPorMinisterio[ministerioId] || [];
   const pessoasLowerSet = useMemo(
     () => new Set(pessoas.map((p) => p.toLowerCase())),
     [pessoas]
+  );
+  const { indisponiveisMap, loading } = useIndisponibilidadesMinisterio(
+    ministerioId,
+    aberto && !!ministerioId
   );
   const { mapa: escalasCruzadasMap } = useEscalasCruzadas({
     mes,
@@ -121,29 +124,6 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
     scrollCabecalhoAoTopo(cabecalho, listaRef.current);
   }, [expandida, aberto]);
 
-  // Carrega indisponibilidades do ministério
-  useEffect(() => {
-    if (!aberto || !ministerioId) return;
-    setLoading(true);
-    let cancelled = false;
-
-    getDocs(query(
-      collection(db, "indisponibilidades"),
-      where("ministerioId", "==", ministerioId)
-    )).then(snap => {
-      if (cancelled) return;
-      const map = {};
-      snap.docs.forEach(d => {
-        const data = d.data();
-        map[data.pessoaNome] = new Set(data.datas || []);
-      });
-      setIndisponiveisMap(map);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-
-    return () => { cancelled = true; };
-  }, [aberto, ministerioId]);
-
   const toggleData = async (pessoaNome, data, turno) => {
     const key = pessoaNome.toLowerCase();
     const chave = `${data}|${turno ?? "único"}`;
@@ -155,16 +135,19 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
       atual.add(chave);
     }
 
-    setIndisponiveisMap(prev => ({ ...prev, [key]: atual }));
     setSalvando(prev => ({ ...prev, [key]: true }));
 
     try {
       const docId = `${ministerioId}_${key.replace(/\s+/g, "_").replace(/\./g, "")}`;
-      await setDoc(doc(db, "indisponibilidades", docId), {
-        ministerioId,
-        pessoaNome: key,
-        datas: [...atual],
-      });
+      if (atual.size === 0) {
+        await deleteDoc(doc(db, "indisponibilidades", docId));
+      } else {
+        await setDoc(doc(db, "indisponibilidades", docId), {
+          ministerioId,
+          pessoaNome: key,
+          datas: [...atual],
+        });
+      }
     } catch (err) {
       console.error("Erro ao salvar indisponibilidade:", err);
     } finally {
@@ -180,15 +163,18 @@ export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId,
     const key = pessoaNome.toLowerCase();
     const datasNormalizadas = new Set(datasSet || []);
 
-    setIndisponiveisMap(prev => ({ ...prev, [key]: datasNormalizadas }));
     setSalvando(prev => ({ ...prev, [key]: true }));
     try {
       const docId = `${ministerioId}_${key.replace(/\s+/g, "_").replace(/\./g, "")}`;
-      await setDoc(doc(db, "indisponibilidades", docId), {
-        ministerioId,
-        pessoaNome: key,
-        datas: [...datasNormalizadas],
-      });
+      if (datasNormalizadas.size === 0) {
+        await deleteDoc(doc(db, "indisponibilidades", docId));
+      } else {
+        await setDoc(doc(db, "indisponibilidades", docId), {
+          ministerioId,
+          pessoaNome: key,
+          datas: [...datasNormalizadas],
+        });
+      }
     } catch (err) {
       console.error("Erro ao salvar indisponibilidades:", err);
     } finally {

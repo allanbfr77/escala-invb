@@ -6,6 +6,7 @@ import { formatarData } from "../utils/dateHelper";
 import { chaveIndisponibilidadeColuna } from "../utils/indisponibilidadeHelpers";
 import { pessoaEscaladaEmOutroMinisterioNoCulto } from "../utils/escalasCruzadas";
 import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
+import { useIndisponibilidadesMinisterio } from "../hooks/useIndisponibilidadesMinisterio";
 import {
   montarFaixasPlanilha,
   formatarCabecalhoData,
@@ -421,7 +422,6 @@ export default function PlanilhaMinisterio({
   const termoFiltro = filtroNome.trim().toLowerCase();
   const filtroAtivo = termoFiltro.length > 0;
   const [salvando, setSalvando] = useState(false);
-  const [indispMap, setIndispMap] = useState({});
   const isTabletUp = useMediaQuery(TABLET_MIN_QUERY);
   const [abertos, setAbertos] = useState(() => new Set());
 
@@ -444,33 +444,10 @@ export default function PlanilhaMinisterio({
     enabled: !!ministerioId && !!mes,
   });
 
-  useEffect(() => {
-    if (!ministerioId) return;
-    let cancelled = false;
-    getDocs(
-      query(
-        collection(db, "indisponibilidades"),
-        where("ministerioId", "==", ministerioId)
-      )
-    )
-      .then((snap) => {
-        if (cancelled) return;
-        const mapa = {};
-        snap.docs.forEach((docSnap) => {
-          const { pessoaNome, datas: datasIndisp = [] } = docSnap.data();
-          if (!pessoaNome) return;
-          const pl = pessoaNome.toLowerCase();
-          mapa[pl] = new Set(datasIndisp);
-        });
-        setIndispMap(mapa);
-      })
-      .catch((err) =>
-        console.error(`PlanilhaMinisterio(${ministerioId}): indisponibilidades`, err)
-      );
-    return () => {
-      cancelled = true;
-    };
-  }, [ministerioId, indispRefreshKey]);
+  const { indisponiveisMap: indispMap } = useIndisponibilidadesMinisterio(
+    ministerioId,
+    !!ministerioId
+  );
 
   const pessoaIndisponivel = useCallback(
     (pessoa, dataObj) => {

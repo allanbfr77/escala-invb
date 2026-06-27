@@ -12,6 +12,7 @@ import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
 import { pessoaJaEscaladaNoMesmoMinisterioNoCulto } from "../utils/escalaDisponibilidade";
 import { pessoaEscaladaEmOutroMinisterioNoCulto } from "../utils/escalasCruzadas";
 import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
+import { useIndisponibilidadesMinisterio } from "../hooks/useIndisponibilidadesMinisterio";
 import {
   MINISTERIO_INFANTIL_ID,
   contarCultosEscaladosInfantilNoMes,
@@ -154,7 +155,6 @@ export default function SidebarFiltros({
   const [funcaoSelecionada, setFuncao]        = useState("");
   const [datasIds, setDatasIds] = useState([]);
   const [datasConfirmadas, setDatasConfirmadas] = useState([]);
-  const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [extrasAberta, setExtrasAberta]       = useState(false);
   const [minDropAberto, setMinDropAberto]     = useState(false);
   const minDropRef                            = useRef(null);
@@ -216,24 +216,10 @@ export default function SidebarFiltros({
     });
   }, [escalas, datasDisponiveis, ministerioSelecionado]);
 
-  // ─── Carrega indisponibilidades do ministério ─────────────────────────────
-  useEffect(() => {
-    if (!ministerioSelecionado) return;
-    let cancelled = false;
-    getDocs(query(
-      collection(db, "indisponibilidades"),
-      where("ministerioId", "==", ministerioSelecionado)
-    )).then(snap => {
-      if (cancelled) return;
-      const map = {};
-      snap.docs.forEach(d => {
-        const data = d.data();
-        map[data.pessoaNome] = new Set(data.datas || []);
-      });
-      setIndisponiveisMap(map);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [ministerioSelecionado, refreshKey, indispRefreshKey]);
+  const { indisponiveisMap } = useIndisponibilidadesMinisterio(
+    ministerioSelecionado,
+    !!ministerioSelecionado
+  );
 
   // ─── Datas ocupadas — computado direto do escalas (onSnapshot, sempre atual) ─
   const datasOcupadas = useMemo(() => {

@@ -25,7 +25,7 @@ export function montarMapaEscalasCruzadas(docs, pessoasLowerSet) {
     if (!d?.pessoaNome || !d?.data) continue;
     if (pessoasLowerSet && !pessoasLowerSet.has(d.pessoaNome)) continue;
 
-    const turno = d.turno ?? "único";
+    const turno = turnoSalvoEscala({ turno: d.turno });
     const key = chaveEscalaCruzada(d.pessoaNome, d.data, turno);
     const entry = {
       ministerioId: d.ministerioId,
