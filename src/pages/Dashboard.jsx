@@ -123,6 +123,33 @@ function formatarDataExport(dataObj, accentColor) {
   });
 }
 
+const EXPORT_PLANILHA_WIDTH = 900;
+const EXPORT_PLANILHA_HEIGHT = 1200;
+
+function canvasPlanilhaFixo(sourceCanvas, bgColor) {
+  const out = document.createElement("canvas");
+  out.width = EXPORT_PLANILHA_WIDTH;
+  out.height = EXPORT_PLANILHA_HEIGHT;
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, EXPORT_PLANILHA_WIDTH, EXPORT_PLANILHA_HEIGHT);
+
+  const scale = Math.min(
+    EXPORT_PLANILHA_WIDTH / sourceCanvas.width,
+    EXPORT_PLANILHA_HEIGHT / sourceCanvas.height
+  );
+  const w = sourceCanvas.width * scale;
+  const h = sourceCanvas.height * scale;
+  ctx.drawImage(
+    sourceCanvas,
+    (EXPORT_PLANILHA_WIDTH - w) / 2,
+    0,
+    w,
+    h
+  );
+  return out;
+}
+
 function formatarNomeTexto(nome) {
   if (!nome) return "—";
   if (nome.toLowerCase() === "disponível") return "Disponível";
@@ -377,7 +404,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         .toUpperCase();
 
       const funcoes = funcoesPorMinisterio[ministerioSelecionado] || [];
-      const EXPORT_PLANILHA_WIDTH = 760;
 
       // ── Paleta light ──────────────────────────────────────────────────────
       const LT = {
@@ -421,6 +447,22 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
       if (isPlanilha) {
         downloadSuffix = "-planilha";
+        const planilhaHeaderHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;
+            margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid ${LT.border};">
+            <div>
+              <div style="font-size:16px;font-weight:600;color:${LT.textMuted};
+                text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;
+                font-family:'Outfit',sans-serif;">Escala INVB</div>
+              <div style="font-size:28px;font-weight:700;color:${LT.text};
+                letter-spacing:-0.2px;font-family:'Outfit',sans-serif;line-height:1.15;">
+                ${ministerioConfig[ministerioSelecionado].nome}
+              </div>
+            </div>
+            <div style="font-size:20px;color:${LT.textMuted};font-weight:500;
+              font-family:'Outfit',sans-serif;text-align:right;">${mesFormatado}</div>
+          </div>
+        `;
         const tableHTML = buildPlanilhaFaixasTableHTML({
           ministerioId: ministerioSelecionado,
           datas,
@@ -428,12 +470,12 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           escalas,
           LT,
         });
-        wrapper.style.padding = "20px 24px 24px";
+        wrapper.style.padding = "20px 14px 18px";
         wrapper.style.width = `${EXPORT_PLANILHA_WIDTH}px`;
         wrapper.style.minWidth = `${EXPORT_PLANILHA_WIDTH}px`;
         wrapper.style.maxWidth = `${EXPORT_PLANILHA_WIDTH}px`;
         wrapper.style.boxSizing = "border-box";
-        wrapper.innerHTML = headerHTML + tableHTML;
+        wrapper.innerHTML = planilhaHeaderHTML + tableHTML;
       } else if (isCard) {
         downloadSuffix = "-card";
         const cols = 3;
@@ -547,7 +589,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
       const canvas = await html2canvas(wrapper, {
         backgroundColor: LT.bg,
-        scale: 2,
+        scale: isPlanilha ? 1 : 2,
         useCORS: true,
         logging: false,
         width: exportWidth,
@@ -560,9 +602,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
 
       document.body.removeChild(wrapper);
 
+      const exportCanvas = isPlanilha
+        ? canvasPlanilhaFixo(canvas, LT.bg)
+        : canvas;
+
       const link = document.createElement("a");
       link.download = `escala${downloadSuffix}-${ministerioSelecionado}-${mes}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = exportCanvas.toDataURL("image/png");
       link.click();
 
     } catch (err) {

@@ -18,9 +18,34 @@ const CORES_GRUPO_FUNCAO_EXPORT = {
   "intro-3": "#ea580c",
 };
 
-const SVG_SOL = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+const SVG_SOL = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
 
-const SVG_LUA = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SVG_LUA = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+
+/** Tipografia da planilha exportada (900×1200 — retrato, legível no celular). */
+const EXPORT_FONT = {
+  faixaTitulo: 22,
+  thFuncao: 17,
+  thData: 17,
+  tdFuncao: 16,
+  celula: 20,
+};
+
+function largurasColunasExport(numDatas) {
+  const funcPct = numDatas >= 4 ? 20 : 24;
+  const dataPct = numDatas > 0 ? (100 - funcPct) / numDatas : 0;
+  return { funcPct, dataPct };
+}
+
+function buildColgroupHTML(numDatas) {
+  const { funcPct, dataPct } = largurasColunasExport(numDatas);
+  let html = `<colgroup><col style="width:${funcPct}%;" />`;
+  for (let i = 0; i < numDatas; i++) {
+    html += `<col style="width:${dataPct}%;" />`;
+  }
+  html += "</colgroup>";
+  return html;
+}
 
 function iconeFaixaExport(faixaId) {
   if (faixaId === "domingo-manha") return SVG_SOL;
@@ -64,14 +89,30 @@ function valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId) {
   return { html: nomeParaExibicao(raw), bg: LT.surface, color: LT.text };
 }
 
+/** Espaço vertical entre blocos (faixas) na exportação. */
+const EXPORT_FAIXA_RESPIRO = 22;
+
+function buildFaixaDividerHTML(LT) {
+  const cor = LT.dividerFaixa || "#94A3B8";
+  return `
+    <div role="presentation" aria-hidden="true"
+      style="width:100%;background:${LT.bg};padding:${EXPORT_FAIXA_RESPIRO}px 0;">
+      <div style="border:none;border-top:2px solid ${cor};width:100%;opacity:0.9;"></div>
+    </div>
+  `;
+}
+
 function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase, cellBorder }) {
   const colunasAtivas = faixa.colunas.filter(Boolean);
   const titulo = faixa.titulo.toUpperCase();
   const icone = iconeFaixaExport(faixa.id);
 
-  let thead = `<tr><th style="${thBase}padding:10px 8px;text-align:center;vertical-align:middle;min-width:96px;background:${LT.surface};color:${LT.text};font-size:9px;">FUNÇÃO</th>`;
+  const numDatas = colunasAtivas.length;
+  const colgroup = buildColgroupHTML(numDatas);
+
+  let thead = `<tr><th style="${thBase}padding:12px 8px;text-align:center;vertical-align:middle;background:${LT.surface};color:${LT.text};font-size:${EXPORT_FONT.thFuncao}px;">FUNÇÃO</th>`;
   for (const dataObj of colunasAtivas) {
-    thead += `<th style="${thBase}padding:6px 8px;text-align:center;font-size:9px;font-weight:500;background:${LT.surface};color:${LT.text};min-width:72px;">${formatarCabecalhoData(dataObj)}</th>`;
+    thead += `<th style="${thBase}padding:10px 6px;text-align:center;font-size:${EXPORT_FONT.thData}px;font-weight:600;background:${LT.surface};color:${LT.text};">${formatarCabecalhoData(dataObj)}</th>`;
   }
   thead += "</tr>";
 
@@ -79,30 +120,31 @@ function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase
   funcoes.forEach((funcao) => {
     const corFuncao = corFuncaoExport(ministerioId, funcao, LT.text);
     tbody += `<tr>`;
-    tbody += `<td style="${cellBorder}padding:7px 8px;text-align:center;vertical-align:middle;font-size:9px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;white-space:nowrap;background:${LT.surface};">${funcao}</td>`;
+    tbody += `<td style="${cellBorder}padding:10px 6px;text-align:center;vertical-align:middle;font-size:${EXPORT_FONT.tdFuncao}px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;word-break:break-word;line-height:1.25;background:${LT.surface};">${funcao}</td>`;
 
     for (const dataObj of colunasAtivas) {
       const cel = valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId);
-      tbody += `<td style="${cellBorder}padding:6px 8px;text-align:center;vertical-align:middle;background:${cel.bg};">
-        <span style="font-size:10px;font-weight:500;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;">${cel.html}</span>
+      tbody += `<td style="${cellBorder}padding:9px 6px;text-align:center;vertical-align:middle;background:${cel.bg};">
+        <span style="font-size:${EXPORT_FONT.celula}px;font-weight:600;color:${cel.color};font-family:'Outfit',sans-serif;word-break:break-word;line-height:1.25;">${cel.html}</span>
       </td>`;
     }
     tbody += "</tr>";
   });
 
   return `
-    <section style="margin-bottom:22px;">
-      <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.5px;
+    <section style="display:block;margin:0;background:${LT.bg};">
+      <div style="font-family:'Outfit',sans-serif;font-size:${EXPORT_FONT.faixaTitulo}px;font-weight:700;letter-spacing:0.5px;
         text-transform:uppercase;color:${LT.text};background:${LT.surface};
         border:1px solid ${LT.border};border-bottom:none;
-        padding:10px 14px;border-radius:10px 10px 0 0;
-        display:flex;align-items:center;justify-content:center;gap:8px;">
+        padding:14px 16px;border-radius:12px 12px 0 0;
+        display:flex;align-items:center;justify-content:center;gap:10px;">
         ${icone}
         <span>${titulo}</span>
       </div>
-      <div style="border-radius:0 0 10px 10px;border:1px solid ${LT.border};border-top:none;
-        background:${LT.surface};overflow:hidden;">
-        <table style="border-collapse:collapse;font-size:13px;width:100%;">
+      <div style="border-radius:0 0 12px 12px;border:1px solid ${LT.border};border-top:none;
+        background:${LT.surface};overflow:hidden;margin-bottom:2px;">
+        <table style="border-collapse:collapse;width:100%;table-layout:fixed;">
+          ${colgroup}
           <thead>${thead}</thead>
           <tbody>${tbody}</tbody>
         </table>
@@ -138,9 +180,13 @@ export function buildPlanilhaFaixasTableHTML({
     })
   );
 
+  const blocosHtml = blocos
+    .map((html, idx) => (idx === 0 ? html : buildFaixaDividerHTML(LT) + html))
+    .join("");
+
   return `
-    <div style="display:flex;flex-direction:column;gap:0;width:100%;max-width:720px;">
-      ${blocos.join("")}
+    <div style="display:flex;flex-direction:column;gap:0;width:100%;padding-bottom:4px;">
+      ${blocosHtml}
     </div>
   `;
 }
