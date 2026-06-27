@@ -358,6 +358,7 @@ export default function SidebarFiltros({
           ministerioId: ministerioSelecionado,
           dataObj: d,
           pessoaNome: nomePessoa,
+          funcaoAtual: funcao,
         })
       ) {
         return false;

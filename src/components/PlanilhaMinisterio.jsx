@@ -18,6 +18,7 @@ import {
 } from "../utils/planilhaMinisterioConfig";
 import { pessoaNomeFirestore, nomeParaExibicao } from "../utils/nomeExibicao";
 import { filtrarPessoasDisponiveisNoCulto } from "../utils/escalaDisponibilidade";
+import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 import {
   MINISTERIO_INFANTIL_ID,
   contarCultosEscaladosInfantilNoMes,
@@ -564,7 +565,9 @@ export default function PlanilhaMinisterio({
         const isDisponivelLouvor =
           ministerioId === "louvor" && pessoaLower === "disponível";
 
-        if (!isDisponivelLouvor) {
+        const escalaFlexivel = ministerioPermiteEscalaFlexivel(ministerioId);
+
+        if (!isDisponivelLouvor && !escalaFlexivel) {
           const qConflito = query(
             collection(db, "escalas"),
             where("pessoaNome", "==", pessoaLower),

@@ -69,8 +69,8 @@ export function encontrarDataObjNasDatas(datas, data, turnoKey) {
 
 /**
  * Voluntário já escalado neste culto (data + turno) no mesmo ministério.
- * Ministérios flexíveis (comunicação): só oculta em outras funções, não na atual.
- * Outros ministérios: qualquer função/sala no mesmo culto oculta a pessoa.
+ * Comunicações: mesma pessoa pode ocupar várias funções no mesmo turno.
+ * Demais ministérios: qualquer função no mesmo culto oculta a pessoa.
  */
 export function pessoaJaEscaladaNoMesmoMinisterioNoCulto({
   escalas,
@@ -84,12 +84,13 @@ export function pessoaJaEscaladaNoMesmoMinisterioNoCulto({
   const pl = pessoaNomeFirestore(pessoaNome);
   if (pl === "disponível") return false;
 
+  if (ministerioPermiteEscalaFlexivel(ministerioId)) return false;
+
   const funcoes = funcoesPorMinisterio[ministerioId] || [];
   const turno = turnoSalvoEscala(dataObj);
-  const flexivel = ministerioPermiteEscalaFlexivel(ministerioId);
 
   return funcoes.some((funcao) => {
-    if (flexivel && funcao === funcaoAtual) return false;
+    if (funcao === funcaoAtual) return false;
     const ocupante = escalas[`${dataObj.data}-${turno}-${funcao}`];
     return (
       ocupante &&
