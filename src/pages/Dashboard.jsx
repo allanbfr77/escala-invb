@@ -125,6 +125,8 @@ function formatarDataExport(dataObj, accentColor) {
 
 const EXPORT_PLANILHA_WIDTH = 900;
 const EXPORT_PLANILHA_HEIGHT = 1200;
+/** Largura do layout HTML (maior que o PNG final — reduz quebra de linha nos nomes). */
+const EXPORT_PLANILHA_RENDER_WIDTH = 1040;
 
 function canvasPlanilhaFixo(sourceCanvas, bgColor) {
   const out = document.createElement("canvas");
@@ -134,10 +136,10 @@ function canvasPlanilhaFixo(sourceCanvas, bgColor) {
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, EXPORT_PLANILHA_WIDTH, EXPORT_PLANILHA_HEIGHT);
 
-  const scale = Math.min(
-    EXPORT_PLANILHA_WIDTH / sourceCanvas.width,
-    EXPORT_PLANILHA_HEIGHT / sourceCanvas.height
-  );
+  let scale = EXPORT_PLANILHA_WIDTH / sourceCanvas.width;
+  if (sourceCanvas.height * scale > EXPORT_PLANILHA_HEIGHT) {
+    scale = EXPORT_PLANILHA_HEIGHT / sourceCanvas.height;
+  }
   const w = sourceCanvas.width * scale;
   const h = sourceCanvas.height * scale;
   ctx.drawImage(
@@ -186,18 +188,6 @@ function getTituloSecaoTexto(dataObj) {
   return `📌 ${descricao}`;
 }
 
-const EXTERNAL_DETECTION_STORAGE_KEY = "external-detection-by-ministerio";
-
-function loadExternalDetectionFromStorage() {
-  try {
-    const stored = localStorage.getItem(EXTERNAL_DETECTION_STORAGE_KEY);
-    if (!stored) return {};
-    const parsed = JSON.parse(stored);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes, setMes, mesMinimo, mesMaximo, onOpenRelatorio }) {
   const { user, logout } = useAuth();
@@ -238,13 +228,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const [refreshKey, setRefreshKey] = useState(0);
   // ── indispRefreshKey dispara re-fetch das indisponibilidades quando o modal fecha
   const [indispRefreshKey, setIndispRefreshKey] = useState(0);
-  // ── detecção externa ativa por ministério (independente entre ministérios)
-  const [externalDetectionByMinisterio, setExternalDetectionByMinisterio] = useState(loadExternalDetectionFromStorage);
-  const isExternalDetectionEnabled = !!externalDetectionByMinisterio[ministerioSelecionado];
-
-  useEffect(() => {
-    localStorage.setItem(EXTERNAL_DETECTION_STORAGE_KEY, JSON.stringify(externalDetectionByMinisterio));
-  }, [externalDetectionByMinisterio]);
 
   const initialDashboardFlags = (() => {
     const section = parseAppHash();
@@ -451,15 +434,15 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           <div style="display:flex;align-items:center;justify-content:space-between;
             margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid ${LT.border};">
             <div>
-              <div style="font-size:16px;font-weight:600;color:${LT.textMuted};
+              <div style="font-size:18px;font-weight:600;color:${LT.textMuted};
                 text-transform:uppercase;letter-spacing:0.7px;margin-bottom:3px;
                 font-family:'Outfit',sans-serif;">Escala INVB</div>
-              <div style="font-size:28px;font-weight:700;color:${LT.text};
+              <div style="font-size:31px;font-weight:700;color:${LT.text};
                 letter-spacing:-0.2px;font-family:'Outfit',sans-serif;line-height:1.15;">
                 ${ministerioConfig[ministerioSelecionado].nome}
               </div>
             </div>
-            <div style="font-size:20px;color:${LT.textMuted};font-weight:500;
+            <div style="font-size:22px;color:${LT.textMuted};font-weight:500;
               font-family:'Outfit',sans-serif;text-align:right;">${mesFormatado}</div>
           </div>
         `;
@@ -470,10 +453,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           escalas,
           LT,
         });
-        wrapper.style.padding = "20px 14px 18px";
-        wrapper.style.width = `${EXPORT_PLANILHA_WIDTH}px`;
-        wrapper.style.minWidth = `${EXPORT_PLANILHA_WIDTH}px`;
-        wrapper.style.maxWidth = `${EXPORT_PLANILHA_WIDTH}px`;
+        wrapper.style.padding = "20px 8px 18px";
+        wrapper.style.width = `${EXPORT_PLANILHA_RENDER_WIDTH}px`;
+        wrapper.style.minWidth = `${EXPORT_PLANILHA_RENDER_WIDTH}px`;
+        wrapper.style.maxWidth = `${EXPORT_PLANILHA_RENDER_WIDTH}px`;
         wrapper.style.boxSizing = "border-box";
         wrapper.innerHTML = planilhaHeaderHTML + tableHTML;
       } else if (isCard) {
@@ -594,7 +577,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         logging: false,
         width: exportWidth,
         height: exportHeight,
-        windowWidth: isPlanilha ? EXPORT_PLANILHA_WIDTH : exportWidth,
+        windowWidth: isPlanilha ? EXPORT_PLANILHA_RENDER_WIDTH : exportWidth,
         windowHeight: exportHeight,
         scrollX: 0,
         scrollY: 0,
@@ -2045,12 +2028,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
       <IndisponibilidadeModal
         aberto={verIndisponibilidade}
         onFechar={() => { setVerIndisponibilidade(false); setIndispRefreshKey(k => k + 1); }}
-        onDetectarOutrosMinisterios={() => {
-          setExternalDetectionByMinisterio((prev) => ({
-            ...prev,
-            [ministerioSelecionado]: true,
-          }));
-        }}
         ministerioId={ministerioSelecionado}
         datasDisponiveis={datas}
         mes={mes}

@@ -4,9 +4,16 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { accentAlpha } from "../constants/theme";
+import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
+import { IconeMinisterio } from "../utils/ministerioIcons";
+import {
+  contarResumoBloqueiosIndisponibilidade,
+  getEscalaExterna,
+  abrevMinisterioIndisp,
+  nomeMinisterioEscalaExterna,
+} from "../utils/escalasCruzadas";
 import {
   chaveIndisponibilidadeColuna,
-  contarIndisponibilidadesNoMes,
   codigoTurnoIndisponibilidade,
   dataTurnoIndisponibilidadeCurta,
   descricaoTurnoIndisponibilidade,
@@ -20,15 +27,27 @@ const ROTULOS_COLUNA_SEMANA = [
   { key: "noite", lines: ["DOM", "NOITE"] },
 ];
 
-const badgeNeutro = (t) => ({
+const badgeManual = () => ({
   fontSize: "10px",
   fontWeight: 600,
-  color: t.textMuted,
-  background: accentAlpha(0.06),
+  color: "var(--indisp-bloqueado-fg)",
+  background: "var(--indisp-bloqueado-bg)",
   borderRadius: "10px",
   padding: "1px 7px",
-  border: `1px solid ${t.border}`,
+  border: "1px solid var(--indisp-bloqueado-border)",
   whiteSpace: "nowrap",
+});
+
+const badgeExterno = () => ({
+  fontSize: "10px",
+  fontWeight: 600,
+  color: "var(--indisp-externo-fg)",
+  background: "color-mix(in srgb, var(--indisp-externo-bg) 50%, transparent)",
+  borderRadius: "10px",
+  padding: "1px 7px",
+  border: "1px dashed var(--indisp-externo-border)",
+  whiteSpace: "nowrap",
+  opacity: 0.9,
 });
 
 const INDISP_SCROLL_OFFSET = 8;
@@ -70,16 +89,23 @@ function scrollCabecalhoAoTopo(cabecalho, containerPreferido, offset = INDISP_SC
   requestAnimationFrame(() => requestAnimationFrame(executar));
 }
 
-export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOutrosMinisterios, ministerioId, datasDisponiveis, mes, theme: t }) {
+export default function IndisponibilidadeModal({ aberto, onFechar, ministerioId, datasDisponiveis, mes, theme: t }) {
   const [indisponiveisMap, setIndisponiveisMap] = useState({});
   const [salvando, setSalvando] = useState({});
   const [expandida, setExpandida] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [importando, setImportando] = useState(false);
-  const [importResult, setImportResult] = useState(null); // { adicionadas: number } | null
   const listaRef = useRef(null);
 
   const pessoas = pessoasPorMinisterio[ministerioId] || [];
+  const pessoasLowerSet = useMemo(
+    () => new Set(pessoas.map((p) => p.toLowerCase())),
+    [pessoas]
+  );
+  const { mapa: escalasCruzadasMap } = useEscalasCruzadas({
+    mes,
+    pessoasLowerSet,
+    enabled: aberto && !!ministerioId,
+  });
   const semanas = useMemo(
     () => montarSemanasIndisponibilidade(datasDisponiveis),
     [datasDisponiveis]
@@ -99,7 +125,6 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
   useEffect(() => {
     if (!aberto || !ministerioId) return;
     setLoading(true);
-    setImportResult(null);
     let cancelled = false;
 
     getDocs(query(
@@ -182,85 +207,6 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
     await salvarDatasPessoa(pessoaNome, todasAsDatas);
   };
 
-  // ── Importa datas de outros ministérios automaticamente ─────────────────
-  const importarEscalasCruzadas = async () => {
-    if (!mes || importando) return;
-    onDetectarOutrosMinisterios?.();
-    setImportando(true);
-    setImportResult(null);
-
-    const [ano, mesNum] = mes.split("-");
-    const inicio = `${ano}-${mesNum}-01`;
-    const fim    = `${ano}-${mesNum}-${new Date(ano, mesNum, 0).getDate()}`;
-
-    const pessoasLower = new Set(pessoas.map(p => p.toLowerCase()));
-
-    try {
-      // Busca todas as escalas do mês em todos os ministérios
-      const snap = await getDocs(query(
-        collection(db, "escalas"),
-        where("data", ">=", inicio),
-        where("data", "<=", fim)
-      ));
-
-      // Monta mapa: pessoaNome (lower) → Set de "data|turno" de OUTROS ministérios
-      const crossMap = {};
-      snap.docs.forEach(d => {
-        const escala = d.data();
-        if (escala.ministerioId === ministerioId) return; // ignora o próprio ministério
-        if (!pessoasLower.has(escala.pessoaNome))  return; // ignora quem não é deste ministério
-
-        const key = escala.pessoaNome; // já em lowercase no Firestore
-        if (!crossMap[key]) crossMap[key] = new Set();
-        crossMap[key].add(`${escala.data}|${escala.turno ?? "único"}`);
-      });
-
-      if (Object.keys(crossMap).length === 0) {
-        setImportResult({ adicionadas: 0 });
-        setImportando(false);
-        return;
-      }
-
-      // Mescla com indisponibilidades existentes e persiste
-      const novoMap = { ...indisponiveisMap };
-      let totalAdicionadas = 0;
-
-      await Promise.all(
-        Object.entries(crossMap).map(async ([pessoaNome, novasDatas]) => {
-          const atual = new Set(novoMap[pessoaNome] || []);
-          let qtdNova = 0;
-
-          novasDatas.forEach(chave => {
-            if (!atual.has(chave)) {
-              atual.add(chave);
-              qtdNova++;
-            }
-          });
-
-          if (qtdNova > 0) {
-            novoMap[pessoaNome] = atual;
-            totalAdicionadas += qtdNova;
-
-            const docId = `${ministerioId}_${pessoaNome.replace(/\s+/g, "_").replace(/\./g, "")}`;
-            await setDoc(doc(db, "indisponibilidades", docId), {
-              ministerioId,
-              pessoaNome,
-              datas: [...atual],
-            });
-          }
-        })
-      );
-
-      setIndisponiveisMap(novoMap);
-      setImportResult({ adicionadas: totalAdicionadas });
-    } catch (err) {
-      console.error("Erro ao importar escalas cruzadas:", err);
-      setImportResult({ adicionadas: -1 }); // sinaliza erro
-    } finally {
-      setImportando(false);
-    }
-  };
-
   if (!aberto) return null;
 
   return (
@@ -273,9 +219,6 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
           background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)",
         }}
       />
-
-      {/* Animação de spin */}
-      <style>{`@keyframes indispSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
       {/* Panel */}
       <div className="indisp-panel" style={{
@@ -319,107 +262,6 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
           </button>
         </div>
 
-        {/* Botão: importar escalas cruzadas */}
-        <div style={{
-          padding: "10px 20px",
-          borderBottom: `1px solid ${t.border}`,
-          flexShrink: 0,
-          display: "flex", flexDirection: "column", gap: "6px",
-        }}>
-          <button
-            onClick={importarEscalasCruzadas}
-            disabled={importando || loading}
-            title="Busca automaticamente as datas em que membros deste ministério já estão escalados em outros ministérios e marca como indisponíveis"
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              background: importando ? accentAlpha(0.06) : accentAlpha(0.08),
-              border: `1px solid ${importando ? accentAlpha(0.2) : accentAlpha(0.3)}`,
-              borderRadius: "7px",
-              color: importando ? t.textMuted : t.accent,
-              fontSize: "12px", fontWeight: 600,
-              cursor: (importando || loading) ? "not-allowed" : "pointer",
-              fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-              transition: "all 0.15s",
-              opacity: loading ? 0.5 : 1,
-            }}
-            onMouseEnter={e => {
-              if (!importando && !loading) {
-                e.currentTarget.style.background = accentAlpha(0.15);
-                e.currentTarget.style.borderColor = accentAlpha(0.5);
-              }
-            }}
-            onMouseLeave={e => {
-              if (!importando && !loading) {
-                e.currentTarget.style.background = accentAlpha(0.08);
-                e.currentTarget.style.borderColor = accentAlpha(0.3);
-              }
-            }}
-          >
-            {importando ? (
-              <>
-                <svg
-                  width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                  style={{ animation: "indispSpin 0.8s linear infinite" }}
-                >
-                  <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
-                </svg>
-                Buscando escalas...
-              </>
-            ) : (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                  <path d="m15 5 4 4"/>
-                </svg>
-                Detectar de outros ministérios
-              </>
-            )}
-          </button>
-
-          {/* Resultado da importação */}
-          {importResult !== null && (
-            <div style={{
-              padding: "6px 10px",
-              borderRadius: "6px",
-              fontSize: "11px", fontWeight: 500,
-              display: "flex", alignItems: "center", gap: "6px",
-              ...(importResult.adicionadas < 0 ? {
-                background: "rgba(251,113,133,0.08)",
-                border: "1px solid rgba(251,113,133,0.25)",
-                color: "#f87171",
-              } : importResult.adicionadas === 0 ? {
-                background: "rgba(148,163,184,0.06)",
-                border: `1px solid ${t.border}`,
-                color: t.textMuted,
-              } : {
-                background: "rgba(52,211,153,0.08)",
-                border: "1px solid rgba(52,211,153,0.25)",
-                color: "#34d399",
-              }),
-            }}>
-              {importResult.adicionadas < 0 ? (
-                <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  Erro ao buscar escalas. Tente novamente.
-                </>
-              ) : importResult.adicionadas === 0 ? (
-                <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                  Nenhuma nova data encontrada nos outros ministérios
-                </>
-              ) : (
-                <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  {importResult.adicionadas} data{importResult.adicionadas !== 1 ? "s" : ""} marcada{importResult.adicionadas !== 1 ? "s" : ""} automaticamente
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Body */}
         <div ref={listaRef} style={{ flex: 1, overflowY: "auto", padding: "12px 0" }}>
           {loading ? (
@@ -436,7 +278,14 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
               const indisponiveis = getDatasIndisponiveis(pessoa);
               const aberta = expandida === pessoa;
               const isSalvando = salvando[key];
-              const qtd = contarIndisponibilidadesNoMes(indisponiveis, datasDisponiveis);
+              const resumo = contarResumoBloqueiosIndisponibilidade(
+                indisponiveis,
+                datasDisponiveis,
+                escalasCruzadasMap,
+                ministerioId,
+                pessoa
+              );
+              const { manual: qtdManual, externo: qtdExterno } = resumo;
 
               return (
                 <div key={pessoa} style={{ borderBottom: `1px solid ${t.border}` }}>
@@ -477,10 +326,16 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                       )}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      {qtd > 0 && (
-                        <span style={badgeNeutro(t)}>
-                          {qtd} {qtd === 1 ? "indisponível" : "indisponíveis"}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      {qtdManual > 0 && (
+                        <span style={badgeManual()}>
+                          {qtdManual}{" "}
+                          {qtdManual === 1 ? "data indisponível" : "datas indisponíveis"}
+                        </span>
+                      )}
+                      {qtdExterno > 0 && (
+                        <span style={badgeExterno()}>
+                          {qtdExterno} {qtdExterno === 1 ? "outro min." : "outros min."}
                         </span>
                       )}
                       <svg
@@ -595,6 +450,12 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
 
                           <div className="indisp-acoes-divider" aria-hidden />
 
+                          {qtdExterno > 0 && (
+                            <p className="indisp-ajuda-externo" role="note">
+                              Círculos tracejados = escalado em outro ministério.
+                            </p>
+                          )}
+
                           <div
                             className="indisp-semanas"
                             role="group"
@@ -629,30 +490,70 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
                                   }
 
                                   const chave = chaveIndisponibilidadeColuna(d);
-                                  const bloqueado = indisponiveis.has(chave);
+                                  const bloqueioManual = indisponiveis.has(chave);
+                                  const escalaExterna = getEscalaExterna(
+                                    escalasCruzadasMap,
+                                    ministerioId,
+                                    pessoa,
+                                    d
+                                  );
+                                  const bloqueioExterno = !!escalaExterna;
+                                  const bloqueado = bloqueioManual || bloqueioExterno;
                                   const descricao = descricaoTurnoIndisponibilidade(d);
+                                  const dataCurta = dataTurnoIndisponibilidadeCurta(d.data);
+                                  const abrevMinExterno = escalaExterna
+                                    ? abrevMinisterioIndisp(escalaExterna.ministerioId)
+                                    : "";
+                                  const nomeMinExterno = escalaExterna
+                                    ? nomeMinisterioEscalaExterna(escalaExterna)
+                                    : "";
 
                                   return (
                                     <button
                                       key={d.id}
                                       type="button"
                                       role="gridcell"
-                                      className={`indisp-bolinha ${bloqueado ? "indisp-bolinha--bloqueado" : "indisp-bolinha--neutro"}`}
+                                      className={[
+                                        "indisp-bolinha",
+                                        bloqueioExterno
+                                          ? "indisp-bolinha--externo"
+                                          : bloqueado
+                                            ? "indisp-bolinha--bloqueado"
+                                            : "indisp-bolinha--neutro",
+                                      ].join(" ")}
                                       aria-pressed={bloqueado}
                                       aria-label={
-                                        bloqueado
-                                          ? `${descricao}, bloqueado — clique para liberar`
-                                          : `${descricao}, disponível — clique para bloquear`
+                                        bloqueioExterno
+                                          ? `${descricao}, ${dataCurta}, escalado(a) em ${nomeMinExterno} — somente leitura`
+                                          : bloqueado
+                                            ? `${descricao}, ${dataCurta}, bloqueado — clique para liberar`
+                                            : `${descricao}, ${dataCurta}, disponível — clique para bloquear`
                                       }
-                                      disabled={isSalvando}
-                                      onClick={() => toggleData(pessoa, d.data, d.turno)}
+                                      disabled={isSalvando || bloqueioExterno}
+                                      onClick={() => {
+                                        if (bloqueioExterno) return;
+                                        toggleData(pessoa, d.data, d.turno);
+                                      }}
                                     >
-                                      <span className="indisp-bolinha__codigo">
-                                        {codigoTurnoIndisponibilidade(d)}
-                                      </span>
-                                      <span className="indisp-bolinha__data">
-                                        {dataTurnoIndisponibilidadeCurta(d.data)}
-                                      </span>
+                                      <span className="indisp-bolinha__data">{dataCurta}</span>
+                                      {bloqueioExterno ? (
+                                        <>
+                                          <span className="indisp-bolinha__icone-ministerio">
+                                            <IconeMinisterio
+                                              ministerioId={escalaExterna.ministerioId}
+                                              size={14}
+                                              strokeWidth={2}
+                                            />
+                                          </span>
+                                          <span className="indisp-bolinha__ministerio">
+                                            {abrevMinExterno}
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span className="indisp-bolinha__codigo">
+                                          {codigoTurnoIndisponibilidade(d)}
+                                        </span>
+                                      )}
                                     </button>
                                   );
                                 })}
@@ -685,7 +586,11 @@ export default function IndisponibilidadeModal({ aberto, onFechar, onDetectarOut
             </span>
             <span className="indisp-legenda__item">
               <span className="indisp-legenda__dot indisp-legenda__dot--bloqueado" aria-hidden />
-              Indisponível
+              Indisponível (manual)
+            </span>
+            <span className="indisp-legenda__item">
+              <span className="indisp-legenda__dot indisp-legenda__dot--externo" aria-hidden />
+              Outro ministério (somente leitura)
             </span>
           </div>
         </div>

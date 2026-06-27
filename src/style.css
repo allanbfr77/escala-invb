@@ -49,6 +49,9 @@
   --indisp-bloqueado-bg: #3d2629;
   --indisp-bloqueado-border: #a07070;
   --indisp-bloqueado-fg: #e0b0b0;
+  --indisp-externo-bg: #2a2838;
+  --indisp-externo-border: #8a82b0;
+  --indisp-externo-fg: #c8c4e0;
 
   --pl-select-trigger-bg: #1a1a1a;
   --pl-select-trigger-fg: #f0f0f0;
@@ -164,6 +167,9 @@
   --indisp-bloqueado-bg: #fce8e8;
   --indisp-bloqueado-border: #c89090;
   --indisp-bloqueado-fg: #7a3838;
+  --indisp-externo-bg: #eceaf8;
+  --indisp-externo-border: #9a92c8;
+  --indisp-externo-fg: #4a4470;
 
   --pl-select-trigger-bg: #ffffff;
   --pl-select-trigger-fg: #111111;
@@ -2962,6 +2968,7 @@ code {
 
 .indisp-semanas-row {
   row-gap: 6px;
+  align-items: center;
 }
 
 .indisp-bolinha {
@@ -2980,9 +2987,58 @@ code {
   justify-content: center;
   cursor: pointer;
   font-family: inherit;
-  padding: 0;
-  line-height: 1.1;
+  padding: 5px;
+  gap: 6px;
+  line-height: 1.15;
   transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+  overflow: hidden;
+}
+
+.indisp-bolinha__data {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  opacity: 0.88;
+  white-space: nowrap;
+}
+
+.indisp-bolinha--bloqueado .indisp-bolinha__data,
+.indisp-bolinha--externo .indisp-bolinha__data {
+  opacity: 0.95;
+}
+
+.indisp-bolinha__codigo {
+  display: block;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.indisp-bolinha__ministerio {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  white-space: normal;
+  overflow: hidden;
+  max-height: 2.4em;
+}
+
+.indisp-bolinha__icone-ministerio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
 }
 
 .indisp-bolinha--vazia {
@@ -2995,9 +3051,12 @@ code {
   font-size: 14px;
   font-weight: 400;
   line-height: 1;
+  justify-content: center;
+  padding: 0;
+  gap: 0;
 }
 
-.indisp-bolinha:disabled {
+.indisp-bolinha:disabled:not(.indisp-bolinha--externo) {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -3026,19 +3085,36 @@ code {
   border-width: 2px;
 }
 
-.indisp-bolinha__codigo {
-  font-size: 14px;
+.indisp-bolinha--externo {
+  background: color-mix(in srgb, var(--indisp-externo-bg) 40%, transparent);
+  border-color: color-mix(in srgb, var(--indisp-externo-border) 55%, transparent);
+  border-style: dashed;
+  border-width: 1.5px;
+  color: var(--indisp-externo-fg, var(--indisp-bloqueado-fg));
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.indisp-bolinha--externo:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.indisp-bolinha--externo .indisp-bolinha__data,
+.indisp-bolinha--externo .indisp-bolinha__ministerio {
+  opacity: 0.85;
+}
+
+.indisp-ajuda-externo {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  font-size: 10px;
   font-weight: 500;
-}
-
-.indisp-bolinha__data {
-  font-size: 11px;
-  font-weight: 400;
-  opacity: 0.88;
-}
-
-.indisp-bolinha--bloqueado .indisp-bolinha__data {
-  opacity: 0.95;
+  line-height: 1.35;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--indisp-externo-bg) 35%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--indisp-externo-border) 45%, transparent);
+  border-radius: 6px;
 }
 
 .indisp-legenda {
@@ -3077,6 +3153,12 @@ code {
   border-color: var(--indisp-bloqueado-border);
 }
 
+.indisp-legenda__dot--externo {
+  background: color-mix(in srgb, var(--indisp-externo-bg) 45%, transparent);
+  border-color: var(--indisp-externo-border);
+  border-style: dashed;
+}
+
 @media (max-width: 767px) {
   .indisp-panel {
     width: 100% !important;
@@ -3113,12 +3195,13 @@ code {
     width: min(100%, clamp(68px, 22vw, 88px));
   }
 
-  .indisp-bolinha__codigo {
-    font-size: clamp(11px, 3.2vw, 13px);
+  .indisp-bolinha__codigo,
+  .indisp-bolinha__ministerio {
+    font-size: clamp(10px, 2.8vw, 11px);
   }
 
   .indisp-bolinha__data {
-    font-size: clamp(9px, 2.6vw, 10px);
+    font-size: clamp(9px, 2.5vw, 10px);
   }
 
   .indisp-bolinha--vazia {

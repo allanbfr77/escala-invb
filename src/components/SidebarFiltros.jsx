@@ -10,6 +10,8 @@ import { podeEditarMinisterio } from "../utils/permissions";
 import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
 import { pessoaJaEscaladaNoMesmoMinisterioNoCulto } from "../utils/escalaDisponibilidade";
+import { pessoaEscaladaEmOutroMinisterioNoCulto } from "../utils/escalasCruzadas";
+import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
 import {
   MINISTERIO_INFANTIL_ID,
   contarCultosEscaladosInfantilNoMes,
@@ -292,6 +294,15 @@ export default function SidebarFiltros({
   }, [funcaoSelecionada]);
 
   const pessoasDoMinisterio = pessoasPorMinisterio[ministerioSelecionado] || [];
+  const pessoasLowerSet = useMemo(
+    () => new Set(pessoasDoMinisterio.map((p) => p.toLowerCase())),
+    [pessoasDoMinisterio]
+  );
+  const { mapa: escalasCruzadasMap } = useEscalasCruzadas({
+    mes,
+    pessoasLowerSet,
+    enabled: !!ministerioSelecionado && !!mes,
+  });
   const funcoesDoMinisterio = ministerioSelecionado === "louvor"
     ? FUNCOES_LOUVOR_SIDEBAR
     : ministerioSelecionado === "recepcao"
@@ -369,8 +380,21 @@ export default function SidebarFiltros({
 
     const chave = `${d.data}|${turnoKey}`;
     if (indisponiveisMap[pl]?.has(chave)) return false;
+
+    if (
+      pl !== "disponível" &&
+      pessoaEscaladaEmOutroMinisterioNoCulto(
+        escalasCruzadasMap,
+        ministerioSelecionado,
+        nomePessoa,
+        d
+      )
+    ) {
+      return false;
+    }
+
     return true;
-  }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap, ministerioSelecionado]);
+  }, [datasConfirmadas, datasOcupadas, funcaoSelecionada, escalas, indisponiveisMap, ministerioSelecionado, escalasCruzadasMap]);
 
   /** Datas escaláveis na função (sem filtro por obreiro). */
   const datasParaSelect = useMemo(() => {

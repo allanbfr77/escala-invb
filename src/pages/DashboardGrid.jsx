@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { IconeMinisterio } from "../utils/ministerioIcons";
 import TurnoLabelInline from "../components/TurnoLabelInline";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { pessoasPorMinisterio } from "../data/pessoas";
 import { formatarData } from "../utils/dateHelper";
+import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
+import {
+  pessoaEscaladaEmOutroMinisterioNoCulto,
+  getEscalaExterna,
+  nomeMinisterioEscalaExterna,
+} from "../utils/escalasCruzadas";
 import {
   abrevParaFuncao,
   abreviacoesValidas,
@@ -56,13 +61,6 @@ function cellKey(pessoa, colId) {
 function lookupCelula(pessoa, dataObj) {
   const turno = dataObj.turno ?? "único";
   return `${pessoa.toLowerCase()}|${dataObj.data}|${turno}`;
-}
-
-function getIntervaloMes(mes) {
-  const [ano, mesNum] = mes.split("-");
-  const inicio = `${ano}-${mesNum}-01`;
-  const fim = `${ano}-${mesNum}-${new Date(Number(ano), Number(mesNum), 0).getDate()}`;
-  return { inicio, fim };
 }
 
 function getHorarios(dataObj) {
@@ -153,13 +151,17 @@ export default function DashboardGrid({
   onMensagem,
   onConflito,
   indispRefreshKey = 0,
-  isExternalDetectionEnabled = false,
 }) {
   const pessoas = pessoasPorMinisterio[ministerioId] || [];
   const pessoasLowerSet = useMemo(
     () => new Set(pessoas.map((p) => p.toLowerCase())),
     [pessoas]
   );
+  const { mapa: escalasCruzadasMap } = useEscalasCruzadas({
+    mes,
+    pessoasLowerSet,
+    enabled: !!ministerioId && !!mes,
+  });
   const validas = useMemo(() => abreviacoesValidas(ministerioId), [ministerioId]);
   const escalaFlexivel = ministerioPermiteEscalaFlexivel(ministerioId);
   const getValidasPessoa = useCallback(
@@ -169,23 +171,12 @@ export default function DashboardGrid({
 
   const [cells, setCells] = useState({});
   const [indispMap, setIndispMap] = useState(() => new Set());
-  const [outroMinisterioMap, setOutroMinisterioMap] = useState(() => new Map());
   const [editingKey, setEditingKey] = useState(null);
   const [celulaAtiva, setCelulaAtiva] = useState(null);
   const [draft, setDraft] = useState("");
   const [salvando, setSalvando] = useState(false);
   const editingRef = useRef(null);
   const skipBlurRef = useRef(false);
-  const externalDetectionRef = useRef(isExternalDetectionEnabled);
-  const externalFetchGenRef = useRef(0);
-
-  useEffect(() => {
-    externalDetectionRef.current = isExternalDetectionEnabled;
-    if (!isExternalDetectionEnabled) {
-      externalFetchGenRef.current += 1;
-      setOutroMinisterioMap(new Map());
-    }
-  }, [isExternalDetectionEnabled]);
 
   useEffect(() => {
     if (!ministerioId) return;
@@ -216,59 +207,20 @@ export default function DashboardGrid({
     return () => { cancelled = true; };
   }, [ministerioId, indispRefreshKey]);
 
-  useEffect(() => {
-    if (!isExternalDetectionEnabled) return;
-    if (!ministerioId || !mes) return;
-
-    let cancelled = false;
-    const fetchGen = ++externalFetchGenRef.current;
-    const { inicio, fim } = getIntervaloMes(mes);
-
-    getDocs(query(
-      collection(db, "escalas"),
-      where("data", ">=", inicio),
-      where("data", "<=", fim)
-    ))
-      .then((escalasSnap) => {
-        if (
-          cancelled
-          || !externalDetectionRef.current
-          || fetchGen !== externalFetchGenRef.current
-        ) return;
-
-        const outro = new Map();
-        escalasSnap.docs.forEach((docSnap) => {
-          const d = docSnap.data();
-          if (d.ministerioId === ministerioId) return;
-          if (!pessoasLowerSet.has(d.pessoaNome)) return;
-          const turno = d.turno || "único";
-          outro.set(`${d.pessoaNome}|${d.data}|${turno}`, d.ministerioId);
-        });
-
-        if (
-          cancelled
-          || !externalDetectionRef.current
-          || fetchGen !== externalFetchGenRef.current
-        ) return;
-
-        setOutroMinisterioMap(outro);
-      })
-      .catch((err) => console.error("Erro ao carregar escalas externas da planilha:", err));
-
-    return () => { cancelled = true; };
-  }, [isExternalDetectionEnabled, ministerioId, mes, pessoasLowerSet, indispRefreshKey]);
-
   const isIndisponivel = useCallback(
     (pessoa, dataObj) => indispMap.has(lookupCelula(pessoa, dataObj)),
     [indispMap]
   );
 
-  const getOutroMinisterio = useCallback(
-    (pessoa, dataObj) => {
-      if (!isExternalDetectionEnabled) return null;
-      return outroMinisterioMap.get(lookupCelula(pessoa, dataObj)) ?? null;
-    },
-    [isExternalDetectionEnabled, outroMinisterioMap]
+  const isEscaladaExternamente = useCallback(
+    (pessoa, dataObj) =>
+      pessoaEscaladaEmOutroMinisterioNoCulto(
+        escalasCruzadasMap,
+        ministerioId,
+        pessoa,
+        dataObj
+      ),
+    [escalasCruzadasMap, ministerioId]
   );
 
   const pessoasVisiveis = useMemo(
@@ -466,14 +418,7 @@ export default function DashboardGrid({
     const key = cellKey(pessoa, dataObj.id);
     const validasPessoa = getValidasPessoa(pessoa);
     if (!cells[key] && isIndisponivel(pessoa, dataObj)) return;
-    if (
-      !cells[key] &&
-      !escalaFlexivel &&
-      isExternalDetectionEnabled &&
-      getOutroMinisterio(pessoa, dataObj)
-    ) {
-      return;
-    }
+    if (!cells[key] && !escalaFlexivel && isEscaladaExternamente(pessoa, dataObj)) return;
     if (!cells[key] && validasPessoa.length === 0) return;
     setCelulaAtiva({ pessoa, colId: dataObj.id });
     setEditingKey(key);
@@ -629,12 +574,11 @@ export default function DashboardGrid({
                   const semFuncaoPermitida = validasPessoa.length === 0;
                   const vazio = !valor && !isEditing;
                   const indisponivel = vazio && isIndisponivel(pessoa, dataObj);
-                  const outroMinisterioId =
-                    isExternalDetectionEnabled && vazio
-                      ? getOutroMinisterio(pessoa, dataObj)
-                      : null;
+                  const escalaExterna = vazio
+                    ? getEscalaExterna(escalasCruzadasMap, ministerioId, pessoa, dataObj)
+                    : null;
                   const celulaBloqueada =
-                    indisponivel || (!escalaFlexivel && !!outroMinisterioId);
+                    indisponivel || (!escalaFlexivel && !!escalaExterna);
                   const tooltip = valor
                     ? getTooltipAbrevCombinadas(ministerioId, valor) ||
                       abrevsParaExibicaoCelula(ministerioId, valor)
@@ -643,8 +587,8 @@ export default function DashboardGrid({
                         .join(" · ")
                     : indisponivel
                       ? "Indisponível nesta data"
-                      : outroMinisterioId
-                        ? `Escalado(a) em ${NOMES_MINISTERIOS[outroMinisterioId] || outroMinisterioId}`
+                      : escalaExterna
+                        ? `Escalado(a) em ${nomeMinisterioEscalaExterna(escalaExterna)}`
                         : semFuncaoPermitida
                           ? `${pessoa} não pode ser escalado(a) nas funções deste ministério`
                           : validasPessoa.length
@@ -727,9 +671,6 @@ export default function DashboardGrid({
                             cursor: "default",
                           }}
                         >
-                          {outroMinisterioId && (
-                            <IconeMinisterio ministerioId={outroMinisterioId} size={14} />
-                          )}
                         </div>
                       ) : (
                         <button

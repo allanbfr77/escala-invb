@@ -18,21 +18,21 @@ const CORES_GRUPO_FUNCAO_EXPORT = {
   "intro-3": "#ea580c",
 };
 
-const SVG_SOL = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+const SVG_SOL = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
 
-const SVG_LUA = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SVG_LUA = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
 
 /** Tipografia da planilha exportada (900×1200 — retrato, legível no celular). */
 const EXPORT_FONT = {
-  faixaTitulo: 22,
-  thFuncao: 17,
-  thData: 17,
-  tdFuncao: 16,
-  celula: 20,
+  faixaTitulo: 25,
+  thFuncao: 19,
+  thData: 19,
+  tdFuncao: 18,
+  celula: 23,
 };
 
 function largurasColunasExport(numDatas) {
-  const funcPct = numDatas >= 4 ? 20 : 24;
+  const funcPct = numDatas >= 5 ? 15 : numDatas >= 4 ? 17 : 22;
   const dataPct = numDatas > 0 ? (100 - funcPct) / numDatas : 0;
   return { funcPct, dataPct };
 }
@@ -110,9 +110,9 @@ function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase
   const numDatas = colunasAtivas.length;
   const colgroup = buildColgroupHTML(numDatas);
 
-  let thead = `<tr><th style="${thBase}padding:12px 8px;text-align:center;vertical-align:middle;background:${LT.surface};color:${LT.text};font-size:${EXPORT_FONT.thFuncao}px;">FUNÇÃO</th>`;
+  let thead = `<tr><th style="${thBase}padding:12px 6px;text-align:center;vertical-align:middle;background:${LT.surface};color:${LT.text};font-size:${EXPORT_FONT.thFuncao}px;">FUNÇÃO</th>`;
   for (const dataObj of colunasAtivas) {
-    thead += `<th style="${thBase}padding:10px 6px;text-align:center;font-size:${EXPORT_FONT.thData}px;font-weight:600;background:${LT.surface};color:${LT.text};">${formatarCabecalhoData(dataObj)}</th>`;
+    thead += `<th style="${thBase}padding:10px 4px;text-align:center;font-size:${EXPORT_FONT.thData}px;font-weight:600;background:${LT.surface};color:${LT.text};">${formatarCabecalhoData(dataObj)}</th>`;
   }
   thead += "</tr>";
 
@@ -120,12 +120,12 @@ function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase
   funcoes.forEach((funcao) => {
     const corFuncao = corFuncaoExport(ministerioId, funcao, LT.text);
     tbody += `<tr>`;
-    tbody += `<td style="${cellBorder}padding:10px 6px;text-align:center;vertical-align:middle;font-size:${EXPORT_FONT.tdFuncao}px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;word-break:break-word;line-height:1.25;background:${LT.surface};">${funcao}</td>`;
+    tbody += `<td style="${cellBorder}padding:10px 4px;text-align:center;vertical-align:middle;font-size:${EXPORT_FONT.tdFuncao}px;font-weight:700;color:${corFuncao};font-family:'Outfit',sans-serif;line-height:1.2;background:${LT.surface};">${funcao}</td>`;
 
     for (const dataObj of colunasAtivas) {
       const cel = valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId);
-      tbody += `<td style="${cellBorder}padding:9px 6px;text-align:center;vertical-align:middle;background:${cel.bg};">
-        <span style="font-size:${EXPORT_FONT.celula}px;font-weight:600;color:${cel.color};font-family:'Outfit',sans-serif;word-break:break-word;line-height:1.25;">${cel.html}</span>
+      tbody += `<td style="${cellBorder}padding:9px 4px;text-align:center;vertical-align:middle;background:${cel.bg};">
+        <span style="font-size:${EXPORT_FONT.celula}px;font-weight:600;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;line-height:1.2;">${cel.html}</span>
       </td>`;
     }
     tbody += "</tr>";

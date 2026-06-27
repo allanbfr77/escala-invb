@@ -4,6 +4,8 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore";
 import { formatarData } from "../utils/dateHelper";
 import { chaveIndisponibilidadeColuna } from "../utils/indisponibilidadeHelpers";
+import { pessoaEscaladaEmOutroMinisterioNoCulto } from "../utils/escalasCruzadas";
+import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
 import {
   montarFaixasPlanilha,
   formatarCabecalhoData,
@@ -425,6 +427,23 @@ export default function PlanilhaMinisterio({
 
   const { faixas } = useMemo(() => montarFaixasPlanilha(datas), [datas]);
 
+  const pessoasLowerSet = useMemo(() => {
+    if (!config) return new Set();
+    const todas = new Set();
+    for (const funcao of funcoes) {
+      for (const p of config.getPessoasPorFuncao(funcao) || []) {
+        todas.add(pessoaNomeFirestore(p));
+      }
+    }
+    return todas;
+  }, [config, funcoes]);
+
+  const { mapa: escalasCruzadasMap } = useEscalasCruzadas({
+    mes,
+    pessoasLowerSet,
+    enabled: !!ministerioId && !!mes,
+  });
+
   useEffect(() => {
     if (!ministerioId) return;
     let cancelled = false;
@@ -455,11 +474,21 @@ export default function PlanilhaMinisterio({
 
   const pessoaIndisponivel = useCallback(
     (pessoa, dataObj) => {
+      if (
+        pessoaEscaladaEmOutroMinisterioNoCulto(
+          escalasCruzadasMap,
+          ministerioId,
+          pessoa,
+          dataObj
+        )
+      ) {
+        return true;
+      }
       const set = indispMap[pessoaNomeFirestore(pessoa)];
       if (!set?.size || !dataObj) return false;
       return set.has(chaveIndisponibilidadeColuna(dataObj));
     },
-    [indispMap]
+    [indispMap, escalasCruzadasMap, ministerioId]
   );
 
   const getOpcoesSelect = useCallback(
