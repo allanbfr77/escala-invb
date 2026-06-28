@@ -1,5 +1,5 @@
 /** Colunas fixas por faixa (Domingo Manhã / Noite / Quarta) */
-export const COLUNAS_POR_FAIXA = 5;
+const COLUNAS_POR_FAIXA = 5;
 
 const ordenarPorData = (a, b) => a.data.localeCompare(b.data);
 
@@ -80,10 +80,6 @@ export function montarFaixasPlanilha(datas) {
       },
     ],
   };
-}
-
-export function colunasComData(faixas) {
-  return faixas.flatMap((f) => f.colunas.filter(Boolean));
 }
 
 export function formatarCabecalhoData(dataObj) {

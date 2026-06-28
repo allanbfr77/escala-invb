@@ -93,7 +93,7 @@ export function getIntervaloMes(mes) {
   return { inicio, fim };
 }
 
-export function montarDatasMinisterio(mes, cultosExtrasDocs) {
+function montarDatasMinisterio(mes, cultosExtrasDocs) {
   const geradas = gerarDatasEscala(mes);
   const extrasFormatted = (cultosExtrasDocs || [])
     .filter((e) => {

@@ -46,17 +46,6 @@ export function gerarDatasEscala(anoMes) {
   return resultados;
 }
 
-/** Formato curto para o painel de indisponibilidades: { diaSemana: "Qua", data: "01/07" } */
-export function formatarDataIndisponibilidadeCurta(dataStr) {
-  const [ano, mes, dia] = dataStr.split("-");
-  const data = new Date(Number(ano), Number(mes) - 1, Number(dia));
-  const abrev = data
-    .toLocaleDateString("pt-BR", { weekday: "short" })
-    .replace(/\.$/, "")
-    .replace(/^\w/, (c) => c.toUpperCase());
-  return { diaSemana: abrev, data: `${dia}/${mes}` };
-}
-
 export function formatarData(dataStr, turno, descricao) {
   const [ano, mes, dia] = dataStr.split("-");
   const data = new Date(ano, mes - 1, dia);

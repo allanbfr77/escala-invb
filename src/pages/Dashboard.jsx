@@ -18,7 +18,7 @@ import PlanilhaMinisterio from "../components/PlanilhaMinisterio";
 import { ministerioTemConfigPlanilhaFaixas } from "../utils/planilhaMinisterioConfig";
 import { funcoesPorMinisterio } from "../data/funcoes";
 import { pessoasPorMinisterio } from "../data/pessoas";
-import { podeEditarMinisterio } from "../utils/permissions";
+import { podeEditarMinisterio, hasMasterAccess } from "../utils/permissions";
 import { formatarData } from "../utils/dateHelper";
 import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
 import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
@@ -295,6 +295,9 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   }, [textoExportacao.aberto]);
 
   const podeEditar = podeEditarMinisterio(user, ministerioSelecionado);
+  // Em modo leitura (ministério que não é o do usuário), bloqueia as seções
+  // Relatório/Outros Min. — exceto para usuários master, que mantêm o acesso.
+  const podeVerSecoes = podeEditar || hasMasterAccess(user);
 
   const podeRetroceder = mes > mesMinimo;
   const podeAvancar    = mes < mesMaximo;
@@ -1823,7 +1826,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
         </aside>
 
         {/* Main */}
-        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "0 24px", overflowX: "clip", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+        <main ref={mainRef} className="main-pad" style={{ flex: 1, padding: "0 24px", overflow: "clip", minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
 
           {/* Cabeçalho da página + ações (mobile: ícones abaixo do título) */}
           <div className="page-header-block">
@@ -1860,6 +1863,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           </div>
 
           {showMinistryHeaderBlock && <hr className="page-header-block-divider page-header-block-divider--title" aria-hidden />}
+          </div>
 
           <QuickActionBar
             filtroNome={filtroNome}
@@ -1883,6 +1887,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onOrganizar={handleOrganizar}
             podeOrganizar={podeOrganizar}
             podeEditar={podeEditar}
+            podeVerSecoes={podeVerSecoes}
             limpando={limpando}
             onLimparMes={handleLimparTudo}
             showAcoesMenu={showAcoesMenu}
@@ -1891,7 +1896,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           />
 
           <hr className="page-header-block-divider page-header-block-divider--actions" aria-hidden />
-          </div>
 
           {/* Estado de erro */}
           {error && (

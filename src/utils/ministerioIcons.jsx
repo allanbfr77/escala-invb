@@ -1,7 +1,7 @@
 import { Baby, Handshake, Music, MonitorPlay } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 
-export const ICONES_MINISTERIO = {
+const ICONES_MINISTERIO = {
   infantil: { Icon: Baby },
   recepcao: { Icon: Handshake },
   louvor: { Icon: Music },

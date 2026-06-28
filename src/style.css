@@ -1455,9 +1455,15 @@ code {
   }
 }
 
-.qa-bar-link:disabled {
+.qa-bar-link:disabled,
+.qa-bar-link.is-disabled {
   opacity: 0.38;
   cursor: not-allowed;
+}
+
+/* Link (<a>) desabilitado: bloqueia clique/hover sem precisar do atributo disabled */
+.qa-bar-link.is-disabled {
+  pointer-events: none;
 }
 
 /* Badge âmbar na página aberta */

@@ -66,7 +66,7 @@ export function setAppHash(section, { replace = false } = {}) {
   window.location.hash = section || "";
 }
 
-export function dashboardSectionFromFlags(verRelatorio, verOutrosMinisterios) {
+function dashboardSectionFromFlags(verRelatorio, verOutrosMinisterios) {
   if (verRelatorio) return HASH_SECTIONS.RELATORIO;
   if (verOutrosMinisterios) return HASH_SECTIONS.OUTROS_MINISTERIOS;
   return HASH_SECTIONS.PLANILHA;

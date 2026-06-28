@@ -1,15 +1,15 @@
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
 export const MINISTERIO_INFANTIL_ID = "infantil";
-export const LIMITE_ESCALAS_INFANTIL_MES = 3;
+const LIMITE_ESCALAS_INFANTIL_MES = 3;
 
 const FUNCOES_INFANTIL = ["BERÇÁRIO", "MATERNAL", "JUNIORES"];
 
-export function cultoKey(data, turno) {
+function cultoKey(data, turno) {
   return `${data}|${turno ?? "único"}`;
 }
 
-export function dataPertenceAoMes(dataStr, mes) {
+function dataPertenceAoMes(dataStr, mes) {
   return Boolean(dataStr && mes && dataStr.startsWith(`${mes}-`));
 }
 

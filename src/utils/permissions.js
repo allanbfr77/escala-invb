@@ -5,7 +5,7 @@ function isTruthyFlag(value) {
 }
 
 /** Master que só visualiza (sem editar escalas). */
-export function isMasterReadOnly(user) {
+function isMasterReadOnly(user) {
   if (!user) return false;
   if (user.role === "master_readonly") return true; // legado
   return user.role === "master" && isTruthyFlag(user.readOnly);
@@ -19,8 +19,4 @@ export function hasMasterAccess(user) {
 export function podeEditarMinisterio(user, ministerioId) {
   if (user?.role === "master" && !isMasterReadOnly(user)) return true;
   return user?.ministerioId === ministerioId;
-}
-
-export function isMaster(user) {
-  return user?.role === "master" && !isMasterReadOnly(user);
 }

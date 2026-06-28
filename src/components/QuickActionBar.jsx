@@ -146,7 +146,7 @@ function ExportButton({ disabled, baixando, opcoes, onSelect }) {
 }
 
 function MenuItem({ item, onHashNavClick }) {
-  const className = `qa-bar-link${item.active ? " is-active" : ""}${item.danger ? " is-danger" : ""}`;
+  const className = `qa-bar-link${item.active ? " is-active" : ""}${item.danger ? " is-danger" : ""}${item.disabled ? " is-disabled" : ""}`;
 
   const content = (
     <>
@@ -158,12 +158,20 @@ function MenuItem({ item, onHashNavClick }) {
   if (item.href) {
     return (
       <a
-        href={item.href}
+        href={item.disabled ? undefined : item.href}
         className={className}
         title={item.title}
         aria-label={item.ariaLabel || item.label}
         aria-current={item.active ? "page" : undefined}
-        onClick={(e) => onHashNavClick(e, item.onClick)}
+        aria-disabled={item.disabled || undefined}
+        tabIndex={item.disabled ? -1 : undefined}
+        onClick={(e) => {
+          if (item.disabled) {
+            e.preventDefault();
+            return;
+          }
+          onHashNavClick(e, item.onClick);
+        }}
       >
         {content}
       </a>
@@ -207,6 +215,7 @@ export default function QuickActionBar({
   onOrganizar,
   podeOrganizar = false,
   podeEditar = true,
+  podeVerSecoes = true,
   limpando = false,
   onLimparMes,
   showAcoesMenu,
@@ -229,6 +238,8 @@ export default function QuickActionBar({
       active: verRelatorio,
       href: `#${HASH_SECTIONS.RELATORIO}`,
       onClick: onToggleRelatorio,
+      disabled: !podeVerSecoes,
+      title: !podeVerSecoes ? "Disponível apenas no seu ministério" : undefined,
     },
     {
       key: "outros-ministerios",
@@ -237,6 +248,8 @@ export default function QuickActionBar({
       active: verOutrosMinisterios,
       href: `#${HASH_SECTIONS.OUTROS_MINISTERIOS}`,
       onClick: onToggleOutrosMinisterios,
+      disabled: !podeVerSecoes,
+      title: !podeVerSecoes ? "Disponível apenas no seu ministério" : undefined,
     },
     {
       key: "indisponivel",
@@ -334,7 +347,7 @@ export default function QuickActionBar({
           </button>
           {showAcoesMenu && (
             <div className="acoes-kebab-menu" role="menu">
-              <button
+                       <button
                 type="button"
                 role="menuitem"
                 className="acoes-kebab-item is-danger"

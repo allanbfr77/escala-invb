@@ -38,12 +38,6 @@ export function estaIndisponivelTodoMesFromSet(pessoa, datas, indispSet) {
   return indisp >= total;
 }
 
-export function filtrarPessoasDisponiveisMes(pessoas, datas, indisponiveisMap) {
-  return (pessoas || []).filter(
-    (p) => !estaIndisponivelTodoMes(p, datas, indisponiveisMap)
-  );
-}
-
 /**
  * Código curto do turno para bolinhas do painel: Q, DM, DN (ou abreviação de extra).
  */
@@ -157,14 +151,3 @@ export function montarSemanasIndisponibilidade(datas) {
 }
 
 export { COLUNAS_SEMANA };
-
-/** Conta indisponibilidades alinhadas às colunas do mês (ignora datas de outros meses no Firestore). */
-export function contarIndisponibilidadesNoMes(indisponiveisSet, datas) {
-  if (!indisponiveisSet?.size || !datas?.length) return 0;
-
-  let n = 0;
-  for (const d of datas) {
-    if (indisponiveisSet.has(chaveIndisponibilidadeColuna(d))) n++;
-  }
-  return n;
-}

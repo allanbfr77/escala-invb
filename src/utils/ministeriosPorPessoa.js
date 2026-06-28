@@ -2,7 +2,7 @@ import { pessoasPorMinisterio } from "../data/pessoas";
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
 /** pessoaLower → Set(ministerioId) */
-export function buildMinisteriosPorPessoa() {
+function buildMinisteriosPorPessoa() {
   const map = new Map();
 
   for (const [ministerioId, pessoas] of Object.entries(pessoasPorMinisterio)) {
@@ -16,7 +16,7 @@ export function buildMinisteriosPorPessoa() {
   return map;
 }
 
-export const MINISTERIOS_POR_PESSOA = buildMinisteriosPorPessoa();
+const MINISTERIOS_POR_PESSOA = buildMinisteriosPorPessoa();
 
 export function ministeriosDaPessoa(pessoaNome) {
   const pl = pessoaNomeFirestore(pessoaNome);

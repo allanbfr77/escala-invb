@@ -67,7 +67,7 @@ export function pessoaEscaladaEmOutroMinisterioNoCulto(
   return !!getEscalaExterna(mapa, ministerioIdAtual, pessoaNome, dataObj);
 }
 
-export const ABREV_MINISTERIOS_INDISP = {
+const ABREV_MINISTERIOS_INDISP = {
   infantil: "Min. Infantil",
   louvor: "Min. Louvor",
   comunicacao: "Min. Comunicações",
@@ -106,22 +106,4 @@ export function contarResumoBloqueiosIndisponibilidade(
   }
 
   return { manual, externo, total: manual + externo };
-}
-
-/** Conta bloqueios manuais + escalas em outros ministérios no mês. */
-export function contarBloqueiosIndisponibilidade(
-  indisponiveisSet,
-  datas,
-  mapaEscalasCruzadas,
-  ministerioId,
-  pessoaNome
-) {
-  const { total } = contarResumoBloqueiosIndisponibilidade(
-    indisponiveisSet,
-    datas,
-    mapaEscalasCruzadas,
-    ministerioId,
-    pessoaNome
-  );
-  return total;
 }
