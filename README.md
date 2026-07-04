@@ -1,180 +1,286 @@
 # Escala INVB
 
-Sistema web para montagem e consulta das escalas mensais dos ministérios da igreja. Os dados ficam sincronizados em tempo real via Firebase (Firestore).
+<p align="center">
+  <img src="public/logo3.png" alt="Logo INVB" width="96" />
+</p>
 
-## Ministérios
+<p align="center">
+  Sistema web para montagem e consulta das escalas mensais dos ministérios da igreja.
+  Dados sincronizados em tempo real via Firebase Firestore.
+</p>
 
-| Ministério | Documentação específica |
-|------------|-------------------------|
-| Comunicações | [docs/ministerios/comunicacao.md](docs/ministerios/comunicacao.md) |
-| Louvor | [docs/ministerios/louvor.md](docs/ministerios/louvor.md) |
-| Introdução (Recepção) | [docs/ministerios/recepcao.md](docs/ministerios/recepcao.md) |
-| Infantil | [docs/ministerios/infantil.md](docs/ministerios/infantil.md) |
-
-Cada ministério tem funções, abreviações da planilha e regras próprias. Consulte o guia do seu ministério antes de escalar.
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Firebase-12-FFCA28?logo=firebase&logoColor=black" alt="Firebase" />
+  <img src="https://img.shields.io/badge/PWA-Service%20Worker-5A0FC8?logo=pwa&logoColor=white" alt="PWA" />
+</p>
 
 ---
 
-## Requisitos
+## Índice
 
-- Node.js 18+
-- Conta Firebase com Authentication e Firestore configurados
-- Arquivo `.env` na raiz do projeto (copie de `.env.example`)
+- [Funcionalidades](#funcionalidades)
+- [Ministérios](#ministérios)
+- [Tecnologias](#tecnologias)
+- [Pré-requisitos](#pré-requisitos)
+- [Instalação](#instalação)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Scripts disponíveis](#scripts-disponíveis)
+- [Acesso e permissões](#acesso-e-permissões)
+- [Como usar](#como-usar)
+- [Deploy (GitHub Pages)](#deploy-github-pages)
+- [Gerenciamento de usuários](#gerenciamento-de-usuários)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Documentação por ministério](#documentação-por-ministério)
 
-## Instalação e execução
+---
+
+## Funcionalidades
+
+- **Escalas mensais** por ministério, com cultos de domingo (manhã e noite) e quarta-feira
+- **Duas visualizações**: grade por função (Tabela) ou por integrante (Planilha com abreviações)
+- **Sincronização em tempo real** — alterações visíveis para todos os usuários conectados
+- **Indisponibilidades** por pessoa e por culto, com importação entre ministérios
+- **Detecção de conflitos** quando alguém já está escalado em outro ministério no mesmo culto
+- **Exportação** da escala em PNG (tabela, planilha ou cards mobile)
+- **Relatório** de participações no mês e relatório unificado (perfil master)
+- **Tema claro/escuro** e layout responsivo (desktop e mobile)
+- **PWA** — instalável no celular com service worker
+
+---
+
+## Ministérios
+
+| Ministério | ID | Funções principais |
+|------------|-----|-------------------|
+| Comunicações | `comunicacao` | Projeção, Mesa de som, Transmissão |
+| Louvor | `louvor` | Ministrante, Backing vocals, Músicos |
+| Introdução (Recepção) | `recepcao` | Introdutores |
+| Infantil | `infantil` | Berçário, Maternal, Juniores |
+
+---
+
+## Tecnologias
+
+| Camada | Stack |
+|--------|-------|
+| Frontend | React 18, Vite 8 |
+| Backend / dados | Firebase Authentication, Cloud Firestore |
+| UI | CSS customizado, Lucide React |
+| Exportação | html2canvas |
+| Deploy | GitHub Actions → GitHub Pages |
+
+---
+
+## Pré-requisitos
+
+- [Node.js](https://nodejs.org/) 18 ou superior
+- Projeto no [Firebase](https://console.firebase.google.com/) com **Authentication** (e-mail/senha) e **Firestore** habilitados
+- Conta de serviço do Firebase (para scripts de criação de usuários)
+
+---
+
+## Instalação
 
 ```bash
+# Clone o repositório
+git clone https://github.com/allanbfr77/escala-invb.git
+cd escala-invb
+
+# Instale as dependências
 npm install
-cp .env.example .env   # preencha com as credenciais do Firebase
-npm run dev            # desenvolvimento em http://localhost:5173
-npm run build          # build de produção
-npm run preview        # pré-visualizar o build
+
+# Configure as variáveis de ambiente
+cp .env.example .env
+# Edite .env com as credenciais do seu projeto Firebase
+
+# Inicie o servidor de desenvolvimento
+npm run dev
 ```
+
+A aplicação estará disponível em `http://localhost:5173`.
+
+---
+
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env` e preencha com os dados do console Firebase (**Configurações do projeto → Seus apps**):
+
+| Variável | Descrição |
+|----------|-----------|
+| `VITE_FIREBASE_API_KEY` | Chave da API |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Domínio de autenticação |
+| `VITE_FIREBASE_PROJECT_ID` | ID do projeto |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Bucket de storage |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Sender ID |
+| `VITE_FIREBASE_APP_ID` | App ID |
+
+> **Importante:** nunca commite o arquivo `.env` com credenciais reais.
+
+---
+
+## Scripts disponíveis
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm run dev` | Servidor de desenvolvimento (Vite) |
+| `npm run build` | Build de produção na pasta `dist/` |
+| `npm run preview` | Pré-visualiza o build localmente |
 
 ---
 
 ## Acesso e permissões
 
-1. Na tela de login, escolha o **ministério** do seu perfil.
+1. Na tela de login, selecione o **ministério** do seu perfil.
 2. Informe e-mail e senha cadastrados no Firebase.
-3. O sistema valida se o usuário pertence ao ministério selecionado (exceto perfil **master**, que edita todos).
+3. O sistema valida se o usuário pertence ao ministério escolhido.
 
-| Perfil | O que pode fazer |
-|--------|------------------|
-| Usuário do ministério | Editar apenas a escala do próprio ministério |
-| Master | Editar qualquer ministério e trocar ministério na sidebar |
+| Perfil | Permissões |
+|--------|------------|
+| Usuário do ministério | Edita apenas a escala do próprio ministério |
+| Master | Edita qualquer ministério, troca ministério na sidebar e acessa relatório unificado |
+| Master (somente leitura) | Visualiza tudo, sem editar escalas |
 
-Quem não tem permissão de edição vê a escala em **modo leitura** (badge "LEITURA").
-
----
-
-## Cultos do mês (todas as views)
-
-O calendário padrão inclui:
-
-| Dia | Cultos gerados |
-|-----|----------------|
-| **Domingo** | Manhã `(M)` e Noite `(N)` — duas colunas no mesmo dia |
-| **Quarta-feira** | Culto único (sem sufixo M/N) |
-
-Horários gravados na escala:
-
-| Culto | Início | Fim |
-|-------|--------|-----|
-| Domingo manhã | 08:00 | 12:00 |
-| Domingo noite | 18:00 | 22:00 |
-| Quarta / extras | 19:00 | 22:00 |
-
-É possível adicionar **cultos extras** do mês (consagração, encontros etc.) pela sidebar, por ministério.
-
-A navegação de mês segue a regra do sistema: a partir do dia 20, o foco padrão tende ao mês seguinte (planejamento).
+Usuários sem permissão de edição veem a escala em **modo leitura** (badge "LEITURA").
 
 ---
 
-## Duas formas de visualizar a escala
+## Como usar
 
-No topo da área principal há o alternador **TABELA** | **PLANILHA**.
+### Cultos do mês
 
-### View TABELA (padrão)
+| Dia | Cultos |
+|-----|--------|
+| Domingo | Manhã `(M)` e Noite `(N)` |
+| Quarta-feira | Culto único |
 
-- Grade por **função**: cada coluna é uma função do ministério; cada linha é um culto/data.
-- Escala pela **sidebar**: escolha função → pessoa → marque as datas → confirme.
-- Remoção: passe o mouse no nome na célula e clique em ✕.
-- Exibe a seção **Membros escalados em outros ministérios este mês** (quando houver conflitos cruzados).
+| Culto | Horário |
+|-------|---------|
+| Domingo manhã | 08:00 – 12:00 |
+| Domingo noite | 18:00 – 22:00 |
+| Quarta / extras | 19:00 – 22:00 |
 
-### View PLANILHA
+A partir do dia **20** de cada mês, o foco padrão passa para o mês seguinte (planejamento).
 
-- Grade por **integrante**: linhas = pessoas do ministério; colunas = cultos do mês.
-- Digite a **abreviação da função** diretamente na célula (Enter ou sair do campo para salvar).
-- Indicadores visuais em células vazias:
-  - Ícone vermelho: integrante **indisponível** naquela data/turno
-  - Ícone do ministério: escalado em **outro ministério** no mesmo culto
-- Quem está indisponível em **todas** as datas do mês some da lista de linhas.
-- A seção de outros ministérios **não** aparece na planilha (a informação já está nas células).
+### View Tabela
 
-Detalhes das abreviações: veja o README do seu ministério.
+- Grade por **função** — colunas são funções, linhas são cultos
+- Escala pela **sidebar**: função → pessoa → datas → confirmar
+- Remoção: passe o mouse no nome e clique em ✕
 
----
+### View Planilha
 
-## Sidebar (painel lateral)
+- Grade por **integrante** — linhas são pessoas, colunas são cultos
+- Digite a **abreviação da função** na célula (Enter para salvar)
+- Ícones indicam indisponibilidade ou escala em outro ministério
 
-Disponível no desktop; no mobile, abra pelo botão **+** (canto inferior direito).
-
-| Campo | Descrição |
-|-------|-----------|
-| Ministério | Troca de ministério (conforme permissão) |
-| Função | Função a preencher na escala |
-| Pessoa | Integrante escalado |
-| Datas | Cultos selecionados para confirmar a escala |
-| Cultos extras | Adicionar/remover cultos especiais do mês |
-
-**Indisponibilidades:** integrantes marcados como indisponíveis em determinados cultos não aparecem nas datas correspondentes e somem do dropdown se estiverem indisponíveis o mês inteiro.
-
-**Conflito entre ministérios:** se a pessoa já estiver escalada em outro ministério no mesmo culto, o sistema bloqueia e exibe um aviso.
-
----
-
-## Botões da barra superior
+### Barra de ações
 
 | Botão | Função |
 |-------|--------|
-| **TABELA / PLANILHA** | Alterna o tipo de grade |
-| Filtrar nome | (TABELA) Destaca nomes na grade |
-| **Baixar escala** | Exporta PNG |
-| **Relatório** | Resumo de participações no mês |
-| **Indispon.** | Abre o modal de indisponibilidades |
-| **Organizar** | Só Louvor e Introdução — reorganiza colunas fixas |
-| **Limpar mês** | Apaga todas as escalas do ministério no mês |
-| Tema | Claro / escuro |
+| TABELA / PLANILHA | Alterna a visualização |
+| Baixar escala | Exporta PNG (tabela, planilha ou cards) |
+| Relatório | Participações no mês |
+| Indispon. | Modal de indisponibilidades |
+| Organizar | Reorganiza colunas (Louvor e Recepção) |
+| Limpar mês | Apaga todas as escalas do ministério no mês |
 
-### Formatos de download
+### Regras gerais
 
-| Opção | Conteúdo |
-|-------|----------|
-| **Tabela (Web)** | Grade por função (estilo da view TABELA) |
-| **Planilha (Web)** | Grade por integrante com abreviações coloridas |
-| **Cards (Mobile)** | Cards por culto (melhor para telas pequenas) |
+1. Uma função por pessoa por culto no mesmo ministério
+2. Cultos diferentes no mesmo dia são permitidos (ex.: manhã e noite)
+3. Ao substituir um slot ocupado, o registro anterior é removido
+4. Alterações sincronizam em tempo real
 
 ---
 
-## Modal de indisponibilidades
+## Deploy (GitHub Pages)
 
-- Marque, por pessoa, em quais cultos do mês ela **não** pode servir.
-- Pode importar indisponibilidades a partir de escalas já feitas em outros ministérios.
-- Afeta dropdown de pessoas, datas disponíveis na sidebar e células da planilha.
+O workflow em [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) publica automaticamente a cada push na branch `main`.
+
+Configure os seguintes **secrets** no repositório GitHub (**Settings → Secrets and variables → Actions**):
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+
+O deploy usa [peaceiris/actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) e publica o conteúdo de `dist/`.
 
 ---
 
-## Regras gerais de escala
+## Gerenciamento de usuários
 
-1. **Uma função por pessoa por culto** — no mesmo culto (data + turno), a pessoa só pode ter uma função no ministério.
-2. **Cultos diferentes no mesmo dia** — permitido (ex.: manhã e noite no domingo).
-3. **Substituição de slot** — ao escalar alguém em uma função já ocupada, o sistema remove o registro anterior daquela função.
-4. **Sincronização** — alterações aparecem em tempo real para quem estiver com a página aberta.
+Scripts em `scripts/` usam o Firebase Admin SDK. Defina a variável de ambiente com o caminho ao JSON da conta de serviço:
+
+```bash
+# Windows (PowerShell)
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\caminho\service-account.json"
+
+# Linux / macOS
+export GOOGLE_APPLICATION_CREDENTIALS="/caminho/service-account.json"
+```
+
+### Criar usuário
+
+```bash
+# Master com edição
+node scripts/criar-usuario.mjs --email=usuario@exemplo.com --senha=senha123 --role=master
+
+# Master somente leitura
+node scripts/criar-usuario.mjs --email=usuario@exemplo.com --senha=senha123 --role=master --readOnly
+
+# Usuário de ministério
+node scripts/criar-usuario.mjs --email=usuario@exemplo.com --senha=senha123 --ministerioId=louvor
+```
+
+IDs de ministério válidos: `comunicacao`, `louvor`, `recepcao`, `infantil`.
+
+### Alterar senhas em lote
+
+```bash
+node scripts/alterar-senhas-usuarios.mjs
+```
+
+Consulte os comentários em cada script para opções adicionais (`--dry-run`, etc.).
 
 ---
 
 ## Estrutura do projeto
 
 ```
-src/
-  pages/          Login, Dashboard, DashboardGrid (planilha)
-  components/     Grids por ministério, sidebar, modais
-  context/        Autenticação, escalas, tema
-  data/           Pessoas e funções por ministério
-  utils/          Datas, abreviações, permissões, indisponibilidades
-docs/
-  ministerios/    README individual de cada ministério
+escala-igreja/
+├── public/              # Assets estáticos, PWA (manifest, service worker)
+├── src/
+│   ├── pages/           # Login, Dashboard, Relatório unificado
+│   ├── components/      # Grids, sidebar, modais
+│   ├── context/         # Auth, escalas, tema
+│   ├── data/            # Pessoas e funções por ministério
+│   ├── hooks/           # Hooks customizados
+│   └── utils/           # Datas, permissões, indisponibilidades, exportação
+├── docs/ministerios/    # Guias específicos de cada ministério
+├── scripts/             # Criação e gestão de usuários (Admin SDK)
+└── .github/workflows/   # CI/CD para GitHub Pages
 ```
 
 ---
 
-## Deploy
+## Documentação por ministério
 
-O projeto inclui workflow GitHub Actions (`.github/workflows/deploy.yml`) para publicação. Configure os secrets do Firebase e do hosting conforme o ambiente da igreja.
+Cada ministério tem funções, abreviações da planilha e regras próprias:
+
+| Ministério | Guia |
+|------------|------|
+| Comunicações | [docs/ministerios/comunicacao.md](docs/ministerios/comunicacao.md) |
+| Louvor | [docs/ministerios/louvor.md](docs/ministerios/louvor.md) |
+| Introdução (Recepção) | [docs/ministerios/recepcao.md](docs/ministerios/recepcao.md) |
+| Infantil | [docs/ministerios/infantil.md](docs/ministerios/infantil.md) |
 
 ---
 
-## Suporte
+## Licença
 
-Dúvidas sobre **qual função usar** ou **abreviação na planilha**: consulte o README do ministério na pasta `docs/ministerios/`.
+Projeto privado — uso interno da igreja INVB.
