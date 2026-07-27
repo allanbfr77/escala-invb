@@ -55,7 +55,7 @@ const COR_POR_ABREV = {
     MS4: "amarelo",
     S: "lilas",
   },
-  comunicacao: { P: "azul", S: "lilas", T: "amarelo" },
+  comunicacao: { P: "azul", S: "verde", T: "amarelo" },
   recepcao: { I1: "azul", I2: "verde", I3: "amarelo" },
 };
 

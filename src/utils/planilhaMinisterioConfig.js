@@ -31,7 +31,7 @@ const CONFIG = {
       if (funcao === "MINISTRANTE") return "ministrante";
       if (funcao.startsWith("BVOCAL")) return "bvocal";
       if (funcao.startsWith("MÚSICO")) return "musico";
-      if (funcao === "MESA DE SOM") return "mesa-som";
+      if (funcao === "MESA DE SOM") return "mesa-som-louvor";
       return "";
     },
   },
