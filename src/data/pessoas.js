@@ -30,7 +30,7 @@ export const pessoasPorFuncaoLouvor = {
 
 export const pessoasPorFuncaoRecepcao = {
   "INTRODUTOR":  ["ALFREDO", "ATAYDE", "JOÃO", "MARCIO", "SALATHIEL", "WELLINGTON"],
-  "INTRODUTORA": ["CLAUDIA", "CLEUSA", "FRANCISCA", "HELENA", "LIA", "LUCIANA F.", "LUCIANE MARTINS", "MARILDA", "MIRIAN", "ROSE"],
+  "INTRODUTORA": ["BIANCA M.", "CLAUDIA", "CLEUSA", "FRANCISCA", "HELENA", "LIA", "LUCIANA F.", "LUCIANE MARTINS", "MARILDA", "MIRIAN", "ROSE"],
 };
 
 export const pessoasPorFuncaoInfantil = {
@@ -86,6 +86,7 @@ export const pessoasPorMinisterio = {
   recepcao: [
     "ALFREDO",
     "ATAYDE",
+    "BIANCA M.",
     "CLAUDIA",
     "CLEUSA",
     "FRANCISCA",
