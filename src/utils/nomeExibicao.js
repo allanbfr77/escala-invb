@@ -1,6 +1,7 @@
 /** Nomes legados → forma canônica de exibição (maiúsculas). */
 const NOMES_CANONICOS = {
   "luciana fernandes": "LUCIANA F.",
+  "anna beatriz": "A. BEATRIZ",
 };
 
 /** Chave de comparação: minúsculas, sem acentos e espaços extras. */

@@ -2,7 +2,7 @@
 const LISTA_PESSOAS_COMUNICACAO = [
   "ALAN",
   "ALEX",
-  "ANNA BEATRIZ",
+  "A. BEATRIZ",
   "BIANCA",
   "JEAN",
   "JOÃO",
@@ -22,11 +22,11 @@ export const pessoasPorFuncaoLouvor = {
   "BVOCAL 2":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
   "BVOCAL 3":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
   "BVOCAL 4":    ["ALESSANDRO", "CRIS", "DANIELA", "LUCIANA F.", "MIRIAN", "PR. HUMBERTO", "RAPHAELA", "ROSE", "SEBASTIANA", "VANESSA R.", "ZEMA"],
-  "MÚSICO 1":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
-  "MÚSICO 2":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
-  "MÚSICO 3":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
-  "MÚSICO 4":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
-  "MESA DE SOM": ["ALAN", "ANNA BEATRIZ", "BIANCA", "JEAN", "MEDEIROS"],
+  "MÚSICO 1":    ["A. BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
+  "MÚSICO 2":    ["A. BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
+  "MÚSICO 3":    ["A. BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
+  "MÚSICO 4":    ["A. BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
+  "MESA DE SOM": ["ALAN", "A. BEATRIZ", "BIANCA", "JEAN", "MEDEIROS"],
 };
 
 export const pessoasPorFuncaoRecepcao = {
@@ -36,8 +36,8 @@ export const pessoasPorFuncaoRecepcao = {
 
 export const pessoasPorFuncaoInfantil = {
   "BERÇÁRIO": ["BIANCA", "CELIANA", "CRIS", "ELIZANGELA", "MARILDA", "MARILIA", "RAPHAELA", "VANESSA H."],
-  "MATERNAL": ["ALAN", "ANNA BEATRIZ", "ELIZANGELA", "FRANCISCA", "LUCIANE MARTINS", "LUCYENE PAULINO", "MARILIA", "MEDEIROS", "RAPHAELA", "SEBASTIANA", "SUELLEN"],
-  "JUNIORES": ["ALAN", "ALESSANDRO", "ANNA BEATRIZ", "LUCIANE MARTINS", "MARILIA", "MEDEIROS", "PR. MARCIO", "VANESSA R."],
+  "MATERNAL": ["ALAN", "A. BEATRIZ", "ELIZANGELA", "FRANCISCA", "LUCIANE MARTINS", "LUCYENE PAULINO", "MARILIA", "MEDEIROS", "RAPHAELA", "SEBASTIANA", "SUELLEN"],
+  "JUNIORES": ["ALAN", "ALESSANDRO", "A. BEATRIZ", "LUCIANE MARTINS", "MARILIA", "MEDEIROS", "PR. MARCIO", "VANESSA R."],
 };
 
 export const pessoasPorMinisterio = {
@@ -46,7 +46,7 @@ export const pessoasPorMinisterio = {
   infantil: [
     "ALAN",
     "ALESSANDRO",
-    "ANNA BEATRIZ",
+    "A. BEATRIZ",
     "BIANCA",
     "CELIANA",
     "CRIS",
@@ -68,7 +68,7 @@ export const pessoasPorMinisterio = {
   louvor: [
     "ALAN",
     "ALESSANDRO",
-    "ANNA BEATRIZ",
+    "A. BEATRIZ",
     "BIANCA",
     "CRIS",
     "DANIELA",
