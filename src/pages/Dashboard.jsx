@@ -261,6 +261,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const isTabletUp = useMediaQuery(TABLET_MIN_QUERY);
   const [verIndisponibilidade, setVerIndisponibilidade] = useState(false);
   const [textoExportacao, setTextoExportacao] = useState({ aberto: false, conteudo: "" });
+  const [textoCopiado, setTextoCopiado] = useState(false);
   const mainRef = useRef(null);
 
   const mostrarMensagem = (texto, tipo = "sucesso") => {
@@ -290,13 +291,22 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   }, [conflito]);
 
   useEffect(() => {
-    if (!textoExportacao.aberto) return;
+    if (!textoExportacao.aberto) {
+      setTextoCopiado(false);
+      return;
+    }
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
   }, [textoExportacao.aberto]);
+
+  useEffect(() => {
+    if (!textoCopiado) return;
+    const t = setTimeout(() => setTextoCopiado(false), 2000);
+    return () => clearTimeout(t);
+  }, [textoCopiado]);
 
   const podeEditar = podeEditarMinisterio(user, ministerioSelecionado);
   // Em modo leitura (ministério que não é o do usuário), bloqueia as seções
@@ -367,9 +377,10 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const copiarTextoExportacao = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(textoExportacao.conteudo);
-      mostrarMensagem("Texto copiado", "sucesso");
+      setTextoCopiado(true);
     } catch (err) {
       console.error(err);
+      setTextoCopiado(false);
       mostrarMensagem("Não foi possível copiar o texto", "erro");
     }
   }, [textoExportacao.conteudo]);
@@ -2176,19 +2187,22 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               <button
                 type="button"
                 onClick={copiarTextoExportacao}
+                disabled={textoCopiado}
                 style={{
                   padding: "9px 16px",
                   borderRadius: "8px",
-                  border: `1px solid ${theme.border}`,
-                  background: theme.text,
-                  color: theme.bg,
-                  cursor: "pointer",
+                  border: `1px solid ${textoCopiado ? theme.success : theme.border}`,
+                  background: textoCopiado ? theme.successDim : theme.text,
+                  color: textoCopiado ? theme.success : theme.bg,
+                  cursor: textoCopiado ? "default" : "pointer",
                   fontSize: "13px",
                   fontFamily: "inherit",
                   fontWeight: 600,
+                  minWidth: "88px",
+                  transition: "background 0.15s, color 0.15s, border-color 0.15s",
                 }}
               >
-                Copiar
+                {textoCopiado ? "Copiado" : "Copiar"}
               </button>
             </div>
           </div>
