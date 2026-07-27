@@ -19,6 +19,10 @@ import {
   mensagemLimiteInfantil,
   precisaConfirmarLimiteInfantil,
 } from "../utils/limiteEscalasInfantil";
+import {
+  deveEspelharMesaSom,
+  espelharMesaSomLouvor,
+} from "../utils/mesaSomEspelho";
 
 const ministerios = [
   {
@@ -93,7 +97,7 @@ const GRUPO_FUNCOES = {
 };
 
 // Lista simplificada exibida na sidebar para o Louvor
-const FUNCOES_LOUVOR_SIDEBAR = ["MINISTRANTE", "BVOCAL", "MÚSICO", "MESA DE SOM"];
+const FUNCOES_LOUVOR_SIDEBAR = ["MINISTRANTE", "BVOCAL", "MÚSICO"];
 
 /** Slots Firestore associados à função exibida na sidebar. */
 function slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado) {
@@ -624,19 +628,33 @@ export default function SidebarFiltros({
           const existenteSnap = await getDocs(qExistente);
           for (const docSnap of existenteSnap.docs) await deleteDoc(docSnap.ref);
 
+          const horaInicio = dataItem.tipo === "domingo" && dataItem.turno === "manhã" ? "08:00" :
+                        dataItem.tipo === "domingo" && dataItem.turno === "noite" ? "18:00" : "19:00";
+          const horaFim = dataItem.tipo === "domingo" && dataItem.turno === "manhã" ? "12:00" : "22:00";
+
           await addDoc(collection(db, "escalas"), {
             pessoaNome: pessoaLower,
             funcao: funcaoReal,
             ministerioId: ministerioSelecionado,
             data: dataItem.data,
             turno: turnoSalvo,
-            horaInicio: dataItem.tipo === "domingo" && dataItem.turno === "manhã" ? "08:00" :
-                        dataItem.tipo === "domingo" && dataItem.turno === "noite" ? "18:00" : "19:00",
-            horaFim: dataItem.tipo === "domingo" && dataItem.turno === "manhã" ? "12:00" : "22:00",
+            horaInicio,
+            horaFim,
             criadoPor: usuario.uid,
             criadoPorEmail: usuario.email,
             criadoEm: new Date().toISOString()
           });
+
+          if (deveEspelharMesaSom(ministerioSelecionado, funcaoReal)) {
+            await espelharMesaSomLouvor({
+              data: dataItem.data,
+              turno: turnoSalvo,
+              pessoaNome: pessoaLower,
+              horaInicio,
+              horaFim,
+              usuario,
+            });
+          }
 
           escalasLocal[`${dataItem.data}-${turnoSalvo}-${funcaoReal}`] = pessoaLower;
           idsSalvos.push(dataItem.id);

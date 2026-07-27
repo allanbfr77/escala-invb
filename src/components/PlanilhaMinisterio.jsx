@@ -26,6 +26,11 @@ import {
   precisaConfirmarLimiteInfantil,
 } from "../utils/limiteEscalasInfantil";
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
+import {
+  deveEspelharMesaSom,
+  ehCelulaMesaSomSomenteLeitura,
+  espelharMesaSomLouvor,
+} from "../utils/mesaSomEspelho";
 
 function turnoSalvo(dataObj) {
   return dataObj?.turno === "único" ? "único" : dataObj?.turno;
@@ -506,6 +511,11 @@ export default function PlanilhaMinisterio({
         return;
       }
 
+      if (ehCelulaMesaSomSomenteLeitura(ministerioId, funcao)) {
+        onMensagem?.("MESA DE SOM do Louvor é definida em Comunicações", "erro");
+        return;
+      }
+
       const turno = turnoSalvo(dataObj);
       const chaveAtual = escalaKey(dataObj, funcao);
       const valorAnterior = escalas[chaveAtual] || "";
@@ -558,6 +568,14 @@ export default function PlanilhaMinisterio({
         for (const docSnap of snapFuncao.docs) await deleteDoc(docSnap.ref);
 
         if (!valorBruto) {
+          if (deveEspelharMesaSom(ministerioId, funcao)) {
+            await espelharMesaSomLouvor({
+              data: dataObj.data,
+              turno,
+              pessoaNome: "",
+              usuario,
+            });
+          }
           onMensagem?.("Escala removida", "sucesso");
           return;
         }
@@ -611,6 +629,17 @@ export default function PlanilhaMinisterio({
           criadoPorEmail: usuario.email,
           criadoEm: new Date().toISOString(),
         });
+
+        if (deveEspelharMesaSom(ministerioId, funcao)) {
+          await espelharMesaSomLouvor({
+            data: dataObj.data,
+            turno,
+            pessoaNome: pessoaLower,
+            horaInicio,
+            horaFim,
+            usuario,
+          });
+        }
 
         onMensagem?.(`${nomeParaExibicao(valorBruto)} — ${funcao}`, "sucesso");
       } catch (err) {
@@ -722,7 +751,10 @@ export default function PlanilhaMinisterio({
                                 funcao={funcao}
                                 valor={valor}
                                 opcoes={getOpcoesSelect(dataObj, funcao)}
-                                podeEditar={podeEditar}
+                                podeEditar={
+                                  podeEditar &&
+                                  !ehCelulaMesaSomSomenteLeitura(ministerioId, funcao)
+                                }
                                 salvando={salvando}
                                 onChange={salvarCelula}
                                 destacar={destacar}
@@ -910,7 +942,10 @@ export default function PlanilhaMinisterio({
                               funcao={funcao}
                               valor={valor}
                               opcoes={getOpcoesSelect(dataObj, funcao)}
-                              podeEditar={podeEditar}
+                              podeEditar={
+                                podeEditar &&
+                                !ehCelulaMesaSomSomenteLeitura(ministerioId, funcao)
+                              }
                               salvando={salvando}
                               onChange={salvarCelula}
                               destacar={destacar}

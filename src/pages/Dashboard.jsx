@@ -23,6 +23,10 @@ import { formatarData } from "../utils/dateHelper";
 import { buildPlanilhaFaixasTableHTML } from "../utils/planilhaFaixasExport";
 import { nomeParaExibicao, normalizarNomePessoa } from "../utils/nomeExibicao";
 import { estaIndisponivelTodoMesFromSet } from "../utils/indisponibilidadeHelpers";
+import {
+  FUNCAO_MESA_SOM,
+  limparEspelhosMesaSomLouvorNoMes,
+} from "../utils/mesaSomEspelho";
 import { useLimpezaIndispEspelhadas } from "../hooks/useLimpezaIndispEspelhadas";
 import { useMediaQuery, TABLET_MIN_QUERY } from "../hooks/useMediaQuery";
 import { useTheme } from "../context/ThemeContext";
@@ -669,7 +673,21 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             where("data", "<=", fim)
           );
           const snap = await getDocs(q);
-          for (const doc of snap.docs) await deleteDoc(doc.ref);
+          for (const docSnap of snap.docs) {
+            // Preserva MESA DE SOM espelhada ao limpar Louvor
+            if (
+              ministerioSelecionado === "louvor" &&
+              docSnap.data().funcao === FUNCAO_MESA_SOM
+            ) {
+              continue;
+            }
+            await deleteDoc(docSnap.ref);
+          }
+
+          if (ministerioSelecionado === "comunicacao") {
+            await limparEspelhosMesaSomLouvorNoMes(mes);
+          }
+
           setRefreshKey(k => k + 1);
           mostrarMensagem("Escala do mês apagada", "sucesso");
         } catch (err) {
