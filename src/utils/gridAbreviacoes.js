@@ -19,6 +19,7 @@ const MAPA = {
     MS2: "MÚSICO 2",
     MS3: "MÚSICO 3",
     MS4: "MÚSICO 4",
+    S: "MESA DE SOM",
   },
   comunicacao: {
     P: "PROJEÇÃO",
@@ -32,11 +33,12 @@ const MAPA = {
   },
 };
 
-/** Mesmas cores dos grids por função (azul / verde / amarelo) */
+/** Mesmas cores dos grids por função (azul / verde / amarelo / lilás) */
 const CORES_FUNCAO = {
   azul: "#60a5fa",
   verde: "#34d399",
   amarelo: "#f59e0b",
+  lilas: "#c4b5fd",
 };
 
 const COR_POR_ABREV = {
@@ -51,8 +53,9 @@ const COR_POR_ABREV = {
     MS2: "amarelo",
     MS3: "amarelo",
     MS4: "amarelo",
+    S: "lilas",
   },
-  comunicacao: { P: "azul", S: "verde", T: "amarelo" },
+  comunicacao: { P: "azul", S: "lilas", T: "amarelo" },
   recepcao: { I1: "azul", I2: "verde", I3: "amarelo" },
 };
 
@@ -68,6 +71,7 @@ const TOOLTIP_POR_ABREV = {
     MS2: "Músico 2",
     MS3: "Músico 3",
     MS4: "Músico 4",
+    S: "Mesa de Som",
   },
   comunicacao: { P: "Projeção", S: "Som", T: "Transmissão" },
   recepcao: {

@@ -30,6 +30,10 @@ const ESTILO_TOM = {
     fg: "var(--abrev-badge-amarelo-fg)",
     bg: "var(--abrev-badge-amarelo-bg)",
   },
+  lilas: {
+    fg: "var(--abrev-badge-lilas-fg)",
+    bg: "var(--abrev-badge-lilas-bg)",
+  },
 };
 
 const ALERTA = {

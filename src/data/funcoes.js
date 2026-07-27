@@ -14,6 +14,7 @@ louvor: [
     "MÚSICO 2",
     "MÚSICO 3",
     "MÚSICO 4",
+    "MESA DE SOM",
 ],
 recepcao: [
   "INTRODUTOR(A) 1",

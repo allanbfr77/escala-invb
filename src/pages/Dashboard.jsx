@@ -1264,13 +1264,14 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           .grid-row td[data-label="INTRODUTOR(A) 1"]::before,
           .grid-row td[data-label="BERÇÁRIO"]::before { color: #60a5fa !important; }
 
-          .grid-row td[data-label="MESA DE SOM"]::before,
           .grid-row td[data-label="BVOCAL 1"]::before,
           .grid-row td[data-label="BVOCAL 2"]::before,
           .grid-row td[data-label="BVOCAL 3"]::before,
           .grid-row td[data-label="BVOCAL 4"]::before,
           .grid-row td[data-label="INTRODUTOR(A) 2"]::before,
           .grid-row td[data-label="MATERNAL"]::before { color: #34d399 !important; }
+
+          .grid-row td[data-label="MESA DE SOM"]::before { color: #c4b5fd !important; }
 
           .grid-row td[data-label="TRANSMISSÃO"]::before,
           .grid-row td[data-label="MÚSICO 1"]::before,

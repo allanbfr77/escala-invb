@@ -26,6 +26,7 @@ export const pessoasPorFuncaoLouvor = {
   "MÚSICO 2":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
   "MÚSICO 3":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
   "MÚSICO 4":    ["ANNA BEATRIZ", "LÉO", "MATHEUS", "MEDEIROS", "ZEMA"],
+  "MESA DE SOM": ["ALAN", "ANNA BEATRIZ", "BIANCA", "JEAN", "MEDEIROS"],
 };
 
 export const pessoasPorFuncaoRecepcao = {
@@ -65,11 +66,14 @@ export const pessoasPorMinisterio = {
   ],
 
   louvor: [
+    "ALAN",
     "ALESSANDRO",
     "ANNA BEATRIZ",
+    "BIANCA",
     "CRIS",
     "DANIELA",
     "ELIZANGELA",
+    "JEAN",
     "LÉO",
     "LUCIANA F.",
     "MATHEUS",

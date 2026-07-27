@@ -93,7 +93,7 @@ const GRUPO_FUNCOES = {
 };
 
 // Lista simplificada exibida na sidebar para o Louvor
-const FUNCOES_LOUVOR_SIDEBAR = ["MINISTRANTE", "BVOCAL", "MÚSICO"];
+const FUNCOES_LOUVOR_SIDEBAR = ["MINISTRANTE", "BVOCAL", "MÚSICO", "MESA DE SOM"];
 
 /** Slots Firestore associados à função exibida na sidebar. */
 function slotsDaFuncaoSidebar(funcaoSelecionada, ministerioSelecionado) {

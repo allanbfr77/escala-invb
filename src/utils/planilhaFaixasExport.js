@@ -11,7 +11,7 @@ const CORES_GRUPO_FUNCAO_EXPORT = {
   bvocal: "#059669",
   musico: "#ea580c",
   projecao: "#2563eb",
-  "mesa-som": "#059669",
+  "mesa-som": "#7c3aed",
   transmissao: "#ea580c",
   "intro-1": "#2563eb",
   "intro-2": "#059669",

@@ -84,6 +84,7 @@
   --pl-obreiro-ministrante: #60a5fa;
   --pl-obreiro-bvocal: #34d399;
   --pl-obreiro-musico: #f59e0b;
+  --pl-obreiro-mesa-som: #c4b5fd;
 
   --code-bg: #1f1f1f;
 
@@ -93,6 +94,8 @@
   --abrev-badge-verde-bg: rgba(52, 211, 153, 0.22);
   --abrev-badge-amarelo-fg: #fbbf24;
   --abrev-badge-amarelo-bg: rgba(251, 191, 36, 0.22);
+  --abrev-badge-lilas-fg: #c4b5fd;
+  --abrev-badge-lilas-bg: rgba(196, 181, 253, 0.22);
 
   --accent-bg: rgba(212,175,55,0.12);
   --accent-border-css: rgba(212,175,55,0.45);
@@ -202,6 +205,7 @@
   --pl-obreiro-ministrante: #2563eb;
   --pl-obreiro-bvocal: #059669;
   --pl-obreiro-musico: #ea580c;
+  --pl-obreiro-mesa-som: #7c3aed;
 
   --code-bg: #f3f4f6;
 
@@ -211,6 +215,8 @@
   --abrev-badge-verde-bg: rgba(4, 120, 87, 0.14);
   --abrev-badge-amarelo-fg: #b45309;
   --abrev-badge-amarelo-bg: rgba(180, 83, 9, 0.14);
+  --abrev-badge-lilas-fg: #7c3aed;
+  --abrev-badge-lilas-bg: rgba(124, 58, 237, 0.14);
 
   --accent-bg: rgba(160,114,6,0.09);
   --accent-border-css: rgba(160,114,6,0.35);
@@ -783,6 +789,11 @@ code {
 .abrev-badge--amarelo {
   color: var(--abrev-badge-amarelo-fg);
   background: var(--abrev-badge-amarelo-bg);
+}
+
+.abrev-badge--lilas {
+  color: var(--abrev-badge-lilas-fg);
+  background: var(--abrev-badge-lilas-bg);
 }
 
 .abrev-badge--neutral {
@@ -2589,11 +2600,16 @@ code {
 }
 
 .planilha-louvor-td-funcao--bvocal .planilha-louvor-funcao-label,
-.planilha-louvor-td-funcao--mesa-som .planilha-louvor-funcao-label,
 .planilha-louvor-td-funcao--intro-2 .planilha-louvor-funcao-label {
   color: var(--pl-obreiro-bvocal);
   background: rgba(52, 211, 153, 0.12);
   border-left: 3px solid var(--pl-obreiro-bvocal);
+}
+
+.planilha-louvor-td-funcao--mesa-som .planilha-louvor-funcao-label {
+  color: var(--pl-obreiro-mesa-som);
+  background: rgba(196, 181, 253, 0.14);
+  border-left: 3px solid var(--pl-obreiro-mesa-som);
 }
 
 .planilha-louvor-td-funcao--musico .planilha-louvor-funcao-label,
@@ -2611,9 +2627,12 @@ code {
 }
 
 [data-theme="light"] .planilha-louvor-td-funcao--bvocal .planilha-louvor-funcao-label,
-[data-theme="light"] .planilha-louvor-td-funcao--mesa-som .planilha-louvor-funcao-label,
 [data-theme="light"] .planilha-louvor-td-funcao--intro-2 .planilha-louvor-funcao-label {
   background: rgba(5, 150, 105, 0.1);
+}
+
+[data-theme="light"] .planilha-louvor-td-funcao--mesa-som .planilha-louvor-funcao-label {
+  background: rgba(124, 58, 237, 0.12);
 }
 
 [data-theme="light"] .planilha-louvor-td-funcao--musico .planilha-louvor-funcao-label,
