@@ -29,11 +29,12 @@ const EXPORT_FONT = {
   thFuncao: 19,
   thData: 19,
   tdFuncao: 18,
-  celula: 23,
+  /** Tamanho único nos nomes — cabe em colunas estreitas (ex.: PR. HUMBERTO). */
+  celula: 17,
 };
 
 function largurasColunasExport(numDatas) {
-  const funcPct = numDatas >= 5 ? 15 : numDatas >= 4 ? 17 : 22;
+  const funcPct = numDatas >= 5 ? 13 : numDatas >= 4 ? 15 : 20;
   const dataPct = numDatas > 0 ? (100 - funcPct) / numDatas : 0;
   return { funcPct, dataPct };
 }
@@ -125,8 +126,8 @@ function buildBlocoFaixaHTML(faixa, { ministerioId, funcoes, escalas, LT, thBase
 
     for (const dataObj of colunasAtivas) {
       const cel = valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId);
-      tbody += `<td style="${cellBorder}padding:9px 4px;text-align:center;vertical-align:middle;background:${cel.bg};">
-        <span style="font-size:${EXPORT_FONT.celula}px;font-weight:600;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;line-height:1.2;">${cel.html}</span>
+      tbody += `<td style="${cellBorder}padding:8px 6px;text-align:center;vertical-align:middle;background:${cel.bg};">
+        <span style="display:block;max-width:100%;overflow:hidden;text-overflow:clip;font-size:${EXPORT_FONT.celula}px;font-weight:500;color:${cel.color};font-family:'Outfit',sans-serif;white-space:nowrap;line-height:1.25;letter-spacing:-0.01em;">${cel.html}</span>
       </td>`;
     }
     tbody += "</tr>";
