@@ -1,12 +1,11 @@
 import { useMemo } from "react";
 import BotaoVoltar from "./BotaoVoltar";
-import { chamadaEbdPorMes } from "../data/ebd";
 import { nomeParaExibicao } from "../utils/nomeExibicao";
+import { useChamadaEbd } from "../hooks/useChamadaEbd";
 import {
   STATUS_EBD,
   rotuloMesEbd,
   rotuloDomingoCurto,
-  domingosDoMes,
   calcularPresencaPct,
   alunosEbdDoMinisterio,
   registrosEbdDaPessoa,
@@ -29,29 +28,50 @@ function CelulaStatus({ status }) {
   );
 }
 
+function rotuloAtualizacao(atualizadoEm, fonte, loading, erro, planilhaHabilitada) {
+  if (loading) return "Atualizando da planilha…";
+  if (!planilhaHabilitada) return "Planilha não configurada · dados locais";
+  if (atualizadoEm) {
+    const quando = new Date(atualizadoEm).toLocaleString("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "medium",
+    });
+    if (erro) return `Cópia salva nesta página · ${quando}`;
+    if (fonte === "local") return `Dados locais · ${quando}`;
+    return `Atualizado da planilha em ${quando}`;
+  }
+  if (erro) return `Não foi possível ler a planilha: ${erro}`;
+  return "Aguardando planilha";
+}
+
 export default function ChamadaEBD({ mes, ministerioId, theme, onVoltar }) {
-  const geradoEm = useMemo(
-    () => new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }),
-    []
-  );
+  const {
+    domingos: domingosPlanilha,
+    presencas,
+    nomes,
+    loading,
+    erro,
+    atualizadoEm,
+    fonte,
+    planilhaHabilitada,
+  } = useChamadaEbd(mes);
 
-  const chamadaMes = chamadaEbdPorMes[mes];
-  const domingos = chamadaMes?.domingos ?? domingosDoMes(mes);
   const tituloMes = rotuloMesEbd(mes);
-
-  const alunos = useMemo(() => alunosEbdDoMinisterio(ministerioId), [ministerioId]);
-
+  const alunos = useMemo(
+    () => alunosEbdDoMinisterio(ministerioId, nomes),
+    [ministerioId, nomes]
+  );
   const linhas = useMemo(
     () =>
       alunos.map((nome) => {
-        const registros = registrosEbdDaPessoa(chamadaMes?.presencas, nome, domingos.length);
+        const registros = registrosEbdDaPessoa(presencas, nome, domingosPlanilha.length);
         return {
           nome,
           registros,
           pct: calcularPresencaPct(registros),
         };
       }),
-    [alunos, chamadaMes, domingos]
+    [alunos, presencas, domingosPlanilha]
   );
 
   return (
@@ -61,7 +81,9 @@ export default function ChamadaEBD({ mes, ministerioId, theme, onVoltar }) {
           <h2 className="ebd-chamada-titulo" style={{ color: theme.text }}>
             EBD · Chamada {tituloMes}
           </h2>
-          <p className="ebd-chamada-subtitulo">Gerado em {geradoEm}</p>
+          <p className="ebd-chamada-subtitulo">
+            {rotuloAtualizacao(atualizadoEm, fonte, loading, erro, planilhaHabilitada)}
+          </p>
         </div>
         {onVoltar && (
           <div className="ebd-chamada-voltar">
@@ -87,7 +109,7 @@ export default function ChamadaEBD({ mes, ministerioId, theme, onVoltar }) {
             <thead>
               <tr>
                 <th className="ebd-chamada-th ebd-chamada-th--nome">Aluno</th>
-                {domingos.map((data) => (
+                {domingosPlanilha.map((data) => (
                   <th key={data} className="ebd-chamada-th ebd-chamada-th--dia">
                     {rotuloDomingoCurto(data)}
                   </th>
@@ -100,7 +122,7 @@ export default function ChamadaEBD({ mes, ministerioId, theme, onVoltar }) {
                 <tr key={nome} className="ebd-chamada-row">
                   <td className="ebd-chamada-td ebd-chamada-td--nome">{nomeParaExibicao(nome)}</td>
                   {registros.map((status, idx) => (
-                    <td key={`${nome}-${domingos[idx]}`} className="ebd-chamada-td ebd-chamada-td--status">
+                    <td key={`${nome}-${domingosPlanilha[idx]}`} className="ebd-chamada-td ebd-chamada-td--status">
                       <CelulaStatus status={status} />
                     </td>
                   ))}
@@ -114,7 +136,7 @@ export default function ChamadaEBD({ mes, ministerioId, theme, onVoltar }) {
         </div>
 
         <footer className="ebd-chamada-footer">
-          Total de obreiros: {alunos.length} · Domingos no mês: {domingos.length}
+          Total de obreiros: {alunos.length} · Domingos no mês: {domingosPlanilha.length}
         </footer>
       </div>
     </div>
