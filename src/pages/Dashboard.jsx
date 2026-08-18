@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, deleteDoc, updateDoc } from "firebas
 import html2canvas from "html2canvas";
 
 import QuickActionBar from "../components/QuickActionBar";
+import ChamadaEBD from "../components/ChamadaEBD";
 import RelatorioMinisterio from "../components/RelatorioMinisterio";
 import SkeletonGrid from "../components/SkeletonGrid";
 import ConfirmModal from "../components/ConfirmModal";
@@ -239,12 +240,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     const section = parseAppHash();
     return isDashboardHash(section)
       ? dashboardFlagsFromSection(section)
-      : { verRelatorio: false, verOutrosMinisterios: false };
+      : { verRelatorio: false, verOutrosMinisterios: false, verEbd: false };
   })();
 
   const [verRelatorio, setVerRelatorio] = useState(initialDashboardFlags.verRelatorio);
   const [verOutrosMinisterios, setVerOutrosMinisterios] = useState(initialDashboardFlags.verOutrosMinisterios);
-  useDashboardHashSync(verRelatorio, verOutrosMinisterios, setVerRelatorio, setVerOutrosMinisterios);
+  const [verEbd, setVerEbd] = useState(initialDashboardFlags.verEbd);
+  useDashboardHashSync(verRelatorio, verOutrosMinisterios, verEbd, setVerRelatorio, setVerOutrosMinisterios, setVerEbd);
   const [limpando, setLimpando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [showAcoesMenu, setShowAcoesMenu] = useState(false);
@@ -1014,6 +1016,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setMinisterioSelecionado(v);
     setVerRelatorio(false);
     setVerOutrosMinisterios(false);
+    setVerEbd(false);
     setAppHash(HASH_SECTIONS.PLANILHA, { replace: true });
   };
 
@@ -1023,6 +1026,7 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     prevMesRef.current = mes;
     setVerRelatorio(false);
     setVerOutrosMinisterios(false);
+    setVerEbd(false);
     setAppHash(HASH_SECTIONS.PLANILHA, { replace: true });
   }, [mes]);
 
@@ -1044,7 +1048,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     setAppHash(verOutrosMinisterios ? HASH_SECTIONS.PLANILHA : HASH_SECTIONS.OUTROS_MINISTERIOS);
   }, [verOutrosMinisterios]);
 
-  const naPlanilha = !verRelatorio && !verOutrosMinisterios;
+  const toggleEbd = useCallback(() => {
+    setAppHash(verEbd ? HASH_SECTIONS.PLANILHA : HASH_SECTIONS.EBD);
+  }, [verEbd]);
+
+  const naPlanilha = !verRelatorio && !verOutrosMinisterios && !verEbd;
   const podeOrganizar = ministerioSelecionado === "louvor" || ministerioSelecionado === "recepcao";
   const handleOrganizar = useCallback(() => {
     if (ministerioSelecionado === "louvor") handleOrganizarLouvor();
@@ -1787,8 +1795,8 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
               fontWeight: 700, letterSpacing: "-0.3px",
               color: theme.text, lineHeight: 1.1,
             }}>
-            {verRelatorio ? "RELATÓRIO" : verOutrosMinisterios ? "OUTROS MINISTÉRIOS" : current.nome}
-            {!verRelatorio && !verOutrosMinisterios && !podeEditar && (
+            {verRelatorio ? "RELATÓRIO" : verEbd ? "EBD" : verOutrosMinisterios ? "OUTROS MINISTÉRIOS" : current.nome}
+            {!verRelatorio && !verEbd && !verOutrosMinisterios && !podeEditar && (
               <span style={{
                 fontSize: "10px", fontWeight: 700, letterSpacing: "0.3px",
                 padding: "2px 8px", borderRadius: "20px",
@@ -1902,11 +1910,13 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             onClearFiltro={() => setFiltroNome("")}
             naPlanilha={naPlanilha}
             verRelatorio={verRelatorio}
+            verEbd={verEbd}
             verOutrosMinisterios={verOutrosMinisterios}
             verIndisponibilidade={verIndisponibilidade}
             onToggleIndisponibilidade={() => setVerIndisponibilidade((v) => !v)}
             onVoltarPlanilha={voltarParaPlanilha}
             onToggleRelatorio={toggleRelatorio}
+            onToggleEbd={toggleEbd}
             onToggleOutrosMinisterios={toggleOutrosMinisterios}
             onHashNavClick={handleHashNavClick}
             onExportarModelo={handleDownload}
@@ -1958,8 +1968,17 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
             </div>
           )}
 
-          {/* Grid ou Relatório */}
-          {loading && !verRelatorio && !verOutrosMinisterios && Object.keys(escalas).length === 0 ? (
+          {/* Grid, Relatório ou EBD */}
+          {verEbd ? (
+            <div className="escala-stack">
+              <ChamadaEBD
+                mes={mes}
+                ministerioId={ministerioSelecionado}
+                theme={theme}
+                onVoltar={(isTabletUp && !podeEditar) ? voltarParaPlanilha : undefined}
+              />
+            </div>
+          ) : loading && !verRelatorio && !verOutrosMinisterios && Object.keys(escalas).length === 0 ? (
             <SkeletonGrid
               theme={theme}
               colunas={

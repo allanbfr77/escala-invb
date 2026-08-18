@@ -6,6 +6,7 @@ export const HASH_SECTIONS = {
   PLANILHA: "planilha",
   OUTROS_MINISTERIOS: "outros-ministerios",
   RELATORIO: "relatorio",
+  EBD: "ebd",
   RELATORIO_GERAL: "relatorio-geral",
 };
 
@@ -13,6 +14,7 @@ const DASHBOARD_SECTIONS = new Set([
   HASH_SECTIONS.PLANILHA,
   HASH_SECTIONS.OUTROS_MINISTERIOS,
   HASH_SECTIONS.RELATORIO,
+  HASH_SECTIONS.EBD,
 ]);
 
 /** @returns {string|null} */
@@ -66,8 +68,9 @@ export function setAppHash(section, { replace = false } = {}) {
   window.location.hash = section || "";
 }
 
-function dashboardSectionFromFlags(verRelatorio, verOutrosMinisterios) {
+function dashboardSectionFromFlags(verRelatorio, verOutrosMinisterios, verEbd) {
   if (verRelatorio) return HASH_SECTIONS.RELATORIO;
+  if (verEbd) return HASH_SECTIONS.EBD;
   if (verOutrosMinisterios) return HASH_SECTIONS.OUTROS_MINISTERIOS;
   return HASH_SECTIONS.PLANILHA;
 }
@@ -76,17 +79,18 @@ export function dashboardFlagsFromSection(section) {
   return {
     verRelatorio: section === HASH_SECTIONS.RELATORIO,
     verOutrosMinisterios: section === HASH_SECTIONS.OUTROS_MINISTERIOS,
+    verEbd: section === HASH_SECTIONS.EBD,
   };
 }
 
 /**
  * Keeps Dashboard sub-views in sync with `window.location.hash`.
  */
-export function useDashboardHashSync(verRelatorio, verOutrosMinisterios, setVerRelatorio, setVerOutrosMinisterios) {
+export function useDashboardHashSync(verRelatorio, verOutrosMinisterios, verEbd, setVerRelatorio, setVerOutrosMinisterios, setVerEbd) {
   const skipPushRef = useRef(false);
   const ignoreFirstStatePushRef = useRef(true);
-  const flagsRef = useRef({ verRelatorio, verOutrosMinisterios });
-  flagsRef.current = { verRelatorio, verOutrosMinisterios };
+  const flagsRef = useRef({ verRelatorio, verOutrosMinisterios, verEbd });
+  flagsRef.current = { verRelatorio, verOutrosMinisterios, verEbd };
 
   useEffect(() => {
     const applyFromHash = () => {
@@ -94,18 +98,23 @@ export function useDashboardHashSync(verRelatorio, verOutrosMinisterios, setVerR
       if (!section || !isDashboardHash(section)) return;
       const flags = dashboardFlagsFromSection(section);
       const current = flagsRef.current;
-      if (flags.verRelatorio === current.verRelatorio && flags.verOutrosMinisterios === current.verOutrosMinisterios) {
+      if (
+        flags.verRelatorio === current.verRelatorio &&
+        flags.verOutrosMinisterios === current.verOutrosMinisterios &&
+        flags.verEbd === current.verEbd
+      ) {
         return;
       }
       skipPushRef.current = true;
       setVerRelatorio(flags.verRelatorio);
       setVerOutrosMinisterios(flags.verOutrosMinisterios);
+      setVerEbd(flags.verEbd);
     };
 
     applyFromHash();
     window.addEventListener("hashchange", applyFromHash);
     return () => window.removeEventListener("hashchange", applyFromHash);
-  }, [setVerRelatorio, setVerOutrosMinisterios]);
+  }, [setVerRelatorio, setVerOutrosMinisterios, setVerEbd]);
 
   useEffect(() => {
     if (ignoreFirstStatePushRef.current) {
@@ -116,7 +125,7 @@ export function useDashboardHashSync(verRelatorio, verOutrosMinisterios, setVerR
       skipPushRef.current = false;
       return;
     }
-    const section = dashboardSectionFromFlags(verRelatorio, verOutrosMinisterios);
+    const section = dashboardSectionFromFlags(verRelatorio, verOutrosMinisterios, verEbd);
     if (parseAppHash() !== section) setAppHash(section);
-  }, [verRelatorio, verOutrosMinisterios]);
+  }, [verRelatorio, verOutrosMinisterios, verEbd]);
 }
