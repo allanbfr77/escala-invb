@@ -1026,7 +1026,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
     prevMesRef.current = mes;
     setVerRelatorio(false);
     setVerOutrosMinisterios(false);
-    setVerEbd(false);
     setAppHash(HASH_SECTIONS.PLANILHA, { replace: true });
   }, [mes]);
 
@@ -1972,7 +1971,6 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
           {verEbd ? (
             <div className="escala-stack">
               <ChamadaEBD
-                mes={mes}
                 ministerioId={ministerioSelecionado}
                 theme={theme}
                 onVoltar={(isTabletUp && !podeEditar) ? voltarParaPlanilha : undefined}

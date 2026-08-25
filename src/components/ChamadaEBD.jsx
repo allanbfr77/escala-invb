@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import BotaoVoltar from "./BotaoVoltar";
 import { nomeParaExibicao } from "../utils/nomeExibicao";
 import { useChamadaEbd } from "../hooks/useChamadaEbd";
+import { useMesAtual } from "../hooks/useMesAtual";
 import {
   STATUS_EBD,
   rotuloMesEbd,
@@ -44,7 +45,8 @@ function rotuloAtualizacao(atualizadoEm, fonte, loading, erro, planilhaHabilitad
   return "Aguardando planilha";
 }
 
-export default function ChamadaEBD({ mes, ministerioId, theme, onVoltar }) {
+export default function ChamadaEBD({ ministerioId, theme, onVoltar }) {
+  const mes = useMesAtual();
   const {
     domingos: domingosPlanilha,
     presencas,

@@ -16,6 +16,14 @@ export function getMesMaximo() {
   return `${new Date().getFullYear()}-12`;
 }
 
+/** Mês civil atual (YYYY-MM), sem regra de planejamento. Usado exclusivamente pelo EBD. */
+export function getMesAtual() {
+  const hoje = new Date();
+  const y = hoje.getFullYear();
+  const m = String(hoje.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
 /**
  * Mês exibido por padrão:
  *   - Dia >= 20 → mês seguinte (foco no planejamento)
