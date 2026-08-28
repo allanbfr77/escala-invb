@@ -1095,11 +1095,11 @@ function DashboardContent({ ministerioSelecionado, setMinisterioSelecionado, mes
   const showMinistryHeaderBlock = !isTabletUp;
 
   return (
-    <div className="dashboard-root" style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
+    <div className="dashboard-root" style={{ minHeight: "100vh", color: theme.text, fontFamily: "'Outfit', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: ${theme.bg}; font-family: 'Outfit', sans-serif; }
+        body { background: transparent; font-family: 'Outfit', sans-serif; }
 
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }

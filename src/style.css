@@ -106,6 +106,9 @@
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
+  --app-bg-image: url("/backgrounds/fundo.png");
+  --app-bg-overlay: rgba(15, 15, 15, 0.72);
+
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: dark;
@@ -125,6 +128,8 @@
    TEMA LIGHT — ativo quando data-theme="light"
    ══════════════════════════════════════════════════════════ */
 [data-theme="light"] {
+  --app-bg-image: none;
+
   --bg: #f4f4f5;
   --surface: #f9fafb;
   --surface-translucent: rgba(255,255,255,0.92);
@@ -224,6 +229,54 @@
   --shadow: rgba(0,0,0,0.07) 0 4px 12px -2px, rgba(0,0,0,0.04) 0 2px 6px -2px;
 
   color-scheme: light;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Fundo com imagem — apenas área logada (.authenticated-shell)
+   Coloque a imagem em public/backgrounds/fundo.jpg
+   ══════════════════════════════════════════════════════════ */
+.authenticated-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.authenticated-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--app-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  pointer-events: none;
+}
+
+.authenticated-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--app-bg-overlay);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .authenticated-shell::before {
+    background-attachment: scroll;
+  }
+}
+
+[data-theme="light"] .authenticated-shell {
+  background: var(--bg);
+}
+
+[data-theme="light"] .authenticated-shell::before,
+[data-theme="light"] .authenticated-shell::after {
+  display: none;
 }
 
 body {

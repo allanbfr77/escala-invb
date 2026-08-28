@@ -476,7 +476,6 @@ export default function RelatorioUnificado({
       className="rel-page"
       style={{
         minHeight: "100vh",
-        background: theme.bg,
         color: theme.text,
         fontFamily: "'Outfit', sans-serif",
       }}

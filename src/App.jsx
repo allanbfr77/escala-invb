@@ -16,6 +16,10 @@ import {
   getDefaultHashForUser,
 } from "./utils/hashNavigation";
 
+function AuthenticatedShell({ children }) {
+  return <div className="authenticated-shell">{children}</div>;
+}
+
 function LoadingScreen() {
   return (
     <div style={{
@@ -107,24 +111,28 @@ function AppContent() {
 
   if (activeView === "relatorio" && master) {
     return (
-      <RelatorioUnificado
-        mes={mes}
-        setMes={setMes}
-        mesMinimo={mesMinimo}
-        mesMaximo={mesMaximo}
-        onVoltar={voltarParaEscala}
-      />
+      <AuthenticatedShell>
+        <RelatorioUnificado
+          mes={mes}
+          setMes={setMes}
+          mesMinimo={mesMinimo}
+          mesMaximo={mesMaximo}
+          onVoltar={voltarParaEscala}
+        />
+      </AuthenticatedShell>
     );
   }
 
   return (
-    <Dashboard
-      mes={mes}
-      setMes={setMes}
-      mesMinimo={mesMinimo}
-      mesMaximo={mesMaximo}
-      onOpenRelatorio={master ? openRelatorioGeral : undefined}
-    />
+    <AuthenticatedShell>
+      <Dashboard
+        mes={mes}
+        setMes={setMes}
+        mesMinimo={mesMinimo}
+        mesMaximo={mesMaximo}
+        onOpenRelatorio={master ? openRelatorioGeral : undefined}
+      />
+    </AuthenticatedShell>
   );
 }
 
