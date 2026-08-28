@@ -40,6 +40,30 @@ export function nomeParaExibicao(nome) {
   return canon;
 }
 
+/**
+ * Dupla (ex.: ALAN/JOAO) → IDs individuais para contagem no relatório.
+ * Nome simples retorna array com um único ID.
+ */
+export function expandirPessoasEscala(nome) {
+  if (!nome || typeof nome !== "string") return [];
+  if (chaveComparacaoNome(nome) === "disponivel") return [];
+
+  const canon = normalizarNomePessoa(nome);
+  const partes = canon.split("/").map((p) => p.trim()).filter(Boolean);
+  const ids = [];
+  const vistos = new Set();
+
+  for (const parte of partes) {
+    const pl = pessoaNomeFirestore(parte);
+    if (pl && pl !== "disponível" && !vistos.has(pl)) {
+      vistos.add(pl);
+      ids.push(pl);
+    }
+  }
+
+  return ids;
+}
+
 /** Aplica normalização a todos os valores do mapa de escalas. */
 export function normalizarMapaEscalas(mapa) {
   if (!mapa || typeof mapa !== "object") return mapa;

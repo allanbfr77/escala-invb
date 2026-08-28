@@ -1,6 +1,22 @@
 import { db } from "../firebase";
 import { collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore";
-import { pessoaNomeFirestore } from "./nomeExibicao";
+import { nomeParaExibicao, pessoaNomeFirestore } from "./nomeExibicao";
+
+/** Dupla em Comunicações (ex.: JEAN/ALAN) → só o primeiro nome no Louvor. */
+export function extrairPrimeiroNomeDupla(nome) {
+  if (!nome || typeof nome !== "string") return nome;
+  const barra = nome.indexOf("/");
+  if (barra === -1) return nome;
+  return nome.slice(0, barra).trim();
+}
+
+export function nomeParaExibicaoMesaSomLouvor(nome) {
+  return nomeParaExibicao(extrairPrimeiroNomeDupla(nome));
+}
+
+export function pessoaNomeMesaSomLouvor(nome) {
+  return pessoaNomeFirestore(extrairPrimeiroNomeDupla(nome));
+}
 
 export const FUNCAO_MESA_SOM = "MESA DE SOM";
 export const MINISTERIO_ORIGEM_MESA_SOM = "comunicacao";
@@ -38,7 +54,7 @@ export async function espelharMesaSomLouvor({
   const snap = await getDocs(qEspelho);
   for (const docSnap of snap.docs) await deleteDoc(docSnap.ref);
 
-  const pl = pessoaNome ? pessoaNomeFirestore(pessoaNome) : "";
+  const pl = pessoaNome ? pessoaNomeMesaSomLouvor(pessoaNome) : "";
   if (!pl) return;
 
   await addDoc(collection(db, "escalas"), {

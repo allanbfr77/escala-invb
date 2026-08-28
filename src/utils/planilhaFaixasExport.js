@@ -4,6 +4,11 @@ import {
 } from "./planilhaFaixasLayout";
 import { nomeParaExibicao } from "./nomeExibicao";
 import { getConfigPlanilhaMinisterio } from "./planilhaMinisterioConfig";
+import {
+  FUNCAO_MESA_SOM,
+  MINISTERIO_DESTINO_MESA_SOM,
+  nomeParaExibicaoMesaSomLouvor,
+} from "./mesaSomEspelho";
 
 /** Cores de função no export (tema claro — alinhado à planilha na tela). */
 const CORES_GRUPO_FUNCAO_EXPORT = {
@@ -88,7 +93,11 @@ function valorCelulaExport(escalas, dataObj, funcao, LT, ministerioId) {
       color: corDisponivelExport(ministerioId, LT),
     };
   }
-  return { html: nomeParaExibicao(raw), bg: LT.surface, color: LT.text };
+  const nome =
+    ministerioId === MINISTERIO_DESTINO_MESA_SOM && funcao === FUNCAO_MESA_SOM
+      ? nomeParaExibicaoMesaSomLouvor(raw)
+      : nomeParaExibicao(raw);
+  return { html: nome, bg: LT.surface, color: LT.text };
 }
 
 /** Espaço vertical entre blocos (faixas) na exportação. */

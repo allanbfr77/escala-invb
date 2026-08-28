@@ -5,7 +5,7 @@ import { LogOut, AlertTriangle, ChevronDown, BarChart3, Users, AlertCircle, Cale
 import { useRelatorioUnificado } from "../hooks/useRelatorioUnificado";
 import QuickActionBar from "../components/QuickActionBar";
 import { HASH_SECTIONS, setAppHash } from "../utils/hashNavigation";
-import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao } from "../utils/relatorioUnificado";
+import { MINISTERIOS_IDS, MINISTERIOS_INFO, agruparContagensPorFuncao, formatarQuantidadeRelatorio } from "../utils/relatorioUnificado";
 import { formatarData } from "../utils/dateHelper";
 import { IconeMinisterio } from "../utils/ministerioIcons";
 import { nomeParaExibicao } from "../utils/nomeExibicao";
@@ -345,7 +345,7 @@ function MinisterioDetalhe({ rel, theme }) {
                   background: `${info?.color}18`, borderRadius: "10px",
                   padding: "1px 8px",
                 }}>
-                  {total} {total === 1 ? "escala" : "escalas"}
+                  {formatarQuantidadeRelatorio(total)}
                 </span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
@@ -355,7 +355,7 @@ function MinisterioDetalhe({ rel, theme }) {
                       background: theme.surface, border: `1px solid ${theme.border}`,
                       borderRadius: "4px", padding: "2px 6px", color: theme.textMuted,
                     }}>
-                      {funcao} ×{count}
+                      {funcao} {formatarQuantidadeRelatorio(count)}
                     </span>
                   ))}
               </div>

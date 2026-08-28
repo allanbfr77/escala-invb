@@ -30,6 +30,7 @@ import {
   deveEspelharMesaSom,
   ehCelulaMesaSomSomenteLeitura,
   espelharMesaSomLouvor,
+  nomeParaExibicaoMesaSomLouvor,
 } from "../utils/mesaSomEspelho";
 
 function turnoSalvo(dataObj) {
@@ -42,6 +43,15 @@ function escalaKey(dataObj, funcao) {
 }
 
 const LOUVOR_OPCAO_DISPONIVEL = "Disponível";
+const MENU_OPCAO_DUPLA_HEIGHT = 88;
+
+function nomeExibicaoCelula(ministerioId, funcao, valorRaw) {
+  if (!valorRaw) return "";
+  if (ehCelulaMesaSomSomenteLeitura(ministerioId, funcao)) {
+    return nomeParaExibicaoMesaSomLouvor(valorRaw);
+  }
+  return nomeParaExibicao(valorRaw);
+}
 
 /** Contagem de vagas preenchidas para um culto (coluna) específico. */
 function contarSlotsCulto(dataObj, funcoes, escalas, ministerioId) {
@@ -76,11 +86,12 @@ const MENU_GAP = 4;
 const MENU_ITEM_HEIGHT = 34;
 const MENU_LIST_PADDING = 10;
 
-function calcularPosicaoMenu(triggerEl, optionsCount = 1) {
+function calcularPosicaoMenu(triggerEl, optionsCount = 1, customHeight = null) {
   const rect = triggerEl.getBoundingClientRect();
   const espacoAbaixo = window.innerHeight - rect.bottom - MENU_GAP;
   const espacoAcima = rect.top - MENU_GAP;
-  const height = optionsCount * MENU_ITEM_HEIGHT + MENU_LIST_PADDING;
+  const height =
+    customHeight ?? optionsCount * MENU_ITEM_HEIGHT + MENU_LIST_PADDING;
 
   const abrirAcima = espacoAbaixo < height && espacoAcima > espacoAbaixo;
 
@@ -116,31 +127,81 @@ function CelulaSelect({
   destacar = false,
   filtroAtivo = false,
   variant = "table",
+  permitirTextoLivre = false,
 }) {
   const [aberto, setAberto] = useState(false);
   const [menuPos, setMenuPos] = useState(null);
+  const [modoDupla, setModoDupla] = useState(false);
+  const [textoDupla, setTextoDupla] = useState("");
   const triggerRef = useRef(null);
   const listRef = useRef(null);
+  const inputDuplaRef = useRef(null);
   const labelCulto = dataObj
     ? formatarData(dataObj.data, dataObj.turno, dataObj.descricao)
     : "";
 
-  const totalOpcoesMenu = opcoes.length + 1;
+  const totalOpcoesMenu =
+    opcoes.length + 1 + (permitirTextoLivre ? 1 : 0);
+
+  const alturaMenu =
+    totalOpcoesMenu * MENU_ITEM_HEIGHT +
+    MENU_LIST_PADDING +
+    (permitirTextoLivre && modoDupla ? MENU_OPCAO_DUPLA_HEIGHT : 0);
 
   const atualizarPosicaoMenu = useCallback(() => {
     if (!triggerRef.current) return;
-    setMenuPos(calcularPosicaoMenu(triggerRef.current, totalOpcoesMenu));
-  }, [totalOpcoesMenu]);
+    setMenuPos(
+      calcularPosicaoMenu(triggerRef.current, totalOpcoesMenu, alturaMenu)
+    );
+  }, [totalOpcoesMenu, alturaMenu]);
 
   const abrirMenu = useCallback(() => {
     if (!triggerRef.current) return;
-    setMenuPos(calcularPosicaoMenu(triggerRef.current, totalOpcoesMenu));
+    setModoDupla(false);
+    setTextoDupla("");
+    setMenuPos(
+      calcularPosicaoMenu(triggerRef.current, totalOpcoesMenu, alturaMenu)
+    );
     setAberto(true);
-  }, [totalOpcoesMenu]);
+  }, [totalOpcoesMenu, alturaMenu]);
 
   const fecharMenu = useCallback(() => {
     setAberto(false);
+    setModoDupla(false);
+    setTextoDupla("");
   }, []);
+
+  useEffect(() => {
+    if (!aberto) return;
+    let removeListeners = null;
+
+    const attach = () => {
+      const menu = listRef.current;
+      if (!menu || removeListeners) return;
+      const bloquearPropagacao = (e) => {
+        e.stopPropagation();
+      };
+      menu.addEventListener("mousedown", bloquearPropagacao);
+      menu.addEventListener("pointerdown", bloquearPropagacao);
+      removeListeners = () => {
+        menu.removeEventListener("mousedown", bloquearPropagacao);
+        menu.removeEventListener("pointerdown", bloquearPropagacao);
+      };
+    };
+
+    attach();
+    const id = removeListeners ? null : requestAnimationFrame(attach);
+
+    return () => {
+      if (id) cancelAnimationFrame(id);
+      removeListeners?.();
+    };
+  }, [aberto]);
+
+  useEffect(() => {
+    if (!aberto) return;
+    atualizarPosicaoMenu();
+  }, [aberto, atualizarPosicaoMenu]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -156,21 +217,26 @@ function CelulaSelect({
   useEffect(() => {
     if (!aberto) return;
     const fecharFora = (e) => {
-      if (
-        triggerRef.current?.contains(e.target) ||
-        listRef.current?.contains(e.target)
-      ) {
-        return;
-      }
+      const menu = listRef.current;
+      const trigger = triggerRef.current;
+      const path =
+        typeof e.composedPath === "function" ? e.composedPath() : [e.target];
+      const dentroMenu = path.some(
+        (node) =>
+          node === menu ||
+          node === trigger ||
+          (node instanceof Node && menu?.contains(node))
+      );
+      if (dentroMenu) return;
       fecharMenu();
     };
     const fecharEsc = (e) => {
       if (e.key === "Escape") fecharMenu();
     };
-    document.addEventListener("mousedown", fecharFora);
+    document.addEventListener("pointerdown", fecharFora);
     document.addEventListener("keydown", fecharEsc);
     return () => {
-      document.removeEventListener("mousedown", fecharFora);
+      document.removeEventListener("pointerdown", fecharFora);
       document.removeEventListener("keydown", fecharEsc);
     };
   }, [aberto, fecharMenu]);
@@ -198,6 +264,35 @@ function CelulaSelect({
     onChange(dataObj, funcao, "");
   };
 
+  const abrirModoDupla = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTextoDupla(valor || "");
+    setModoDupla(true);
+  };
+
+  const focarInputDupla = (e) => {
+    e.stopPropagation();
+  };
+
+  const confirmarDupla = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    const texto = textoDupla.trim();
+    if (!texto) return;
+    fecharMenu();
+    onChange(dataObj, funcao, texto);
+  };
+
+  useEffect(() => {
+    if (!modoDupla) return;
+    const id = requestAnimationFrame(() => {
+      inputDuplaRef.current?.focus();
+      inputDuplaRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [modoDupla]);
+
   const exibirRemover = Boolean(valor) && podeEditar;
 
   const celulaClass = [
@@ -223,13 +318,13 @@ function CelulaSelect({
     createPortal(
       <ul
         ref={listRef}
-        className={`planilha-louvor-select-list planilha-louvor-select-list--portal planilha-louvor-select-list--${menuPos.placement}`}
+        className={`planilha-louvor-select-list planilha-louvor-select-list--portal planilha-louvor-select-list--${menuPos.placement}${modoDupla ? " planilha-louvor-select-list--dupla" : ""}`}
         role="listbox"
         aria-label={`Opções para ${funcao}`}
         style={{
           position: "fixed",
           left: menuPos.left,
-          width: menuPos.width,
+          width: Math.max(menuPos.width, permitirTextoLivre ? 180 : menuPos.width),
           zIndex: 9999,
           ...(menuPos.placement === "above"
             ? { bottom: menuPos.bottom, top: "auto" }
@@ -241,6 +336,7 @@ function CelulaSelect({
             type="button"
             role="option"
             className={`planilha-louvor-select-option${!valor ? " is-selected" : ""}`}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => escolher("")}
           >
             —
@@ -257,20 +353,64 @@ function CelulaSelect({
                   ? " is-selected"
                   : ""
               }`}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => escolher(nome)}
             >
               {nomeParaExibicao(nome)}
             </button>
           </li>
         ))}
+        {permitirTextoLivre && (
+          <li className="planilha-louvor-select-dupla-form" role="presentation">
+            <button
+              type="button"
+              className="planilha-louvor-select-option planilha-louvor-select-option--dupla"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={abrirModoDupla}
+            >
+              ⟷ Dupla
+            </button>
+            {modoDupla && (
+              <>
+                <input
+                  ref={inputDuplaRef}
+                  type="text"
+                  className="planilha-louvor-select-dupla-input"
+                  value={textoDupla}
+                  placeholder="Ex: ALAN/JEAN"
+                  aria-label="Nome da dupla"
+                  onChange={(e) => setTextoDupla(e.target.value)}
+                  onMouseDown={focarInputDupla}
+                  onPointerDown={focarInputDupla}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      confirmarDupla(e);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="planilha-louvor-select-dupla-btn planilha-louvor-select-dupla-btn--ok"
+                  disabled={!textoDupla.trim()}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={confirmarDupla}
+                >
+                  OK
+                </button>
+              </>
+            )}
+          </li>
+        )}
       </ul>,
       document.body
     );
 
   const toggleMenu = () => {
     if (desabilitado) return;
-    if (aberto) fecharMenu();
-    else abrirMenu();
+    if (aberto) return;
+    abrirMenu();
   };
 
   const celulaClassFinal = [
@@ -736,7 +876,9 @@ export default function PlanilhaMinisterio({
                       <div className="planilha-mobile-card-body">
                         {funcoes.map((funcao) => {
                           const valorRaw = escalas[escalaKey(dataObj, funcao)];
-                          const valor = valorRaw ? nomeParaExibicao(valorRaw) : "";
+                          const valor = valorRaw
+                            ? nomeExibicaoCelula(ministerioId, funcao, valorRaw)
+                            : "";
                           const destacar =
                             filtroAtivo &&
                             valor &&
@@ -759,6 +901,7 @@ export default function PlanilhaMinisterio({
                                 onChange={salvarCelula}
                                 destacar={destacar}
                                 filtroAtivo={filtroAtivo}
+                                permitirTextoLivre={ministerioId === "comunicacao"}
                               />
                             </div>
                           );
@@ -928,7 +1071,9 @@ export default function PlanilhaMinisterio({
                           const valorRaw = dataObj
                             ? escalas[escalaKey(dataObj, funcao)]
                             : "";
-                          const valor = valorRaw ? nomeParaExibicao(valorRaw) : "";
+                          const valor = valorRaw
+                            ? nomeExibicaoCelula(ministerioId, funcao, valorRaw)
+                            : "";
                           const destacar =
                             filtroAtivo &&
                             valor &&
@@ -950,6 +1095,7 @@ export default function PlanilhaMinisterio({
                               onChange={salvarCelula}
                               destacar={destacar}
                               filtroAtivo={filtroAtivo}
+                              permitirTextoLivre={ministerioId === "comunicacao"}
                             />
                           );
                         })}

@@ -1146,6 +1146,7 @@ code {
   flex-direction: column;
   gap: 26px;
   padding-top: 4px;
+  padding-bottom: 8px;
   font-family: "Outfit", sans-serif;
 }
 .planilha-mobile-faixa {
@@ -1352,6 +1353,14 @@ code {
   flex-direction: column;
   align-items: center;
   min-width: 0;
+  padding-bottom: 32px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+  .planilha-layout__main {
+    padding-bottom: 80px;
+  }
 }
 
 /* Centraliza as tabelas empilhadas da planilha */
@@ -2276,6 +2285,7 @@ code {
   border: none;
   background: transparent;
   border-radius: 0;
+  padding-bottom: 8px;
 }
 
 .planilha-louvor-wrap--empilhada .planilha-louvor-bloco {
@@ -2908,6 +2918,66 @@ code {
 .planilha-louvor-select-option.is-selected {
   background: var(--pl-select-option-selected-bg);
   font-weight: 700;
+}
+
+.planilha-louvor-select-option--dupla {
+  color: var(--text);
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+}
+
+.planilha-louvor-select-list--dupla {
+  padding: 8px;
+}
+
+.planilha-louvor-select-dupla-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px 6px;
+  border-top: 1px solid var(--border);
+}
+
+.planilha-louvor-select-dupla-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 8px;
+  border: 2px solid var(--pl-select-list-border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: "Outfit", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.planilha-louvor-select-dupla-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-focus-ring);
+}
+
+.planilha-louvor-select-dupla-btn {
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  font-family: "Outfit", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.planilha-louvor-select-dupla-btn--ok {
+  background: var(--accent);
+  color: #fff;
+}
+
+.planilha-louvor-select-dupla-btn--ok:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .planilha-louvor-loading {

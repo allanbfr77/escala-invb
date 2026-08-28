@@ -4,7 +4,7 @@ import { pessoasPorMinisterio } from "../data/pessoas";
 import { chaveIndisponibilidadeColuna, estaIndisponivelTodoMes } from "./indisponibilidadeHelpers";
 import { turnoSalvoEscala } from "./escalaDisponibilidade";
 import { canonicalizarFuncaoEscala } from "./gridAbreviacoes";
-import { pessoaNomeFirestore } from "./nomeExibicao";
+import { pessoaNomeFirestore, expandirPessoasEscala } from "./nomeExibicao";
 
 export const MINISTERIOS_IDS = ["comunicacao", "louvor", "recepcao", "infantil"];
 
@@ -39,6 +39,11 @@ export function agruparContagensPorFuncao(funcoes, porFuncao) {
     .filter((g) => g.count > 0);
 }
 
+/** Quantidade no relatório — ex.: (x4) */
+export function formatarQuantidadeRelatorio(count) {
+  return `(x${count})`;
+}
+
 const TURNO_ORDER = { manhã: 0, único: 1, noite: 2 };
 /** Alerta de sobrecarga quando a pessoa está em mais de 50% dos cultos do mês */
 const SOBRECARGA_PERCENTUAL = 0.5;
@@ -59,6 +64,12 @@ function idPessoaRelatorio(pessoaNome) {
   if (!pessoaNome || pessoaNome === "disponível") return null;
   if (isExcluidaRelatorioGeral(pessoaNome)) return null;
   return pessoaNomeFirestore(pessoaNome);
+}
+
+/** IDs individuais — dupla ALAN/JOAO conta como duas pessoas no relatório. */
+function idsPessoasRelatorio(pessoaNome) {
+  if (!pessoaNome || pessoaNome === "disponível") return [];
+  return expandirPessoasEscala(pessoaNome).filter((pl) => !isExcluidaRelatorioGeral(pl));
 }
 
 const CATEGORIAS_TURNO_DIA = [
@@ -179,15 +190,19 @@ function adicionarSlotPessoa(porPessoa, pl, dataObj, funcao) {
   }
 }
 
+function adicionarSlotsPessoa(porPessoa, pessoaNome, dataObj, funcao) {
+  for (const pl of idsPessoasRelatorio(pessoaNome)) {
+    adicionarSlotPessoa(porPessoa, pl, dataObj, funcao);
+  }
+}
+
 /** Reforça contagens a partir dos documentos reais (evita falso "sem escala"). */
 function enriquecerPorPessoaComDocumentos(porPessoa, datas, escalasDocsMinisterio) {
   for (const d of escalasDocsMinisterio || []) {
-    const pl = idPessoaRelatorio(d.pessoaNome);
-    if (!pl) continue;
     const turnoKey = turnoSalvoEscala({ turno: d.turno });
     const dataObj = encontrarDataObj(datas, d.data, turnoKey);
     if (!dataObj) continue;
-    adicionarSlotPessoa(porPessoa, pl, dataObj, d.funcao);
+    adicionarSlotsPessoa(porPessoa, d.pessoaNome, dataObj, d.funcao);
   }
 }
 
@@ -219,9 +234,7 @@ function calcularRelatorioMinisterio(ministerioId, datas, escalasMap, escalasDoc
       const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
       if (pessoa && pessoa !== "disponível") {
         preenchidos++;
-        const pl = idPessoaRelatorio(pessoa);
-        if (!pl) return;
-        adicionarSlotPessoa(porPessoa, pl, dataObj, f);
+        adicionarSlotsPessoa(porPessoa, pessoa, dataObj, f);
       } else {
         slotsVazios.push({ dataObj, funcao: f });
       }
@@ -302,21 +315,23 @@ function calcularCargaCruzada(escalasPorMinisterio, datasPorMinisterio) {
       const turnoKey = turnoSalvoEscala(dataObj);
       funcoes.forEach((f) => {
         const pessoa = escalasMap[`${dataObj.data}-${turnoKey}-${f}`];
-        const pl = idPessoaRelatorio(pessoa);
-        if (!pl) return;
+        const ids = idsPessoasRelatorio(pessoa);
+        if (ids.length === 0) return;
 
-        if (!carga[pl]) {
-          carga[pl] = { pessoa: pl, total: 0, porMinisterio: {}, slots: [] };
+        for (const pl of ids) {
+          if (!carga[pl]) {
+            carga[pl] = { pessoa: pl, total: 0, porMinisterio: {}, slots: [] };
+          }
+          carga[pl].total++;
+          carga[pl].porMinisterio[mid] = (carga[pl].porMinisterio[mid] || 0) + 1;
+          carga[pl].slots.push({
+            ministerioId: mid,
+            data: dataObj.data,
+            turno: dataObj.turno ?? "único",
+            funcao: f,
+            dataObj,
+          });
         }
-        carga[pl].total++;
-        carga[pl].porMinisterio[mid] = (carga[pl].porMinisterio[mid] || 0) + 1;
-        carga[pl].slots.push({
-          ministerioId: mid,
-          data: dataObj.data,
-          turno: dataObj.turno ?? "único",
-          funcao: f,
-          dataObj,
-        });
       });
     });
   }
@@ -371,15 +386,17 @@ function coletarIdsEscaladosGlobal(escalasPorMinisterio, escalasDocs) {
 
   for (const d of escalasDocs || []) {
     if (!MINISTERIOS_IDS.includes(d.ministerioId)) continue;
-    const pl = idPessoaRelatorio(d.pessoaNome);
-    if (pl) escalados.add(pl);
+    for (const pl of idsPessoasRelatorio(d.pessoaNome)) {
+      escalados.add(pl);
+    }
   }
 
   for (const mid of MINISTERIOS_IDS) {
     const map = escalasPorMinisterio[mid] || {};
     for (const pessoa of Object.values(map)) {
-      const pl = idPessoaRelatorio(pessoa);
-      if (pl) escalados.add(pl);
+      for (const pl of idsPessoasRelatorio(pessoa)) {
+        escalados.add(pl);
+      }
     }
   }
 

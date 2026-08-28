@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback } from "react";
 import { AlertTriangle, ChevronDown, ArrowLeft, Calendar } from "lucide-react";
 import BotaoVoltar from "./BotaoVoltar";
 import { pessoasPorMinisterio } from "../data/pessoas";
-import { nomeParaExibicao, pessoaNomeFirestore } from "../utils/nomeExibicao";
+import { nomeParaExibicao, pessoaNomeFirestore, expandirPessoasEscala } from "../utils/nomeExibicao";
 import { turnoSalvoEscala, chaveSlotEscala, parseChaveEscala, encontrarDataObjNasDatas } from "../utils/escalaDisponibilidade";
 import { montarFaixasPlanilha } from "../utils/planilhaFaixasLayout";
 import {
@@ -14,6 +14,7 @@ import {
 } from "../utils/gridAbreviacoes";
 import {
   agruparContagensPorFuncao,
+  formatarQuantidadeRelatorio,
   obterGrupoFuncaoExibicao,
 } from "../utils/relatorioUnificado";
 
@@ -121,6 +122,12 @@ function registrarSlot(porPessoa, vistos, pl, dataObj, funcao) {
   porPessoa[pl].push({ ...dataObj, funcao });
 }
 
+function registrarSlotsPessoa(porPessoa, vistos, pessoaNome, dataObj, funcao) {
+  for (const pl of expandirPessoasEscala(pessoaNome)) {
+    registrarSlot(porPessoa, vistos, pl, dataObj, funcao);
+  }
+}
+
 function coletarSlotsPorPessoa(escalas, datas, funcoes, ministerioId, porPessoa) {
   const vistos = new Set();
 
@@ -128,7 +135,7 @@ function coletarSlotsPorPessoa(escalas, datas, funcoes, ministerioId, porPessoa)
     funcoes.forEach((f) => {
       const pessoa = escalas[chaveSlotEscala(dataObj, f)];
       if (!pessoa || pessoa === "disponível") return;
-      registrarSlot(porPessoa, vistos, pessoaNomeFirestore(pessoa), dataObj, f);
+      registrarSlotsPessoa(porPessoa, vistos, pessoa, dataObj, f);
     });
   });
 
@@ -138,7 +145,7 @@ function coletarSlotsPorPessoa(escalas, datas, funcoes, ministerioId, porPessoa)
     if (!parsed || !funcoes.includes(parsed.funcao)) continue;
     const dataObj = encontrarDataObjNasDatas(datas, parsed.data, parsed.turno);
     if (!dataObj) continue;
-    registrarSlot(porPessoa, vistos, pessoaNomeFirestore(pessoaValor), dataObj, parsed.funcao);
+    registrarSlotsPessoa(porPessoa, vistos, pessoaValor, dataObj, parsed.funcao);
   }
 }
 
@@ -345,11 +352,9 @@ function LinhaObreiro({
                 return (
                   <span key={grupoFuncao} className="rel-mes-turma-chip">
                     <TextoFuncao ministerioId={ministerioId} funcao={funcaoRef} />
-                    {count > 1 && (
-                      <span className="rel-mes-turma-count" style={{ color: theme.textMuted }}>
-                        ×{count}
-                      </span>
-                    )}
+                    <span className="rel-mes-turma-count" style={{ color: theme.textMuted }}>
+                      {formatarQuantidadeRelatorio(count)}
+                    </span>
                   </span>
                 );
               })}
@@ -362,7 +367,7 @@ function LinhaObreiro({
         </td>
         <td className="rel-mes-cell rel-mes-cell--escalas">
           <span className="rel-mes-escalas-num" style={{ color: theme.text }}>
-            {total}
+            {formatarQuantidadeRelatorio(total)}
           </span>
         </td>
         <td className="rel-mes-cell rel-mes-cell--indicador">
