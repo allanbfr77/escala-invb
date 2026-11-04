@@ -1,3 +1,5 @@
+import { formatarData } from "./dateHelper";
+import { chaveSlotEscala } from "./escalaDisponibilidade";
 import { pessoaNomeFirestore } from "./nomeExibicao";
 
 export const MINISTERIO_INFANTIL_ID = "infantil";
@@ -68,4 +70,70 @@ export function precisaConfirmarLimiteInfantil(
 
 export function mensagemLimiteInfantil(nomeExibicao, cultosAtuais) {
   return `${nomeExibicao} já atingiu o limite de ${LIMITE_ESCALAS_INFANTIL_MES} escalas no Ministério Infantil neste mês (${cultosAtuais} confirmadas). Deseja confirmar mais uma escala mesmo assim?`;
+}
+
+/** Par que não deve dividir o mesmo culto (data + turno) no Infantil. */
+const PAR_ALAN_BIANCA = {
+  alan: "BIANCA",
+  bianca: "ALAN",
+};
+
+/**
+ * Cultos em que o par de ALAN/BIANCA já está no mesmo turno.
+ * Ignora a função que está sendo gravada: substituir a pessoa naquela vaga não deixa os dois juntos.
+ */
+export function listarConflitosAlanBiancaNoTurno(
+  pessoaLower,
+  datasNovas,
+  escalasMap,
+  funcaoIgnorar = null
+) {
+  const alvo = pessoaNomeFirestore(pessoaLower || "");
+  const nomeParceiro = PAR_ALAN_BIANCA[alvo];
+  if (!nomeParceiro) return [];
+
+  const parceiroLower = pessoaNomeFirestore(nomeParceiro);
+  const conflitos = [];
+
+  for (const dataObj of datasNovas || []) {
+    if (!dataObj?.data) continue;
+    for (const funcao of FUNCOES_INFANTIL) {
+      if (funcaoIgnorar && funcao === funcaoIgnorar) continue;
+      const nome = escalasMap?.[chaveSlotEscala(dataObj, funcao)];
+      if (nome && pessoaNomeFirestore(nome) === parceiroLower) {
+        conflitos.push({ dataObj, funcao, nomeParceiro });
+        break;
+      }
+    }
+  }
+
+  return conflitos;
+}
+
+export function mensagemAlertaAlanBianca(nomeInserido, conflitos) {
+  const nomeParceiro = conflitos[0]?.nomeParceiro || "";
+  const escalado = nomeParceiro === "ALAN" ? "escalado" : "escalada";
+  const detalhes = conflitos
+    .map((c) => {
+      const label = formatarData(c.dataObj.data, c.dataObj.turno, c.dataObj.descricao);
+      return `${label} — ${c.funcao}`;
+    })
+    .join("; ");
+  const onde = conflitos.length > 1 ? "nestes cultos" : "neste culto";
+  return [
+    "A escala conjunta de ALAN e BIANCA influencia o Ministério de Comunicações.",
+    `${nomeParceiro} já está ${escalado} ${onde}: ${detalhes}.`,
+    `Deseja escalar ${nomeInserido} mesmo assim?`,
+  ].join("\n\n");
+}
+
+/** Popup de confirmação. Sem conflito, ou sem modal disponível, segue a escala. */
+export async function confirmarAlertaAlanBiancaSeHouver(pedirConfirmacao, nomeInserido, conflitos) {
+  if (!conflitos?.length || !pedirConfirmacao) return true;
+  return pedirConfirmacao({
+    titulo: "ALAN e BIANCA no mesmo turno!",
+    descricao: mensagemAlertaAlanBianca(nomeInserido, conflitos),
+    confirmLabel: "Escalar mesmo assim",
+    perigoso: true,
+  });
 }

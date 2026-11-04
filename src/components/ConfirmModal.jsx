@@ -70,6 +70,7 @@ export default function ConfirmModal({ aberto, titulo, descricao, confirmLabel =
           color: "var(--text)",
           lineHeight: "1.6",
           marginBottom: "24px",
+          whiteSpace: "pre-line",
         }}>
           {descricao}
         </p>

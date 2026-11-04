@@ -21,7 +21,9 @@ import { filtrarPessoasDisponiveisNoCulto } from "../utils/escalaDisponibilidade
 import { ministerioPermiteEscalaFlexivel } from "../utils/regrasMinisterio";
 import {
   MINISTERIO_INFANTIL_ID,
+  confirmarAlertaAlanBiancaSeHouver,
   contarCultosEscaladosInfantilNoMes,
+  listarConflitosAlanBiancaNoTurno,
   mensagemLimiteInfantil,
   precisaConfirmarLimiteInfantil,
 } from "../utils/limiteEscalasInfantil";
@@ -664,6 +666,25 @@ export default function PlanilhaMinisterio({
 
       if (!valorBruto && !valorAnterior) return;
       if (pessoaLower === anteriorLower) return;
+
+      if (
+        ministerioId === MINISTERIO_INFANTIL_ID &&
+        pessoaLower &&
+        pessoaLower !== "disponível"
+      ) {
+        const conflitosPar = listarConflitosAlanBiancaNoTurno(
+          pessoaLower,
+          [dataObj],
+          escalas,
+          funcao
+        );
+        const seguiuComPar = await confirmarAlertaAlanBiancaSeHouver(
+          pedirConfirmacao,
+          nomeParaExibicao(valorBruto),
+          conflitosPar
+        );
+        if (!seguiuComPar) return;
+      }
 
       if (
         ministerioId === MINISTERIO_INFANTIL_ID &&

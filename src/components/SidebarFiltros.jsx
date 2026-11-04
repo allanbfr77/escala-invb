@@ -15,7 +15,9 @@ import { useEscalasCruzadas } from "../hooks/useEscalasCruzadas";
 import { useIndisponibilidadesMinisterio } from "../hooks/useIndisponibilidadesMinisterio";
 import {
   MINISTERIO_INFANTIL_ID,
+  confirmarAlertaAlanBiancaSeHouver,
   contarCultosEscaladosInfantilNoMes,
+  listarConflitosAlanBiancaNoTurno,
   mensagemLimiteInfantil,
   precisaConfirmarLimiteInfantil,
 } from "../utils/limiteEscalasInfantil";
@@ -690,6 +692,38 @@ export default function SidebarFiltros({
     setSalvando(false);
   };
 
+  const confirmarParAlanBiancaSeNecessario = async (funcaoEfetiva) => {
+    if (ministerioSelecionado !== MINISTERIO_INFANTIL_ID || !pedirConfirmacao) {
+      return true;
+    }
+
+    const datasObj = datasIds
+      .map((id) => datasDisponiveis.find((d) => d.id === id))
+      .filter(Boolean);
+
+    for (const nome of pessoasMarcadas) {
+      if (nome === "Disponível") continue;
+
+      const datasParaPessoa = datasObj.filter((d) =>
+        dataEscalavelParaPessoa(d, nome, funcaoEfetiva)
+      );
+      const conflitos = listarConflitosAlanBiancaNoTurno(
+        pessoaNomeFirestore(nome),
+        datasParaPessoa,
+        escalas,
+        funcaoEfetiva
+      );
+      const confirmou = await confirmarAlertaAlanBiancaSeHouver(
+        pedirConfirmacao,
+        nomeParaExibicao(nome),
+        conflitos
+      );
+      if (!confirmou) return false;
+    }
+
+    return true;
+  };
+
   const confirmarLimiteInfantilSeNecessario = async (funcaoEfetiva) => {
     if (
       ministerioSelecionado !== MINISTERIO_INFANTIL_ID ||
@@ -776,6 +810,7 @@ export default function SidebarFiltros({
       return;
     }
 
+    if (!(await confirmarParAlanBiancaSeNecessario(funcaoSelecionada))) return;
     if (!(await confirmarLimiteInfantilSeNecessario(funcaoSelecionada))) return;
 
     await confirmarEscalaComFuncao(funcaoSelecionada);
@@ -1544,6 +1579,7 @@ export default function SidebarFiltros({
                   disabled={salvando}
                   onClick={async () => {
                     setModalEscolhaFuncao({ aberto: false, opcoes: [] });
+                    if (!(await confirmarParAlanBiancaSeNecessario(fn))) return;
                     if (!(await confirmarLimiteInfantilSeNecessario(fn))) return;
                     await confirmarEscalaComFuncao(fn);
                   }}
